@@ -22,7 +22,7 @@ package com.starrocks.connector.spark.sql
 import scala.collection.JavaConverters._
 
 import com.starrocks.connector.spark.cfg.Settings
-import com.starrocks.connector.spark.exception.StarRocksException
+import com.starrocks.connector.spark.exception.StarrocksException
 import com.starrocks.connector.spark.rest.RestService
 import com.starrocks.connector.spark.rest.models.{Field, Schema}
 import com.starrocks.connector.thrift.TScanColumnDesc
@@ -35,7 +35,7 @@ private[spark] object SchemaUtils {
   private val logger = LoggerFactory.getLogger(SchemaUtils.getClass.getSimpleName.stripSuffix("$"))
 
   /**
-   * discover StarRocks table schema from StarRocks FE.
+   * discover Starrocks table schema from Starrocks FE.
    * @param cfg configuration
    * @return Spark Catalyst StructType
    */
@@ -45,7 +45,7 @@ private[spark] object SchemaUtils {
   }
 
   /**
-   * discover StarRocks table schema from StarRocks FE.
+   * discover Starrocks table schema from Starrocks FE.
    * @param cfg configuration
    * @return inner schema struct
    */
@@ -66,8 +66,8 @@ private[spark] object SchemaUtils {
   }
 
   /**
-   * translate StarRocks Type to Spark Catalyst type
-   * @param starrocksType StarRocks type
+   * translate Starrocks Type to Spark Catalyst type
+   * @param starrocksType Starrocks type
    * @param precision decimal precision
    * @param scale decimal scale
    * @return Spark Catalyst type
@@ -92,15 +92,15 @@ private[spark] object SchemaUtils {
       case "DECIMALV2"       => DecimalType(precision, scale)
       case "TIME"            => DataTypes.DoubleType
       case "HLL"             =>
-        throw new StarRocksException("Unsupported type " + starrocksType)
+        throw new StarrocksException("Unsupported type " + starrocksType)
       case _                 =>
-        throw new StarRocksException("Unrecognized StarRocks type " + starrocksType)
+        throw new StarrocksException("Unrecognized Starrocks type " + starrocksType)
     }
   }
 
   /**
-   * convert StarRocks return schema to inner schema struct.
-   * @param tscanColumnDescs StarRocks BE return schema
+   * convert Starrocks return schema to inner schema struct.
+   * @param tscanColumnDescs Starrocks BE return schema
    * @return inner schema struct
    */
   def convertToSchema(tscanColumnDescs: Seq[TScanColumnDesc]): Schema = {

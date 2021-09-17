@@ -28,24 +28,24 @@ import com.starrocks.connector.spark.rest.{PartitionDefinition, RestService}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, SparkContext}
 
-private[spark] abstract class AbstractStarRocksRDD[T: ClassTag](
+private[spark] abstract class AbstractStarrocksRDD[T: ClassTag](
     @transient private var sc: SparkContext,
     val params: Map[String, String] = Map.empty)
     extends RDD[T](sc, Nil) {
 
   override def getPartitions: Array[Partition] = {
     starrocksPartitions.zipWithIndex.map { case (starrocksPartition, idx) =>
-      new StarRocksPartition(id, idx, starrocksPartition)
+      new StarrocksPartition(id, idx, starrocksPartition)
     }.toArray
   }
 
   override def getPreferredLocations(split: Partition): Seq[String] = {
-    val starrocksSplit = split.asInstanceOf[StarRocksPartition]
+    val starrocksSplit = split.asInstanceOf[StarrocksPartition]
     Seq(starrocksSplit.starrocksPartition.getBeAddress)
   }
 
   override def checkpoint(): Unit = {
-    // Do nothing. StarRocks RDD should not be checkpointed.
+    // Do nothing. Starrocks RDD should not be checkpointed.
   }
 
   /**
@@ -61,7 +61,7 @@ private[spark] abstract class AbstractStarRocksRDD[T: ClassTag](
   }
 }
 
-private[spark] class StarRocksPartition(rddId: Int, idx: Int, val starrocksPartition: PartitionDefinition)
+private[spark] class StarrocksPartition(rddId: Int, idx: Int, val starrocksPartition: PartitionDefinition)
     extends Partition {
 
   override def hashCode(): Int = 31 * (31 * (31 + rddId) + idx) + starrocksPartition.hashCode()

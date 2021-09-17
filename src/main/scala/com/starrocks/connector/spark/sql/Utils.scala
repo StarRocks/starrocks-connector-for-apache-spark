@@ -20,7 +20,7 @@
 package com.starrocks.connector.spark.sql
 
 import com.starrocks.connector.spark.cfg.ConfigurationOptions
-import com.starrocks.connector.spark.exception.StarRocksException
+import com.starrocks.connector.spark.exception.StarrocksException
 
 import org.apache.spark.sql.jdbc.JdbcDialect
 import org.apache.spark.sql.sources._
@@ -36,11 +36,11 @@ private[sql] object Utils {
   def quote(colName: String): String = s"`$colName`"
 
   /**
-   * compile a filter to StarRocks FE filter format.
+   * compile a filter to Starrocks FE filter format.
    * @param filter filter to be compile
    * @param dialect jdbc dialect to translate value to sql format
    * @param inValueLengthLimit max length of in value array
-   * @return if StarRocks FE can handle this filter, return None if StarRocks FE can not handled it.
+   * @return if Starrocks FE can handle this filter, return None if Starrocks FE can not handled it.
    */
   def compileFilter(filter: Filter, dialect: JdbcDialect, inValueLengthLimit: Int): Option[String] = {
     Option(filter match {
@@ -94,25 +94,25 @@ private[sql] object Utils {
     // reuse credentials mask method in spark ExternalCatalogUtils#maskCredentials
     val processedParams = dottedParams.map {
       case (ConfigurationOptions.STARROCKS_PASSWORD, _) =>
-        logger.error(s"${ConfigurationOptions.STARROCKS_PASSWORD} cannot use in StarRocks Datasource.")
-        throw new StarRocksException(s"${ConfigurationOptions.STARROCKS_PASSWORD} cannot use in StarRocks Datasource," +
+        logger.error(s"${ConfigurationOptions.STARROCKS_PASSWORD} cannot use in Starrocks Datasource.")
+        throw new StarrocksException(s"${ConfigurationOptions.STARROCKS_PASSWORD} cannot use in Starrocks Datasource," +
           s" use 'password' option to set password.")
       case (ConfigurationOptions.STARROCKS_USER, _) =>
-        logger.error(s"${ConfigurationOptions.STARROCKS_USER} cannot use in StarRocks Datasource.")
-        throw new StarRocksException(s"${ConfigurationOptions.STARROCKS_USER} cannot use in StarRocks Datasource," +
+        logger.error(s"${ConfigurationOptions.STARROCKS_USER} cannot use in Starrocks Datasource.")
+        throw new StarrocksException(s"${ConfigurationOptions.STARROCKS_USER} cannot use in Starrocks Datasource," +
           s" use 'user' option to set user.")
       case (k, v) =>
         if (k.startsWith("starrocks.")) (k, v)
         else ("starrocks." + k, v)
     }.map{
       case (ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD, _) =>
-        logger.error(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD} cannot use in StarRocks Datasource.")
-        throw new StarRocksException(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD} cannot use in" +
-          s" StarRocks Datasource, use 'password' option to set password.")
+        logger.error(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD} cannot use in Starrocks Datasource.")
+        throw new StarrocksException(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD} cannot use in" +
+          s" Starrocks Datasource, use 'password' option to set password.")
       case (ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER, _) =>
-        logger.error(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER} cannot use in StarRocks Datasource.")
-        throw new StarRocksException(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER} cannot use in" +
-          s" StarRocks Datasource, use 'user' option to set user.")
+        logger.error(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER} cannot use in Starrocks Datasource.")
+        throw new StarrocksException(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER} cannot use in" +
+          s" Starrocks Datasource, use 'user' option to set user.")
       case (ConfigurationOptions.STARROCKS_PASSWORD, v) =>
         (ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD, v)
       case (ConfigurationOptions.STARROCKS_USER, v) =>
@@ -128,7 +128,7 @@ private[sql] object Utils {
 
     // validate path is available
     finalParams.getOrElse(ConfigurationOptions.STARROCKS_TABLE_IDENTIFIER,
-        throw new StarRocksException("table identifier must be specified for starrocks table identifier."))
+        throw new StarrocksException("table identifier must be specified for starrocks table identifier."))
 
     finalParams
   }

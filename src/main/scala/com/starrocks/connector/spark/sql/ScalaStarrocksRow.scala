@@ -23,7 +23,7 @@ import scala.collection.mutable.ArrayBuffer
 
 import org.apache.spark.sql.Row
 
-private[spark] class ScalaStarRocksRow(rowOrder: Seq[String]) extends Row {
+private[spark] class ScalaStarrocksRow(rowOrder: Seq[String]) extends Row {
    lazy val values: ArrayBuffer[Any] = ArrayBuffer.fill(rowOrder.size)(null)
 
   /** No-arg constructor for Kryo serialization. */

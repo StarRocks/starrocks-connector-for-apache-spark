@@ -30,7 +30,7 @@ import com.starrocks.connector.spark.util.ErrorMessages.SHOULD_NOT_HAPPEN_MESSAG
 
 import org.apache.spark.internal.Logging
 
-class ScalaStarRocksRowValueReader(
+class ScalaStarrocksRowValueReader(
   partition: PartitionDefinition,
   settings: Settings)
   extends ScalaValueReader(partition, settings) with Logging {
@@ -42,7 +42,7 @@ class ScalaStarRocksRowValueReader(
       logError(SHOULD_NOT_HAPPEN_MESSAGE)
       throw new ShouldNeverHappenException
     }
-    val row: ScalaStarRocksRow = new ScalaStarRocksRow(rowOrder)
+    val row: ScalaStarrocksRow = new ScalaStarrocksRow(rowOrder)
     rowBatch.next.asScala.zipWithIndex.foreach{
       case (s, index) if index < row.values.size => row.values.update(index, s)
       case _ => // nothing

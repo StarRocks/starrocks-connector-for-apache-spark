@@ -37,7 +37,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.starrocks.connector.spark.cfg.ConfigurationOptions;
 import com.starrocks.connector.spark.cfg.Settings;
 import com.starrocks.connector.spark.exception.ConnectedFailedException;
-import com.starrocks.connector.spark.exception.StarRocksException;
+import com.starrocks.connector.spark.exception.StarrocksException;
 import com.starrocks.connector.spark.exception.IllegalArgumentException;
 import com.starrocks.connector.spark.exception.ShouldNeverHappenException;
 import com.starrocks.connector.spark.rest.models.QueryPlan;
@@ -77,7 +77,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Service for communicate with StarRocks FE.
+ * Service for communicate with Starrocks FE.
  */
 public class RestService implements Serializable {
     public final static int REST_RESPONSE_STATUS_OK = 200;
@@ -86,13 +86,13 @@ public class RestService implements Serializable {
     private static final String QUERY_PLAN = "_query_plan";
 
     /**
-     * send request to StarRocks FE and get response json string.
+     * send request to Starrocks FE and get response json string.
      *
      * @param cfg     configuration of request
      * @param request {@link HttpRequestBase} real request
      * @param logger  {@link Logger}
-     * @return StarRocks FE response in json string
-     * @throws ConnectedFailedException throw when cannot connect to StarRocks FE
+     * @return Starrocks FE response in json string
+     * @throws ConnectedFailedException throw when cannot connect to Starrocks FE
      */
     private static String send(Settings cfg, HttpRequestBase request, Logger logger) throws
             ConnectedFailedException {
@@ -121,7 +121,7 @@ public class RestService implements Serializable {
                 new UsernamePasswordCredentials(user, password));
         HttpClientContext context = HttpClientContext.create();
         context.setCredentialsProvider(credentialsProvider);
-        logger.info("Send request to StarRocks FE '{}' with user '{}'.", request.getURI(), user);
+        logger.info("Send request to Starrocks FE '{}' with user '{}'.", request.getURI(), user);
 
         IOException ex = null;
         int statusCode = -1;
@@ -133,12 +133,12 @@ public class RestService implements Serializable {
                 CloseableHttpResponse response = httpClient.execute(request, context);
                 statusCode = response.getStatusLine().getStatusCode();
                 if (statusCode != HttpStatus.SC_OK) {
-                    logger.warn("Failed to get response from StarRocks FE {}, http code is {}",
+                    logger.warn("Failed to get response from Starrocks FE {}, http code is {}",
                             request.getURI(), statusCode);
                     continue;
                 }
                 String res = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
-                logger.trace("Success get response from StarRocks FE: {}, response is: {}.",
+                logger.trace("Success get response from Starrocks FE: {}, response is: {}.",
                         request.getURI(), res);
                 return res;
             } catch (IOException e) {
@@ -175,11 +175,11 @@ public class RestService implements Serializable {
     }
 
     /**
-     * choice a StarRocks FE node to request.
+     * choice a Starrocks FE node to request.
      *
-     * @param feNodes StarRocks FE node list, separate be comma
+     * @param feNodes Starrocks FE node list, separate be comma
      * @param logger  slf4j logger
-     * @return the chosen one StarRocks FE node
+     * @return the chosen one Starrocks FE node
      * @throws IllegalArgumentException fe nodes is illegal
      */
     @VisibleForTesting
@@ -195,7 +195,7 @@ public class RestService implements Serializable {
     }
 
     /**
-     * get a valid URI to connect StarRocks FE.
+     * get a valid URI to connect Starrocks FE.
      *
      * @param cfg    configuration of request
      * @param logger {@link Logger}
@@ -213,15 +213,15 @@ public class RestService implements Serializable {
     }
 
     /**
-     * discover StarRocks table schema from StarRocks FE.
+     * discover Starrocks table schema from Starrocks FE.
      *
      * @param cfg    configuration of request
      * @param logger slf4j logger
-     * @return StarRocks table schema
-     * @throws StarRocksException throw when discover failed
+     * @return Starrocks table schema
+     * @throws StarrocksException throw when discover failed
      */
     public static Schema getSchema(Settings cfg, Logger logger)
-            throws StarRocksException {
+            throws StarrocksException {
         logger.trace("Finding schema.");
         HttpGet httpGet = new HttpGet(getUriStr(cfg, logger) + SCHEMA);
         String response = send(cfg, httpGet, logger);
@@ -230,32 +230,32 @@ public class RestService implements Serializable {
     }
 
     /**
-     * translate StarRocks FE response to inner {@link Schema} struct.
+     * translate Starrocks FE response to inner {@link Schema} struct.
      *
-     * @param response StarRocks FE response
+     * @param response Starrocks FE response
      * @param logger   {@link Logger}
      * @return inner {@link Schema} struct
-     * @throws StarRocksException throw when translate failed
+     * @throws StarrocksException throw when translate failed
      */
     @VisibleForTesting
-    public static Schema parseSchema(String response, Logger logger) throws StarRocksException {
+    public static Schema parseSchema(String response, Logger logger) throws StarrocksException {
         logger.trace("Parse response '{}' to schema.", response);
         ObjectMapper mapper = new ObjectMapper();
         Schema schema;
         try {
             schema = mapper.readValue(response, Schema.class);
         } catch (JsonParseException e) {
-            String errMsg = "StarRocks FE's response is not a json. res: " + response;
+            String errMsg = "Starrocks FE's response is not a json. res: " + response;
             logger.error(errMsg, e);
-            throw new StarRocksException(errMsg, e);
+            throw new StarrocksException(errMsg, e);
         } catch (JsonMappingException e) {
-            String errMsg = "StarRocks FE's response cannot map to schema. res: " + response;
+            String errMsg = "Starrocks FE's response cannot map to schema. res: " + response;
             logger.error(errMsg, e);
-            throw new StarRocksException(errMsg, e);
+            throw new StarrocksException(errMsg, e);
         } catch (IOException e) {
-            String errMsg = "Parse StarRocks FE's response to json failed. res: " + response;
+            String errMsg = "Parse Starrocks FE's response to json failed. res: " + response;
             logger.error(errMsg, e);
-            throw new StarRocksException(errMsg, e);
+            throw new StarrocksException(errMsg, e);
         }
 
         if (schema == null) {
@@ -264,34 +264,34 @@ public class RestService implements Serializable {
         }
 
         if (schema.getStatus() != REST_RESPONSE_STATUS_OK) {
-            String errMsg = "StarRocks FE's response is not OK, status is " + schema.getStatus();
+            String errMsg = "Starrocks FE's response is not OK, status is " + schema.getStatus();
             logger.error(errMsg);
-            throw new StarRocksException(errMsg);
+            throw new StarrocksException(errMsg);
         }
         logger.debug("Parsing schema result is '{}'.", schema);
         return schema;
     }
 
     /**
-     * find StarRocks RDD partitions from StarRocks FE.
+     * find Starrocks RDD partitions from Starrocks FE.
      *
      * @param cfg    configuration of request
      * @param logger {@link Logger}
-     * @return an list of StarRocks RDD partitions
-     * @throws StarRocksException throw when find partition failed
+     * @return an list of Starrocks RDD partitions
+     * @throws StarrocksException throw when find partition failed
      */
-    public static List<PartitionDefinition> findPartitions(Settings cfg, Logger logger) throws StarRocksException {
+    public static List<PartitionDefinition> findPartitions(Settings cfg, Logger logger) throws StarrocksException {
         String[] tableIdentifiers = parseIdentifier(cfg.getProperty(STARROCKS_TABLE_IDENTIFIER), logger);
         String sql = "select " + cfg.getProperty(STARROCKS_READ_FIELD, "*") +
                 " from `" + tableIdentifiers[0] + "`.`" + tableIdentifiers[1] + "`";
         if (!StringUtils.isEmpty(cfg.getProperty(STARROCKS_FILTER_QUERY))) {
             sql += " where " + cfg.getProperty(STARROCKS_FILTER_QUERY);
         }
-        logger.debug("Query SQL Sending to StarRocks FE is: '{}'.", sql);
+        logger.debug("Query SQL Sending to Starrocks FE is: '{}'.", sql);
 
         HttpPost httpPost = new HttpPost(getUriStr(cfg, logger) + QUERY_PLAN);
         String entity = "{\"sql\": \"" + sql + "\"}";
-        logger.debug("Post body Sending to StarRocks FE is: '{}'.", entity);
+        logger.debug("Post body Sending to Starrocks FE is: '{}'.", entity);
         StringEntity stringEntity = new StringEntity(entity, StandardCharsets.UTF_8);
         stringEntity.setContentEncoding("UTF-8");
         stringEntity.setContentType("application/json");
@@ -311,31 +311,31 @@ public class RestService implements Serializable {
     }
 
     /**
-     * translate StarRocks FE response string to inner {@link QueryPlan} struct.
+     * translate Starrocks FE response string to inner {@link QueryPlan} struct.
      *
-     * @param response StarRocks FE response string
+     * @param response Starrocks FE response string
      * @param logger   {@link Logger}
      * @return inner {@link QueryPlan} struct
-     * @throws StarRocksException throw when translate failed.
+     * @throws StarrocksException throw when translate failed.
      */
     @VisibleForTesting
-    static QueryPlan getQueryPlan(String response, Logger logger) throws StarRocksException {
+    static QueryPlan getQueryPlan(String response, Logger logger) throws StarrocksException {
         ObjectMapper mapper = new ObjectMapper();
         QueryPlan queryPlan;
         try {
             queryPlan = mapper.readValue(response, QueryPlan.class);
         } catch (JsonParseException e) {
-            String errMsg = "StarRocks FE's response is not a json. res: " + response;
+            String errMsg = "Starrocks FE's response is not a json. res: " + response;
             logger.error(errMsg, e);
-            throw new StarRocksException(errMsg, e);
+            throw new StarrocksException(errMsg, e);
         } catch (JsonMappingException e) {
-            String errMsg = "StarRocks FE's response cannot map to schema. res: " + response;
+            String errMsg = "Starrocks FE's response cannot map to schema. res: " + response;
             logger.error(errMsg, e);
-            throw new StarRocksException(errMsg, e);
+            throw new StarrocksException(errMsg, e);
         } catch (IOException e) {
-            String errMsg = "Parse StarRocks FE's response to json failed. res: " + response;
+            String errMsg = "Parse Starrocks FE's response to json failed. res: " + response;
             logger.error(errMsg, e);
-            throw new StarRocksException(errMsg, e);
+            throw new StarrocksException(errMsg, e);
         }
 
         if (queryPlan == null) {
@@ -344,24 +344,24 @@ public class RestService implements Serializable {
         }
 
         if (queryPlan.getStatus() != REST_RESPONSE_STATUS_OK) {
-            String errMsg = "StarRocks FE's response is not OK, status is " + queryPlan.getStatus();
+            String errMsg = "Starrocks FE's response is not OK, status is " + queryPlan.getStatus();
             logger.error(errMsg);
-            throw new StarRocksException(errMsg);
+            throw new StarrocksException(errMsg);
         }
         logger.debug("Parsing partition result is '{}'.", queryPlan);
         return queryPlan;
     }
 
     /**
-     * select which StarRocks BE to get tablet data.
+     * select which Starrocks BE to get tablet data.
      *
-     * @param queryPlan {@link QueryPlan} translated from StarRocks FE response
+     * @param queryPlan {@link QueryPlan} translated from Starrocks FE response
      * @param logger    {@link Logger}
      * @return BE to tablets {@link Map}
-     * @throws StarRocksException throw when select failed.
+     * @throws StarrocksException throw when select failed.
      */
     @VisibleForTesting
-    static Map<String, List<Long>> selectBeForTablet(QueryPlan queryPlan, Logger logger) throws StarRocksException {
+    static Map<String, List<Long>> selectBeForTablet(QueryPlan queryPlan, Logger logger) throws StarrocksException {
         Map<String, List<Long>> be2Tablets = new HashMap<>();
         for (Map.Entry<String, Tablet> part : queryPlan.getPartitions().entrySet()) {
             logger.debug("Parse tablet info: '{}'.", part);
@@ -371,14 +371,14 @@ public class RestService implements Serializable {
             } catch (NumberFormatException e) {
                 String errMsg = "Parse tablet id '" + part.getKey() + "' to long failed.";
                 logger.error(errMsg, e);
-                throw new StarRocksException(errMsg, e);
+                throw new StarrocksException(errMsg, e);
             }
             String target = null;
             int tabletCount = Integer.MAX_VALUE;
             for (String candidate : part.getValue().getRoutings()) {
-                logger.trace("Evaluate StarRocks BE '{}' to tablet '{}'.", candidate, tabletId);
+                logger.trace("Evaluate Starrocks BE '{}' to tablet '{}'.", candidate, tabletId);
                 if (!be2Tablets.containsKey(candidate)) {
-                    logger.debug("Choice a new StarRocks BE '{}' for tablet '{}'.", candidate, tabletId);
+                    logger.debug("Choice a new Starrocks BE '{}' for tablet '{}'.", candidate, tabletId);
                     List<Long> tablets = new ArrayList<>();
                     be2Tablets.put(candidate, tablets);
                     target = candidate;
@@ -387,25 +387,25 @@ public class RestService implements Serializable {
                     if (be2Tablets.get(candidate).size() < tabletCount) {
                         target = candidate;
                         tabletCount = be2Tablets.get(candidate).size();
-                        logger.debug("Current candidate StarRocks BE to tablet '{}' is '{}' with tablet count {}.",
+                        logger.debug("Current candidate Starrocks BE to tablet '{}' is '{}' with tablet count {}.",
                                 tabletId, target, tabletCount);
                     }
                 }
             }
             if (target == null) {
-                String errMsg = "Cannot choice StarRocks BE for tablet " + tabletId;
+                String errMsg = "Cannot choice Starrocks BE for tablet " + tabletId;
                 logger.error(errMsg);
-                throw new StarRocksException(errMsg);
+                throw new StarrocksException(errMsg);
             }
 
-            logger.debug("Choice StarRocks BE '{}' for tablet '{}'.", target, tabletId);
+            logger.debug("Choice Starrocks BE '{}' for tablet '{}'.", target, tabletId);
             be2Tablets.get(target).add(tabletId);
         }
         return be2Tablets;
     }
 
     /**
-     * tablet count limit for one StarRocks RDD partition
+     * tablet count limit for one Starrocks RDD partition
      *
      * @param cfg    configuration of request
      * @param logger {@link Logger}
@@ -431,15 +431,15 @@ public class RestService implements Serializable {
     }
 
     /**
-     * translate BE tablets map to StarRocks RDD partition.
+     * translate BE tablets map to Starrocks RDD partition.
      *
      * @param cfg              configuration of request
      * @param be2Tablets       BE to tablets {@link Map}
-     * @param opaquedQueryPlan StarRocks BE execute plan getting from StarRocks FE
-     * @param database         database name of StarRocks table
-     * @param table            table name of StarRocks table
+     * @param opaquedQueryPlan Starrocks BE execute plan getting from Starrocks FE
+     * @param database         database name of Starrocks table
+     * @param table            table name of Starrocks table
      * @param logger           {@link Logger}
-     * @return StarRocks RDD partition {@link List}
+     * @return Starrocks RDD partition {@link List}
      * @throws IllegalArgumentException throw when translate failed
      */
     @VisibleForTesting

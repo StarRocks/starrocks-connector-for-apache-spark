@@ -23,9 +23,9 @@ import com.starrocks.connector.thrift.TStatusCode;
 
 import java.util.List;
 
-public class StarRocksInternalException extends StarRocksException {
-    public StarRocksInternalException(String server, TStatusCode statusCode, List<String> errorMsgs) {
-        super("StarRocks server " + server + " internal failed, status code [" + statusCode + "] error message is " +
+public class StarrocksInternalException extends StarrocksException {
+    public StarrocksInternalException(String server, TStatusCode statusCode, List<String> errorMsgs) {
+        super("Starrocks server " + server + " internal failed, status code [" + statusCode + "] error message is " +
                 errorMsgs);
     }
 

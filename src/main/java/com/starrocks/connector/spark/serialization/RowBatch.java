@@ -20,7 +20,7 @@
 package com.starrocks.connector.spark.serialization;
 
 import com.google.common.base.Preconditions;
-import com.starrocks.connector.spark.exception.StarRocksException;
+import com.starrocks.connector.spark.exception.StarrocksException;
 import com.starrocks.connector.spark.rest.models.Schema;
 import com.starrocks.connector.thrift.TScanBatchResult;
 import org.apache.arrow.memory.RootAllocator;
@@ -82,7 +82,7 @@ public class RowBatch {
     private RootAllocator rootAllocator;
     private final Schema schema;
 
-    public RowBatch(TScanBatchResult nextResult, Schema schema) throws StarRocksException {
+    public RowBatch(TScanBatchResult nextResult, Schema schema) throws StarrocksException {
         this.schema = schema;
         this.rootAllocator = new RootAllocator(Integer.MAX_VALUE);
         this.arrowStreamReader = new ArrowStreamReader(
@@ -97,7 +97,7 @@ public class RowBatch {
                 if (fieldVectors.size() != schema.size()) {
                     logger.error("Schema size '{}' is not equal to arrow field size '{}'.",
                             fieldVectors.size(), schema.size());
-                    throw new StarRocksException("Load StarRocks data failed, schema size of fetch data is wrong.");
+                    throw new StarrocksException("Load Starrocks data failed, schema size of fetch data is wrong.");
                 }
                 if (fieldVectors.size() == 0 || root.getRowCount() == 0) {
                     logger.debug("One batch in arrow has no data.");
@@ -112,8 +112,8 @@ public class RowBatch {
                 readRowCount += root.getRowCount();
             }
         } catch (Exception e) {
-            logger.error("Read StarRocks Data failed because: ", e);
-            throw new StarRocksException(e.getMessage());
+            logger.error("Read Starrocks Data failed because: ", e);
+            throw new StarrocksException(e.getMessage());
         } finally {
             close();
         }
@@ -136,7 +136,7 @@ public class RowBatch {
         rowBatch.get(readRowCount + rowIndex).put(obj);
     }
 
-    public void convertArrowToRowBatch() throws StarRocksException {
+    public void convertArrowToRowBatch() throws StarrocksException {
         try {
             for (int col = 0; col < fieldVectors.size(); col++) {
                 FieldVector curFieldVector = fieldVectors.get(col);
@@ -238,7 +238,7 @@ public class RowBatch {
                             } catch (NumberFormatException e) {
                                 String errMsg = "Decimal response result '" + decimalValue + "' is illegal.";
                                 logger.error(errMsg, e);
-                                throw new StarRocksException(errMsg);
+                                throw new StarrocksException(errMsg);
                             }
                             addValueToRow(rowIndex, decimal);
                         }
@@ -276,7 +276,7 @@ public class RowBatch {
                     default:
                         String errMsg = "Unsupported type " + schema.get(col).getType();
                         logger.error(errMsg);
-                        throw new StarRocksException(errMsg);
+                        throw new StarrocksException(errMsg);
                 }
             }
         } catch (Exception e) {
@@ -285,7 +285,7 @@ public class RowBatch {
         }
     }
 
-    public List<Object> next() throws StarRocksException {
+    public List<Object> next() throws StarrocksException {
         if (!hasNext()) {
             String errMsg = "Get row offset:" + offsetInRowBatch + " larger than row size: " + readRowCount;
             logger.error(errMsg);

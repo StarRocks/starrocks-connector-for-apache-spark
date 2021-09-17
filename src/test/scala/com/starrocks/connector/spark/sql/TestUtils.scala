@@ -20,7 +20,7 @@
 package com.starrocks.connector.spark.sql
 
 import com.starrocks.connector.spark.cfg.ConfigurationOptions
-import com.starrocks.connector.spark.exception.StarRocksException
+import com.starrocks.connector.spark.exception.StarrocksException
 import org.apache.spark.sql.jdbc.JdbcDialects
 import org.apache.spark.sql.sources._
 import org.hamcrest.core.StringStartsWith.startsWith
@@ -93,30 +93,30 @@ class TestUtils extends ExpectedExceptionTest {
     val parameters3 = Map(
       ConfigurationOptions.STARROCKS_PASSWORD -> "a.b"
     )
-    thrown.expect(classOf[StarRocksException])
-    thrown.expectMessage(startsWith(s"${ConfigurationOptions.STARROCKS_PASSWORD} cannot use in StarRocks Datasource,"))
+    thrown.expect(classOf[StarrocksException])
+    thrown.expectMessage(startsWith(s"${ConfigurationOptions.STARROCKS_PASSWORD} cannot use in Starrocks Datasource,"))
     Utils.params(parameters3, logger)
 
     val parameters4 = Map(
       ConfigurationOptions.STARROCKS_USER -> "a.b"
     )
-    thrown.expect(classOf[StarRocksException])
-    thrown.expectMessage(startsWith(s"${ConfigurationOptions.STARROCKS_USER} cannot use in StarRocks Datasource,"))
+    thrown.expect(classOf[StarrocksException])
+    thrown.expectMessage(startsWith(s"${ConfigurationOptions.STARROCKS_USER} cannot use in Starrocks Datasource,"))
     Utils.params(parameters4, logger)
 
     val parameters5 = Map(
       ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD -> "a.b"
     )
-    thrown.expect(classOf[StarRocksException])
+    thrown.expect(classOf[StarrocksException])
     thrown.expectMessage(
-      startsWith(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD} cannot use in StarRocks Datasource,"))
+      startsWith(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD} cannot use in Starrocks Datasource,"))
     Utils.params(parameters5, logger)
 
     val parameters6 = Map(
       ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER -> "a.b"
     )
-    thrown.expect(classOf[StarRocksException])
-    thrown.expectMessage(startsWith(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER} cannot use in StarRocks Datasource,"))
+    thrown.expect(classOf[StarrocksException])
+    thrown.expectMessage(startsWith(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER} cannot use in Starrocks Datasource,"))
     Utils.params(parameters6, logger)
   }
 }

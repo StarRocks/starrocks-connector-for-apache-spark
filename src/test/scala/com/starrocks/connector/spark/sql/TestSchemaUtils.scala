@@ -19,7 +19,7 @@
 
 package com.starrocks.connector.spark.sql
 
-import com.starrocks.connector.spark.exception.StarRocksException
+import com.starrocks.connector.spark.exception.StarrocksException
 import com.starrocks.connector.spark.rest.models.{Field, Schema}
 import com.starrocks.connector.thrift.{TPrimitiveType, TScanColumnDesc}
 import org.apache.spark.sql.types._
@@ -65,12 +65,12 @@ class TestSchemaUtils extends ExpectedExceptionTest {
     Assert.assertEquals(DecimalType(10, 5), SchemaUtils.getCatalystType("DECIMALV2", 10, 5))
     Assert.assertEquals(DataTypes.DoubleType, SchemaUtils.getCatalystType("TIME", 0, 0))
 
-    thrown.expect(classOf[StarRocksException])
+    thrown.expect(classOf[StarrocksException])
     thrown.expectMessage(startsWith("Unsupported type"))
     SchemaUtils.getCatalystType("HLL", 0, 0)
 
-    thrown.expect(classOf[StarRocksException])
-    thrown.expectMessage(startsWith("Unrecognized StarRocks type"))
+    thrown.expect(classOf[StarrocksException])
+    thrown.expectMessage(startsWith("Unrecognized Starrocks type"))
     SchemaUtils.getCatalystType("UNRECOGNIZED", 0, 0)
   }
 

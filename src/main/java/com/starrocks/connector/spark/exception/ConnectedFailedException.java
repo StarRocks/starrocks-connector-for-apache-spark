@@ -19,7 +19,7 @@
 
 package com.starrocks.connector.spark.exception;
 
-public class ConnectedFailedException extends StarRocksException {
+public class ConnectedFailedException extends StarrocksException {
     public ConnectedFailedException(String server, Throwable cause) {
         super("Connect to " + server + "failed.", cause);
     }

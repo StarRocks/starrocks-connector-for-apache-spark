@@ -27,14 +27,14 @@ import org.apache.spark.util.TaskCompletionListener
 import org.apache.spark.internal.Logging
 import org.apache.spark.{TaskContext, TaskKilledException}
 
-private[spark] abstract class AbstractStarRocksRDDIterator[T](
+private[spark] abstract class AbstractStarrocksRDDIterator[T](
     context: TaskContext,
     partition: PartitionDefinition) extends Iterator[T] with Logging {
 
   private var initialized = false
   private var closed = false
 
-  // the reader obtain data from StarRocks BE
+  // the reader obtain data from Starrocks BE
   lazy val reader = {
     initialized = true
     val settings = partition.settings()
@@ -67,7 +67,7 @@ private[spark] abstract class AbstractStarRocksRDDIterator[T](
   }
 
   def closeIfNeeded(): Unit = {
-    logTrace(s"Close status is '$closed' when close StarRocks RDD Iterator")
+    logTrace(s"Close status is '$closed' when close Starrocks RDD Iterator")
     if (!closed) {
       close()
       closed = true
@@ -75,7 +75,7 @@ private[spark] abstract class AbstractStarRocksRDDIterator[T](
   }
 
   protected def close(): Unit = {
-    logTrace(s"Initialize status is '$initialized' when close StarRocks RDD Iterator")
+    logTrace(s"Initialize status is '$initialized' when close Starrocks RDD Iterator")
     if (initialized) {
       reader.close()
     }

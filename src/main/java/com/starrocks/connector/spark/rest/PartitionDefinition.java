@@ -30,7 +30,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * StarRocks RDD partition info.
+ * Starrocks RDD partition info.
  */
 public class PartitionDefinition implements Serializable, Comparable<PartitionDefinition> {
     private final String database;

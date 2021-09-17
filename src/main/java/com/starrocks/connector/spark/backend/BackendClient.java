@@ -21,12 +21,12 @@ package com.starrocks.connector.spark.backend;
 
 import com.starrocks.connector.spark.cfg.ConfigurationOptions;
 import com.starrocks.connector.spark.exception.ConnectedFailedException;
-import com.starrocks.connector.spark.exception.StarRocksException;
-import com.starrocks.connector.spark.exception.StarRocksInternalException;
+import com.starrocks.connector.spark.exception.StarrocksException;
+import com.starrocks.connector.spark.exception.StarrocksInternalException;
 import com.starrocks.connector.spark.util.ErrorMessages;
 import com.starrocks.connector.spark.cfg.Settings;
 import com.starrocks.connector.spark.serialization.Routing;
-import com.starrocks.connector.thrift.TStarRocksExternalService;
+import com.starrocks.connector.thrift.TStarrocksExternalService;
 import com.starrocks.connector.thrift.TScanBatchResult;
 import com.starrocks.connector.thrift.TScanCloseParams;
 import com.starrocks.connector.thrift.TScanCloseResult;
@@ -44,14 +44,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Client to request StarRocks BE
+ * Client to request Starrocks BE
  */
 public class BackendClient {
     private static Logger logger = LoggerFactory.getLogger(BackendClient.class);
 
     private Routing routing;
 
-    private TStarRocksExternalService.Client client;
+    private TStarrocksExternalService.Client client;
     private TTransport transport;
 
     private boolean isConnected = false;
@@ -73,14 +73,14 @@ public class BackendClient {
     }
 
     private void open() throws ConnectedFailedException {
-        logger.debug("Open client to StarRocks BE '{}'.", routing);
+        logger.debug("Open client to Starrocks BE '{}'.", routing);
         TException ex = null;
         for (int attempt = 0; !isConnected && attempt < retries; ++attempt) {
             logger.debug("Attempt {} to connect {}.", attempt, routing);
             TBinaryProtocol.Factory factory = new TBinaryProtocol.Factory();
             transport = new TSocket(routing.getHost(), routing.getPort(), socketTimeout, connectTimeout);
             TProtocol protocol = factory.getProtocol(transport);
-            client = new TStarRocksExternalService.Client(protocol);
+            client = new TStarrocksExternalService.Client(protocol);
             try {
                 logger.trace("Connect status before open transport to {} is '{}'.", routing, isConnected);
                 if (!transport.isOpen()) {
@@ -115,11 +115,11 @@ public class BackendClient {
     }
 
     /**
-     * Open a scanner for reading StarRocks data.
+     * Open a scanner for reading Starrocks data.
      *
      * @param openParams thrift struct to required by request
      * @return scan open result
-     * @throws ConnectedFailedException throw if cannot connect to StarRocks BE
+     * @throws ConnectedFailedException throw if cannot connect to Starrocks BE
      */
     public TScanOpenResult openScanner(TScanOpenParams openParams) throws ConnectedFailedException {
         logger.debug("OpenScanner to '{}', parameter is '{}'.", routing, openParams);
@@ -151,13 +151,13 @@ public class BackendClient {
     }
 
     /**
-     * get next row batch from StarRocks BE
+     * get next row batch from Starrocks BE
      *
      * @param nextBatchParams thrift struct to required by request
      * @return scan batch result
-     * @throws ConnectedFailedException throw if cannot connect to StarRocks BE
+     * @throws ConnectedFailedException throw if cannot connect to Starrocks BE
      */
-    public TScanBatchResult getNext(TScanNextBatchParams nextBatchParams) throws StarRocksException {
+    public TScanBatchResult getNext(TScanNextBatchParams nextBatchParams) throws StarrocksException {
         logger.debug("GetNext to '{}', parameter is '{}'.", routing, nextBatchParams);
         if (!isConnected) {
             open();
@@ -186,7 +186,7 @@ public class BackendClient {
         if (result != null && (TStatusCode.OK != (result.getStatus().getStatus_code()))) {
             logger.error(ErrorMessages.STARROCKS_INTERNAL_FAIL_MESSAGE, routing, result.getStatus().getStatus_code(),
                     result.getStatus().getError_msgs());
-            throw new StarRocksInternalException(routing.toString(), result.getStatus().getStatus_code(),
+            throw new StarrocksInternalException(routing.toString(), result.getStatus().getStatus_code(),
                     result.getStatus().getError_msgs());
         }
         logger.error(ErrorMessages.CONNECT_FAILED_MESSAGE, routing);
@@ -204,7 +204,7 @@ public class BackendClient {
             try {
                 open();
             } catch (ConnectedFailedException e) {
-                logger.warn("Cannot connect to StarRocks BE {} when close scanner.", routing);
+                logger.warn("Cannot connect to Starrocks BE {} when close scanner.", routing);
                 return;
             }
         }
@@ -226,7 +226,7 @@ public class BackendClient {
                 logger.warn("Close scanner from {} failed.", routing, e);
             }
         }
-        logger.info("CloseScanner to StarRocks BE '{}' success.", routing);
+        logger.info("CloseScanner to Starrocks BE '{}' success.", routing);
         close();
     }
 }

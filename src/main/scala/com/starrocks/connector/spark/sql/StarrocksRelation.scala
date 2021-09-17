@@ -33,7 +33,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{Row, SQLContext}
 
 
-private[sql] class StarRocksRelation(
+private[sql] class StarrocksRelation(
     val sqlContext: SQLContext, parameters: Map[String, String])
     extends BaseRelation with TableScan with PrunedScan with PrunedFilteredScan {
 
@@ -67,7 +67,7 @@ private[sql] class StarRocksRelation(
   override def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
     val paramWithScan = mutable.LinkedHashMap[String, String]() ++ parameters
 
-    // filter where clause can be handled by StarRocks BE
+    // filter where clause can be handled by Starrocks BE
     val filterWhereClause: String = {
       filters.flatMap(Utils.compileFilter(_, dialect, inValueLengthLimit))
           .map(filter => s"($filter)").mkString(" and ")
@@ -86,6 +86,6 @@ private[sql] class StarRocksRelation(
       paramWithScan += (ConfigurationOptions.STARROCKS_FILTER_QUERY -> filterWhereClause)
     }
 
-    new ScalaStarRocksRowRDD(sqlContext.sparkContext, paramWithScan.toMap, lazySchema)
+    new ScalaStarrocksRowRDD(sqlContext.sparkContext, paramWithScan.toMap, lazySchema)
   }
 }

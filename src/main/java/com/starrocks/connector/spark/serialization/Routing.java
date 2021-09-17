@@ -26,7 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * present an StarRocks BE address.
+ * present an Starrocks BE address.
  */
 public class Routing {
     private static Logger logger = LoggerFactory.getLogger(Routing.class);
@@ -39,18 +39,18 @@ public class Routing {
     }
 
     private void parseRouting(String routing) throws IllegalArgumentException {
-        logger.debug("Parse StarRocks BE address: '{}'.", routing);
+        logger.debug("Parse Starrocks BE address: '{}'.", routing);
         String[] hostPort = routing.split(":");
         if (hostPort.length != 2) {
-            logger.error("Format of StarRocks BE address '{}' is illegal.", routing);
-            throw new IllegalArgumentException("StarRocks BE", routing);
+            logger.error("Format of Starrocks BE address '{}' is illegal.", routing);
+            throw new IllegalArgumentException("Starrocks BE", routing);
         }
         this.host = hostPort[0];
         try {
             this.port = Integer.parseInt(hostPort[1]);
         } catch (NumberFormatException e) {
-            logger.error(PARSE_NUMBER_FAILED_MESSAGE, "StarRocks BE's port", hostPort[1]);
-            throw new IllegalArgumentException("StarRocks BE", routing);
+            logger.error(PARSE_NUMBER_FAILED_MESSAGE, "Starrocks BE's port", hostPort[1]);
+            throw new IllegalArgumentException("Starrocks BE", routing);
         }
     }
 
@@ -64,7 +64,7 @@ public class Routing {
 
     @Override
     public String toString() {
-        return "StarRocks BE{" +
+        return "Starrocks BE{" +
                 "host='" + host + '\'' +
                 ", port=" + port +
                 '}';

@@ -19,24 +19,24 @@
 
 package com.starrocks.connector.spark.exception;
 
-public class StarRocksException extends Exception {
-    public StarRocksException() {
+public class StarrocksException extends Exception {
+    public StarrocksException() {
         super();
     }
 
-    public StarRocksException(String message) {
+    public StarrocksException(String message) {
         super(message);
     }
 
-    public StarRocksException(String message, Throwable cause) {
+    public StarrocksException(String message, Throwable cause) {
         super(message, cause);
     }
 
-    public StarRocksException(Throwable cause) {
+    public StarrocksException(Throwable cause) {
         super(cause);
     }
 
-    protected StarRocksException(String message, Throwable cause,
+    protected StarrocksException(String message, Throwable cause,
                                  boolean enableSuppression,
                                  boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);

@@ -17,39 +17,35 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.starrocks.connector.spark.sql
+package com.starrocks.connector.spark.rdd
+
+import scala.reflect.ClassTag
 
 import com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_VALUE_READER_CLASS
 import com.starrocks.connector.spark.cfg.Settings
-import com.starrocks.connector.spark.rdd.{AbstractStarRocksRDD, AbstractStarRocksRDDIterator, StarRocksPartition}
 import com.starrocks.connector.spark.rest.PartitionDefinition
 
 import org.apache.spark.{Partition, SparkContext, TaskContext}
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.types.StructType
 
-private[spark] class ScalaStarRocksRowRDD(
-  sc: SparkContext,
-  params: Map[String, String] = Map.empty,
-  struct: StructType)
-  extends AbstractStarRocksRDD[Row](sc, params) {
-
-  override def compute(split: Partition, context: TaskContext): ScalaStarRocksRowRDDIterator = {
-    new ScalaStarRocksRowRDDIterator(context, split.asInstanceOf[StarRocksPartition].starrocksPartition, struct)
+private[spark] class ScalaStarrocksRDD[T: ClassTag](
+    sc: SparkContext,
+    params: Map[String, String] = Map.empty)
+    extends AbstractStarrocksRDD[T](sc, params) {
+  override def compute(split: Partition, context: TaskContext): ScalaStarrocksRDDIterator[T] = {
+    new ScalaStarrocksRDDIterator(context, split.asInstanceOf[StarrocksPartition].starrocksPartition)
   }
 }
 
-private[spark] class ScalaStarRocksRowRDDIterator(
-  context: TaskContext,
-  partition: PartitionDefinition,
-  struct: StructType)
-  extends AbstractStarRocksRDDIterator[Row](context, partition) {
+private[spark] class ScalaStarrocksRDDIterator[T](
+    context: TaskContext,
+    partition: PartitionDefinition)
+    extends AbstractStarrocksRDDIterator[T](context, partition) {
 
   override def initReader(settings: Settings) = {
-    settings.setProperty(STARROCKS_VALUE_READER_CLASS, classOf[ScalaStarRocksRowValueReader].getName)
+    settings.setProperty(STARROCKS_VALUE_READER_CLASS, classOf[ScalaValueReader].getName)
   }
 
-  override def createValue(value: Object): Row = {
-    value.asInstanceOf[ScalaStarRocksRow]
+  override def createValue(value: Object): T = {
+    value.asInstanceOf[T]
   }
 }

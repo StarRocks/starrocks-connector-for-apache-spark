@@ -40,8 +40,8 @@ import org.apache.log4j.Logger
 import scala.util.control.Breaks
 
 /**
- * read data from StarRocks BE to array.
- * @param partition StarRocks RDD partition
+ * read data from Starrocks BE to array.
+ * @param partition Starrocks RDD partition
  * @param settings request configuration
  */
 class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
@@ -91,7 +91,7 @@ class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
         STARROCKS_BATCH_SIZE_DEFAULT
     }
 
-    val queryStarRocksTimeout = Try {
+    val queryStarrocksTimeout = Try {
       settings.getProperty(STARROCKS_REQUEST_QUERY_TIMEOUT_S, STARROCKS_REQUEST_QUERY_TIMEOUT_S_DEFAULT.toString).toInt
     } getOrElse {
       logger.warn(ErrorMessages.PARSE_NUMBER_FAILED_MESSAGE, STARROCKS_REQUEST_QUERY_TIMEOUT_S, settings.getProperty(STARROCKS_REQUEST_QUERY_TIMEOUT_S))
@@ -106,7 +106,7 @@ class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
     }
 
     params.setBatch_size(batchSize)
-    params.setQuery_timeout(queryStarRocksTimeout)
+    params.setQuery_timeout(queryStarrocksTimeout)
     params.setMem_limit(execMemLimit)
     params.setUser(settings.getProperty(STARROCKS_REQUEST_AUTH_USER, ""))
     params.setPasswd(settings.getProperty(STARROCKS_REQUEST_AUTH_PASSWORD, ""))
@@ -117,7 +117,7 @@ class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
         s"table: ${params.getTable}, " +
         s"tabletId: ${params.getTablet_ids}, " +
         s"batch size: $batchSize, " +
-        s"query timeout: $queryStarRocksTimeout, " +
+        s"query timeout: $queryStarrocksTimeout, " +
         s"execution memory limit: $execMemLimit, " +
         s"user: ${params.getUser}, " +
         s"query plan: ${params.opaqued_query_plan}")
