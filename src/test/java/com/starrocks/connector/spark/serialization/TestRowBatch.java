@@ -442,4 +442,69 @@ public class TestRowBatch {
         thrown.expectMessage(startsWith("Get row offset:"));
         rowBatch.next();
     }
+
+    @Test
+    public void testFastDecimal() throws Exception {
+        // DECIMAL64
+        ImmutableList.Builder<Field> childrenBuilder = ImmutableList.builder();
+        childrenBuilder.add(new Field("k8", FieldType.nullable(new ArrowType.Decimal(17, 6)), null));
+
+        VectorSchemaRoot root = VectorSchemaRoot.create(
+                new org.apache.arrow.vector.types.pojo.Schema(childrenBuilder.build(), null),
+                new RootAllocator(Integer.MAX_VALUE));
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ArrowStreamWriter arrowStreamWriter = new ArrowStreamWriter(
+                root,
+                new DictionaryProvider.MapDictionaryProvider(),
+                outputStream);
+
+        arrowStreamWriter.start();
+        root.setRowCount(3);
+
+        FieldVector vector = root.getVector("k8");
+        DecimalVector decimalVector = (DecimalVector) vector;
+        decimalVector.setInitialCapacity(3);
+        decimalVector.allocateNew(3);
+        decimalVector.setSafe(0, new BigDecimal("12.340000"));
+        decimalVector.setSafe(1, new BigDecimal("88.880000"));
+        decimalVector.setSafe(2, new BigDecimal("10.000000"));
+        vector.setValueCount(3);
+
+        arrowStreamWriter.writeBatch();
+
+        arrowStreamWriter.end();
+        arrowStreamWriter.close();
+
+        TStatus status = new TStatus();
+        status.setStatus_code(TStatusCode.OK);
+        TScanBatchResult scanBatchResult = new TScanBatchResult();
+        scanBatchResult.setStatus(status);
+        scanBatchResult.setEos(false);
+        scanBatchResult.setRows(outputStream.toByteArray());
+
+        String schemaStr = "{\"properties\":[{\"type\":\"DECIMAL64\",\"scale\": 6,"
+                + "\"precision\": 17, \"name\":\"k8\",\"comment\":\"\"}], "
+                + "\"status\":200}";
+
+        Schema schema = RestService.parseSchema(schemaStr, logger);
+
+        RowBatch rowBatch = new RowBatch(scanBatchResult, schema);
+
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow0 = rowBatch.next();
+        Assert.assertEquals(Decimal.apply(12340000L, 17, 6), (Decimal) actualRow0.get(0));
+
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow1 = rowBatch.next();
+        Assert.assertEquals(Decimal.apply(88880000L, 17, 6), (Decimal) actualRow1.get(0));
+
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow2 = rowBatch.next();
+        Assert.assertEquals(Decimal.apply(10000000L, 17, 6), (Decimal) actualRow2.get(0));
+
+        Assert.assertFalse(rowBatch.hasNext());
+        thrown.expect(NoSuchElementException.class);
+        thrown.expectMessage(startsWith("Get row offset:"));
+        rowBatch.next();
+    }
 }

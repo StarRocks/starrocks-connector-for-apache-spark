@@ -90,11 +90,14 @@ private[spark] object SchemaUtils {
       case "LARGEINT"        => DataTypes.StringType
       case "VARCHAR"         => DataTypes.StringType
       case "DECIMALV2"       => DecimalType(precision, scale)
+      case "DECIMAL32"       => DecimalType(precision, scale)
+      case "DECIMAL64"       => DecimalType(precision, scale)
+      case "DECIMAL128"      => DecimalType(precision, scale)
       case "TIME"            => DataTypes.DoubleType
       case "HLL"             =>
         throw new StarrocksException("Unsupported type " + starrocksType)
       case _                 =>
-        throw new StarrocksException("Unrecognized Starrocks type " + starrocksType)
+        throw new StarrocksException("Unrecognized StarRocks type " + starrocksType)
     }
   }
 

@@ -119,13 +119,16 @@ public class TestRestService {
     @Test
     public void testFeResponseToSchema() throws Exception {
         String res = "{\"properties\":[{\"type\":\"TINYINT\",\"name\":\"k1\",\"comment\":\"\"},{\"name\":\"k5\","
-                + "\"scale\":\"0\",\"comment\":\"\",\"type\":\"DECIMALV2\",\"precision\":\"9\"}],\"status\":200}";
+                + "\"scale\":\"0\",\"comment\":\"\",\"type\":\"DECIMALV2\",\"precision\":\"9\"},{\"name\":\"k6\","
+                + "\"scale\":\"9\",\"comment\":\"\",\"type\":\"DECIMAL128\",\"precision\":\"30\"}],\"status\":200}";
         Schema expected = new Schema();
         expected.setStatus(200);
         Field k1 = new Field("k1", "TINYINT", "", 0, 0);
         Field k5 = new Field("k5", "DECIMALV2", "", 9, 0);
+        Field k6 = new Field("k6", "DECIMAL128", "", 30, 9);
         expected.put(k1);
         expected.put(k5);
+        expected.put(k6);
         Assert.assertEquals(expected, RestService.parseSchema(res, logger));
 
         String notJsonRes = "not json";

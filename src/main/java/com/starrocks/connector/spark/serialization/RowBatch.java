@@ -244,6 +244,9 @@ public class RowBatch {
                         }
                         break;
                     case "DECIMALV2":
+                    case "DECIMAL32":
+                    case "DECIMAL64":
+                    case "DECIMAL128":
                         Preconditions.checkArgument(mt.equals(Types.MinorType.DECIMAL),
                                 typeMismatchMessage(currentType, mt));
                         DecimalVector decimalVector = (DecimalVector) curFieldVector;
@@ -252,8 +255,8 @@ public class RowBatch {
                                 addValueToRow(rowIndex, null);
                                 continue;
                             }
-                            Decimal decimalV2 = Decimal.apply(decimalVector.getObject(rowIndex));
-                            addValueToRow(rowIndex, decimalV2);
+                            Decimal decimal = Decimal.apply(decimalVector.getObject(rowIndex));
+                            addValueToRow(rowIndex, decimal);
                         }
                         break;
                     case "DATE":

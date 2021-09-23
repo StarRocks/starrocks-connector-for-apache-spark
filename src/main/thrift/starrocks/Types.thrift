@@ -75,7 +75,12 @@ enum TPrimitiveType {
   VARCHAR,
   HLL,
   DECIMALV2,
-  TIME
+  TIME,
+  OBJECT,
+  PERCENTILE,
+  DECIMAL32,
+  DECIMAL64,
+  DECIMAL128
 }
 
 enum TTypeNodeType {

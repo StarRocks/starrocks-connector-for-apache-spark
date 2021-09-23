@@ -63,6 +63,8 @@ class TestSchemaUtils extends ExpectedExceptionTest {
     Assert.assertEquals(DataTypes.StringType, SchemaUtils.getCatalystType("LARGEINT", 0, 0))
     Assert.assertEquals(DataTypes.StringType, SchemaUtils.getCatalystType("VARCHAR", 0, 0))
     Assert.assertEquals(DecimalType(10, 5), SchemaUtils.getCatalystType("DECIMALV2", 10, 5))
+    Assert.assertEquals(DecimalType(12, 6), SchemaUtils.getCatalystType("DECIMAL64", 12, 6))
+    Assert.assertEquals(DecimalType(30, 7), SchemaUtils.getCatalystType("DECIMAL128", 30, 7))
     Assert.assertEquals(DataTypes.DoubleType, SchemaUtils.getCatalystType("TIME", 0, 0))
 
     thrown.expect(classOf[StarrocksException])
