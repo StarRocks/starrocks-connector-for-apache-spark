@@ -72,7 +72,7 @@ class TestSchemaUtils extends ExpectedExceptionTest {
     SchemaUtils.getCatalystType("HLL", 0, 0)
 
     thrown.expect(classOf[StarrocksException])
-    thrown.expectMessage(startsWith("Unrecognized Starrocks type"))
+    thrown.expectMessage(startsWith("Unrecognized StarRocks type"))
     SchemaUtils.getCatalystType("UNRECOGNIZED", 0, 0)
   }
 

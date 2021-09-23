@@ -133,20 +133,20 @@ public class TestRestService {
 
         String notJsonRes = "not json";
         thrown.expect(StarrocksException.class);
-        thrown.expectMessage(startsWith("Starrocks FE's response is not a json. res:"));
+        thrown.expectMessage(startsWith("StarRocks FE's response is not a json. res:"));
         RestService.parseSchema(notJsonRes, logger);
 
         String notSchemaRes = "{\"property\":[{\"type\":\"TINYINT\",\"name\":\"k1\",\"comment\":\"\"},"
                 + "{\"name\":\"k5\",\"scale\":\"0\",\"comment\":\"\",\"type\":\"DECIMALV2\",\"precision\":\"9\"}],"
                 + "\"status\":200}";
         thrown.expect(StarrocksException.class);
-        thrown.expectMessage(startsWith("Starrocks FE's response cannot map to schema. res: "));
+        thrown.expectMessage(startsWith("StarRocks FE's response cannot map to schema. res: "));
         RestService.parseSchema(notSchemaRes, logger);
 
         String notOkRes = "{\"properties\":[{\"type\":\"TINYINT\",\"name\":\"k1\",\"comment\":\"\"},{\"name\":\"k5\","
                 + "\"scale\":\"0\",\"comment\":\"\",\"type\":\"DECIMALV2\",\"precision\":\"9\"}],\"status\":20}";
         thrown.expect(StarrocksException.class);
-        thrown.expectMessage(startsWith("Starrocks FE's response is not OK, status is "));
+        thrown.expectMessage(startsWith("StarRocks FE's response is not OK, status is "));
         RestService.parseSchema(notOkRes, logger);
     }
 
@@ -191,18 +191,18 @@ public class TestRestService {
 
         String notJsonRes = "not json";
         thrown.expect(StarrocksException.class);
-        thrown.expectMessage(startsWith("Starrocks FE's response is not a json. res:"));
+        thrown.expectMessage(startsWith("StarRocks FE's response is not a json. res:"));
         RestService.parseSchema(notJsonRes, logger);
 
         String notQueryPlanRes = "{\"hello\": \"world\"}";
         thrown.expect(StarrocksException.class);
-        thrown.expectMessage(startsWith("Starrocks FE's response cannot map to schema. res: "));
+        thrown.expectMessage(startsWith("StarRocks FE's response cannot map to schema. res: "));
         RestService.parseSchema(notQueryPlanRes, logger);
 
         String notOkRes = "{\"partitions\":{\"11017\":{\"routings\":[\"be1\",\"be2\"],\"version\":3,"
                 + "\"versionHash\":1,\"schemaHash\":1}},\"opaqued_query_plan\":\"queryPlan\",\"status\":20}";
         thrown.expect(StarrocksException.class);
-        thrown.expectMessage(startsWith("Starrocks FE's response is not OK, status is "));
+        thrown.expectMessage(startsWith("StarRocks FE's response is not OK, status is "));
         RestService.parseSchema(notOkRes, logger);
     }
 
@@ -231,7 +231,7 @@ public class TestRestService {
                 + "\"11021\":{\"routings\":[],\"version\":3,\"versionHash\":1,\"schemaHash\":1}},"
                 + "\"opaqued_query_plan\":\"query_plan\",\"status\":200}";
         thrown.expect(StarrocksException.class);
-        thrown.expectMessage(startsWith("Cannot choice Starrocks BE for tablet"));
+        thrown.expectMessage(startsWith("Cannot choice StarRocks BE for tablet"));
         RestService.selectBeForTablet(RestService.getQueryPlan(noBeRes, logger), logger);
 
         String notNumberRes = "{\"partitions\":{"

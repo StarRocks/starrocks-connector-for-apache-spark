@@ -35,7 +35,7 @@ private[spark] object SchemaUtils {
   private val logger = LoggerFactory.getLogger(SchemaUtils.getClass.getSimpleName.stripSuffix("$"))
 
   /**
-   * discover Starrocks table schema from Starrocks FE.
+   * discover StarRocks table schema from StarRocks FE.
    * @param cfg configuration
    * @return Spark Catalyst StructType
    */
@@ -45,7 +45,7 @@ private[spark] object SchemaUtils {
   }
 
   /**
-   * discover Starrocks table schema from Starrocks FE.
+   * discover StarRocks table schema from StarRocks FE.
    * @param cfg configuration
    * @return inner schema struct
    */
@@ -66,8 +66,8 @@ private[spark] object SchemaUtils {
   }
 
   /**
-   * translate Starrocks Type to Spark Catalyst type
-   * @param starrocksType Starrocks type
+   * translate StarRocks Type to Spark Catalyst type
+   * @param starrocksType StarRocks type
    * @param precision decimal precision
    * @param scale decimal scale
    * @return Spark Catalyst type
@@ -102,8 +102,8 @@ private[spark] object SchemaUtils {
   }
 
   /**
-   * convert Starrocks return schema to inner schema struct.
-   * @param tscanColumnDescs Starrocks BE return schema
+   * convert StarRocks return schema to inner schema struct.
+   * @param tscanColumnDescs StarRocks BE return schema
    * @return inner schema struct
    */
   def convertToSchema(tscanColumnDescs: Seq[TScanColumnDesc]): Schema = {

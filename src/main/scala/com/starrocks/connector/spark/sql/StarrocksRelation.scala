@@ -67,7 +67,7 @@ private[sql] class StarrocksRelation(
   override def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
     val paramWithScan = mutable.LinkedHashMap[String, String]() ++ parameters
 
-    // filter where clause can be handled by Starrocks BE
+    // filter where clause can be handled by StarRocks BE
     val filterWhereClause: String = {
       filters.flatMap(Utils.compileFilter(_, dialect, inValueLengthLimit))
           .map(filter => s"($filter)").mkString(" and ")

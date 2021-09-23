@@ -44,7 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Client to request Starrocks BE
+ * Client to request StarRocks BE
  */
 public class BackendClient {
     private static Logger logger = LoggerFactory.getLogger(BackendClient.class);
@@ -73,7 +73,7 @@ public class BackendClient {
     }
 
     private void open() throws ConnectedFailedException {
-        logger.debug("Open client to Starrocks BE '{}'.", routing);
+        logger.debug("Open client to StarRocks BE '{}'.", routing);
         TException ex = null;
         for (int attempt = 0; !isConnected && attempt < retries; ++attempt) {
             logger.debug("Attempt {} to connect {}.", attempt, routing);
@@ -115,11 +115,11 @@ public class BackendClient {
     }
 
     /**
-     * Open a scanner for reading Starrocks data.
+     * Open a scanner for reading StarRocks data.
      *
      * @param openParams thrift struct to required by request
      * @return scan open result
-     * @throws ConnectedFailedException throw if cannot connect to Starrocks BE
+     * @throws ConnectedFailedException throw if cannot connect to StarRocks BE
      */
     public TScanOpenResult openScanner(TScanOpenParams openParams) throws ConnectedFailedException {
         logger.debug("OpenScanner to '{}', parameter is '{}'.", routing, openParams);
@@ -151,11 +151,11 @@ public class BackendClient {
     }
 
     /**
-     * get next row batch from Starrocks BE
+     * get next row batch from StarRocks BE
      *
      * @param nextBatchParams thrift struct to required by request
      * @return scan batch result
-     * @throws ConnectedFailedException throw if cannot connect to Starrocks BE
+     * @throws ConnectedFailedException throw if cannot connect to StarRocks BE
      */
     public TScanBatchResult getNext(TScanNextBatchParams nextBatchParams) throws StarrocksException {
         logger.debug("GetNext to '{}', parameter is '{}'.", routing, nextBatchParams);
@@ -204,7 +204,7 @@ public class BackendClient {
             try {
                 open();
             } catch (ConnectedFailedException e) {
-                logger.warn("Cannot connect to Starrocks BE {} when close scanner.", routing);
+                logger.warn("Cannot connect to StarRocks BE {} when close scanner.", routing);
                 return;
             }
         }
@@ -226,7 +226,7 @@ public class BackendClient {
                 logger.warn("Close scanner from {} failed.", routing, e);
             }
         }
-        logger.info("CloseScanner to Starrocks BE '{}' success.", routing);
+        logger.info("CloseScanner to StarRocks BE '{}' success.", routing);
         close();
     }
 }

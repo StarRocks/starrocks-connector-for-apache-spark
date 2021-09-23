@@ -34,7 +34,7 @@ private[spark] abstract class AbstractStarrocksRDDIterator[T](
   private var initialized = false
   private var closed = false
 
-  // the reader obtain data from Starrocks BE
+  // the reader obtain data from StarRocks BE
   lazy val reader = {
     initialized = true
     val settings = partition.settings()
@@ -67,7 +67,7 @@ private[spark] abstract class AbstractStarrocksRDDIterator[T](
   }
 
   def closeIfNeeded(): Unit = {
-    logTrace(s"Close status is '$closed' when close Starrocks RDD Iterator")
+    logTrace(s"Close status is '$closed' when close StarRocks RDD Iterator")
     if (!closed) {
       close()
       closed = true
@@ -75,7 +75,7 @@ private[spark] abstract class AbstractStarrocksRDDIterator[T](
   }
 
   protected def close(): Unit = {
-    logTrace(s"Initialize status is '$initialized' when close Starrocks RDD Iterator")
+    logTrace(s"Initialize status is '$initialized' when close StarRocks RDD Iterator")
     if (initialized) {
       reader.close()
     }

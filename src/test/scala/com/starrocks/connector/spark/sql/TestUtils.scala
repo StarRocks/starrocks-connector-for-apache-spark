@@ -94,14 +94,14 @@ class TestUtils extends ExpectedExceptionTest {
       ConfigurationOptions.STARROCKS_PASSWORD -> "a.b"
     )
     thrown.expect(classOf[StarrocksException])
-    thrown.expectMessage(startsWith(s"${ConfigurationOptions.STARROCKS_PASSWORD} cannot use in Starrocks Datasource,"))
+    thrown.expectMessage(startsWith(s"${ConfigurationOptions.STARROCKS_PASSWORD} cannot use in StarRocks Datasource,"))
     Utils.params(parameters3, logger)
 
     val parameters4 = Map(
       ConfigurationOptions.STARROCKS_USER -> "a.b"
     )
     thrown.expect(classOf[StarrocksException])
-    thrown.expectMessage(startsWith(s"${ConfigurationOptions.STARROCKS_USER} cannot use in Starrocks Datasource,"))
+    thrown.expectMessage(startsWith(s"${ConfigurationOptions.STARROCKS_USER} cannot use in StarRocks Datasource,"))
     Utils.params(parameters4, logger)
 
     val parameters5 = Map(
@@ -109,14 +109,14 @@ class TestUtils extends ExpectedExceptionTest {
     )
     thrown.expect(classOf[StarrocksException])
     thrown.expectMessage(
-      startsWith(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD} cannot use in Starrocks Datasource,"))
+      startsWith(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD} cannot use in StarRocks Datasource,"))
     Utils.params(parameters5, logger)
 
     val parameters6 = Map(
       ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER -> "a.b"
     )
     thrown.expect(classOf[StarrocksException])
-    thrown.expectMessage(startsWith(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER} cannot use in Starrocks Datasource,"))
+    thrown.expectMessage(startsWith(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER} cannot use in StarRocks Datasource,"))
     Utils.params(parameters6, logger)
   }
 }
