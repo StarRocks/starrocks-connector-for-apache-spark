@@ -26,11 +26,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
 import java.util.Enumeration;
 import java.util.Map;
 import java.util.Properties;
 
-public abstract class Settings {
+public abstract class Settings implements Serializable {
     private static Logger logger = LoggerFactory.getLogger(Settings.class);
 
     public abstract String getProperty(String name);

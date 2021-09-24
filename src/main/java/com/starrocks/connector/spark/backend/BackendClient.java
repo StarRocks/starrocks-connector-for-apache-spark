@@ -34,6 +34,7 @@ import com.starrocks.connector.thrift.TScanNextBatchParams;
 import com.starrocks.connector.thrift.TScanOpenParams;
 import com.starrocks.connector.thrift.TScanOpenResult;
 import com.starrocks.connector.thrift.TStatusCode;
+import org.apache.thrift.TConfiguration;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
@@ -78,10 +79,11 @@ public class BackendClient {
         for (int attempt = 0; !isConnected && attempt < retries; ++attempt) {
             logger.debug("Attempt {} to connect {}.", attempt, routing);
             TBinaryProtocol.Factory factory = new TBinaryProtocol.Factory();
-            transport = new TSocket(routing.getHost(), routing.getPort(), socketTimeout, connectTimeout);
-            TProtocol protocol = factory.getProtocol(transport);
-            client = new TStarrocksExternalService.Client(protocol);
             try {
+                transport = new TSocket(TConfiguration.custom().build(), routing.getHost(), routing.getPort(), 
+                        socketTimeout, connectTimeout);
+                TProtocol protocol = factory.getProtocol(transport);
+                client = new TStarrocksExternalService.Client(protocol);
                 logger.trace("Connect status before open transport to {} is '{}'.", routing, isConnected);
                 if (!transport.isOpen()) {
                     transport.open();

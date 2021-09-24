@@ -38,13 +38,33 @@ if ! ${MVN_CMD} --version; then
 fi
 export MVN_CMD
 
+if [ ! $1 ]
+then
+    echo "Usage: sh build.sh <spark_version>"
+    echo "       spark version options: 2 or 3"
+    exit 1
+fi
+
+if [ $1 == 2 ]; then
+    export STARROCKS_SPARK_BASE_VERSION=2
+    export STARROCKS_SPARK_VERSION=2.3.4
+    export STARROCKS_SCALA_VERSION=2.11
+elif [ $1 == 3 ]; then
+    export STARROCKS_SPARK_BASE_VERSION=3
+    export STARROCKS_SPARK_VERSION=3.1.2
+    export STARROCKS_SCALA_VERSION=2.12
+else
+    echo "Error: spark version options: 2 or 3"
+    exit 1
+fi
+
 ${MVN_CMD} clean package
 
 mkdir -p output/
-cp target/spark-starrocks-connector-*.jar ./output/
+cp target/starrocks-spark*.jar ./output/
 
 echo "********************************************"
-echo "Successfully build Spark Starrocks Connector"
+echo "Successfully build Spark StarRocks Connector"
 echo "********************************************"
 
 exit 0

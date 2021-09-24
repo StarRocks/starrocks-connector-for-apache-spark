@@ -27,14 +27,14 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.starrocks</groupId>
-    <artifactId>spark-starrocks-connector</artifactId>
+    <artifactId>starrocks-spark${env.STARROCKS_SPARK_BASE_VERSION}_${env.STARROCKS_SCALA_VERSION}</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 
     <properties>
-        <scala.version>2.11</scala.version>
-        <spark.version>2.3.4</spark.version>
-        <libthrift.version>0.9.3</libthrift.version>
-        <arrow.version>0.15.1</arrow.version>
+        <scala.version>${env.STARROCKS_SCALA_VERSION}</scala.version>
+        <spark.version>${env.STARROCKS_SPARK_VERSION}</spark.version>
+        <libthrift.version>0.14.0</libthrift.version>
+        <arrow.version>5.0.0</arrow.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -103,6 +103,11 @@
         <dependency>
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-vector</artifactId>
+            <version>${arrow.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.arrow</groupId>
+            <artifactId>arrow-memory-netty</artifactId>
             <version>${arrow.version}</version>
         </dependency>
 
@@ -234,7 +239,8 @@
                 <version>0.7.8</version>
                 <configuration>
                     <excludes>
-                        <exclude>**/thrift/**</exclude></excludes>
+                        <exclude>**/thrift/**</exclude>
+                    </excludes>
                 </configuration>
                 <executions>
                     <execution>
