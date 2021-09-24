@@ -32,6 +32,7 @@ Spark StarRocks Connector can support reading data stored in StarRocks through S
 | Connector | Spark | StarRocks | Java | Scala |
 | --------- | ----- | --------- | ---- | ----- |
 | 1.0.0     | 2.x   | 1.18+     | 8    | 2.11  |
+| 1.0.0     | 3.x   | 1.19+     | 8    | 2.12  |
 
 
 ## Build and Install
@@ -39,10 +40,11 @@ Spark StarRocks Connector can support reading data stored in StarRocks through S
 Execute following command
 
 ```bash
-sh build.sh
+sh build.sh 3 ## spark 3.x 版本, 默认是3.1.2
+sh build.sh 2 ## spark 2.x 版本, 默认是2.3.4
 ```
 
-After successful compilation, the file `spark-starrocks-connector-1.0.0-SNAPSHOT.jar` will be generated in the `output/` directory. Copy this file to `ClassPath` in `Spark` to use `Spark StarRocks Connector`. For example, `Spark` running in `Local` mode, put this file in the `jars/` folder. `Spark` running in `Yarn` cluster mode, put this file in the pre-deployment package.
+After successful compilation, the file `starrocks-spark2_2.11-1.0.0-SNAPSHOT.jar` will be generated in the `output/` directory. Copy this file to `ClassPath` in `Spark` to use `Spark StarRocks Connector`. For example, `Spark` running in `Local` mode, put this file in the `jars/` folder. `Spark` running in `Yarn` cluster mode, put this file in the pre-deployment package.
 
 ## Example
 

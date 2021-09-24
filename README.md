@@ -8,7 +8,7 @@ Spark StarRocks Connector can support reading data stored in StarRocks through S
 
 We will continue to contribute to Apache Doris(incubating) and help to build the open source ecosystem in the future. 
 
-## Install
+## Install and Use
 
 Please refer to [Spark StarRocks Connector](docs/spark-starrocks-connector.md).
 
