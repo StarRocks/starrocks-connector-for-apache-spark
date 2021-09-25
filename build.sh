@@ -19,10 +19,10 @@
 # under the License.
 
 ##############################################################
-# This script is used to compile spark-starrocks-connector
+# This script is used to compile Spark StarRocks Connector
 # Usage:
-#    sh build.sh
-#
+#    sh build.sh <spark_version>
+#    spark version options: 2 or 3
 ##############################################################
 
 set -eo pipefail
@@ -40,8 +40,9 @@ export MVN_CMD
 
 if [ ! $1 ]
 then
-    echo "Usage: sh build.sh <spark_version>"
-    echo "       spark version options: 2 or 3"
+    echo "Usage:"
+    echo "   sh build.sh <spark_version>"
+    echo "   spark version options: 2 or 3"
     exit 1
 fi
 

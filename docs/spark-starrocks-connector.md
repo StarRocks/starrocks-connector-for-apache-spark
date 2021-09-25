@@ -44,7 +44,7 @@ sh build.sh 3  ## spark 3.x 版本, 默认是 3.1.2
 sh build.sh 2  ## spark 2.x 版本, 默认是 2.3.4
 ```
 
-After successful compilation, the file `starrocks-spark2_2.11-1.0.0-SNAPSHOT.jar` will be generated in the `output/` directory. Copy this file to `ClassPath` in `Spark` to use `Spark StarRocks Connector`. For example, `Spark` running in `Local` mode, put this file in the `jars/` folder. `Spark` running in `Yarn` cluster mode, put this file in the pre-deployment package.
+After successful compilation, the file `starrocks-spark2_2.11-1.0.0.jar` will be generated in the `output/` directory. Copy this file to `ClassPath` in `Spark` to use `Spark StarRocks Connector`. For example, `Spark` running in `Local` mode, put this file in the `jars/` folder. `Spark` running in `Yarn` cluster mode, put this file in the pre-deployment package.
 
 ## Example
 
@@ -55,7 +55,7 @@ CREATE TEMPORARY VIEW spark_starrocks
 USING starrocks
 OPTIONS(
   "table.identifier" = "$YOUR_STARROCKS_DATABASE_NAME.$YOUR_STARROCKS_TABLE_NAME",
-  "fenodes" = "$YOUR_STARROCKS_FE_HOSTNAME:$YOUR_STARROCKS_FE_RESFUL_PORT",
+  "fenodes" = "$YOUR_STARROCKS_FE_HOSTNAME:$YOUR_STARROCKS_FE_RESTFUL_PORT",
   "user" = "$YOUR_STARROCKS_USERNAME",
   "password" = "$YOUR_STARROCKS_PASSWORD"
 );
@@ -68,7 +68,7 @@ SELECT * FROM spark_starrocks;
 ```scala
 val starrocksSparkDF = spark.read.format("starrocks")
   .option("starrocks.table.identifier", "$YOUR_STARROCKS_DATABASE_NAME.$YOUR_STARROCKS_TABLE_NAME")
-  .option("starrocks.fenodes", "$YOUR_STARROCKS_FE_HOSTNAME:$YOUR_STARROCKS_FE_RESFUL_PORT")
+  .option("starrocks.fenodes", "$YOUR_STARROCKS_FE_HOSTNAME:$YOUR_STARROCKS_FE_RESTFUL_PORT")
   .option("user", "$YOUR_STARROCKS_USERNAME")
   .option("password", "$YOUR_STARROCKS_PASSWORD")
   .load()
@@ -83,7 +83,7 @@ import com.starrocks.connector.spark._
 val starrocksSparkRDD = sc.starrocksRDD(
   tableIdentifier = Some("$YOUR_STARROCKS_DATABASE_NAME.$YOUR_STARROCKS_TABLE_NAME"),
   cfg = Some(Map(
-    "starrocks.fenodes" -> "$YOUR_STARROCKS_FE_HOSTNAME:$YOUR_STARROCKS_FE_RESFUL_PORT",
+    "starrocks.fenodes" -> "$YOUR_STARROCKS_FE_HOSTNAME:$YOUR_STARROCKS_FE_RESTFUL_PORT",
     "starrocks.request.auth.user" -> "$YOUR_STARROCKS_USERNAME",
     "starrocks.request.auth.password" -> "$YOUR_STARROCKS_PASSWORD"
   ))

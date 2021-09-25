@@ -28,7 +28,7 @@
 
     <groupId>com.starrocks</groupId>
     <artifactId>starrocks-spark${env.STARROCKS_SPARK_BASE_VERSION}_${env.STARROCKS_SCALA_VERSION}</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
 
     <properties>
         <scala.version>${env.STARROCKS_SCALA_VERSION}</scala.version>
