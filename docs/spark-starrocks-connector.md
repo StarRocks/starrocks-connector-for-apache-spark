@@ -131,25 +131,25 @@ starrocksSparkRDD.collect()
 
 ## StarRocks & Spark Column Type Mapping
 
-| StarRocks Type | Spark Type                       |
-| -------------- | -------------------------------- |
-| NULL_TYPE      | DataTypes.NullType               |
-| BOOLEAN        | DataTypes.BooleanType            |
-| TINYINT        | DataTypes.ByteType               |
-| SMALLINT       | DataTypes.ShortType              |
-| INT            | DataTypes.IntegerType            |
-| BIGINT         | DataTypes.LongType               |
-| FLOAT          | DataTypes.FloatType              |
-| DOUBLE         | DataTypes.DoubleType             |
-| DATE           | DataTypes.StringType<sup>1</sup> |
-| DATETIME       | DataTypes.StringType<sup>1</sup> |
-| BINARY         | DataTypes.BinaryType             |
-| DECIMAL        | DecimalType                      |
-| CHAR           | DataTypes.StringType             |
-| LARGEINT       | DataTypes.StringType             |
-| VARCHAR        | DataTypes.StringType             |
-| DECIMALV2      | DecimalType                      |
-| TIME           | DataTypes.DoubleType             |
-| HLL            | Unsupported datatype             |
+| StarRocks Type | Spark Type            |
+| -------------- | --------------------- |
+| NULL_TYPE      | DataTypes.NullType    |
+| BOOLEAN        | DataTypes.BooleanType |
+| TINYINT        | DataTypes.ByteType    |
+| SMALLINT       | DataTypes.ShortType   |
+| INT            | DataTypes.IntegerType |
+| BIGINT         | DataTypes.LongType    |
+| FLOAT          | DataTypes.FloatType   |
+| DOUBLE         | DataTypes.DoubleType  |
+| DATE           | DataTypes.StringType  |
+| DATETIME       | DataTypes.StringType  |
+| BINARY         | DataTypes.BinaryType  |
+| DECIMAL        | DecimalType           |
+| CHAR           | DataTypes.StringType  |
+| LARGEINT       | DataTypes.StringType  |
+| VARCHAR        | DataTypes.StringType  |
+| DECIMALV2      | DecimalType           |
+| TIME           | DataTypes.DoubleType  |
+| HLL            | Unsupported datatype  |
 
 * Note: In Connector, `DATE` and` DATETIME` are mapped to `String`. Due to the processing logic of the StarRocks underlying storage engine, when the time type is used directly, the time range covered cannot meet the demand. So use `String` type to directly return the corresponding time readable text.
