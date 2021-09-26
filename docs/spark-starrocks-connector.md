@@ -148,8 +148,9 @@ starrocksSparkRDD.collect()
 | CHAR           | DataTypes.StringType  |
 | LARGEINT       | DataTypes.StringType  |
 | VARCHAR        | DataTypes.StringType  |
-| DECIMALV2      | DecimalType           |
 | TIME           | DataTypes.DoubleType  |
+| ARRAY          | Unsupported datatype  |
 | HLL            | Unsupported datatype  |
+| BITMAP         | Unsupported datatype  |
 
 * Note: In Connector, `DATE` and` DATETIME` are mapped to `String`. Due to the processing logic of the StarRocks underlying storage engine, when the time type is used directly, the time range covered cannot meet the demand. So use `String` type to directly return the corresponding time readable text.
