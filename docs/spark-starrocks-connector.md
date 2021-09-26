@@ -40,8 +40,8 @@ Spark StarRocks Connector can support reading data stored in StarRocks through S
 Execute following command
 
 ```bash
-sh build.sh 3  ## spark 3.x 版本, 默认是 3.1.2
-sh build.sh 2  ## spark 2.x 版本, 默认是 2.3.4
+sh build.sh 3  ## spark 3.x, default 3.1.2
+sh build.sh 2  ## spark 2.x, default 2.3.4
 ```
 
 After successful compilation, the file `starrocks-spark2_2.11-1.0.0.jar` will be generated in the `output/` directory. Copy this file to `ClassPath` in `Spark` to use `Spark StarRocks Connector`. For example, `Spark` running in `Local` mode, put this file in the `jars/` folder. `Spark` running in `Yarn` cluster mode, put this file in the pre-deployment package.
