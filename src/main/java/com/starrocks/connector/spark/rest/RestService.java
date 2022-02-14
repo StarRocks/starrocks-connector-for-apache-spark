@@ -45,9 +45,8 @@ import com.starrocks.connector.spark.rest.models.Schema;
 import com.starrocks.connector.spark.rest.models.Tablet;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpStatus;
-import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.AuthenticationException;
 import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -55,7 +54,7 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.auth.BasicScheme;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
@@ -114,13 +113,15 @@ public class RestService implements Serializable {
 
         String user = cfg.getProperty(STARROCKS_REQUEST_AUTH_USER, "");
         String password = cfg.getProperty(STARROCKS_REQUEST_AUTH_PASSWORD, "");
-
-        CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-        credentialsProvider.setCredentials(
-                AuthScope.ANY,
-                new UsernamePasswordCredentials(user, password));
+        UsernamePasswordCredentials creds = new UsernamePasswordCredentials(user, password);
         HttpClientContext context = HttpClientContext.create();
-        context.setCredentialsProvider(credentialsProvider);
+        try {
+            request.addHeader(new BasicScheme().authenticate(creds, request, context));
+        } catch (AuthenticationException e) {
+            logger.error(CONNECT_FAILED_MESSAGE, request.getURI(), e);
+            throw new ConnectedFailedException(request.getURI().toString(), -1, e);
+        }
+
         logger.info("Send request to StarRocks FE '{}' with user '{}'.", request.getURI(), user);
 
         IOException ex = null;
