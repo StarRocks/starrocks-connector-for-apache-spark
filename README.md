@@ -1,10 +1,8 @@
-# Spark StarRocks Connector
-
-Spark StarRocks Connector can support reading data stored in StarRocks through Spark.
+This Connector can support reading data stored in StarRocks through Apache Spark™.
 
 ## Upstream
 
-[Spark Doris Connector](https://github.com/apache/incubator-doris/tree/master/extension/spark-doris-connector) is the upstream of Spark StarRocks Connector. We are very grateful to Apache Doris(incubating) community for contributing such an excellent connector.
+[spark-doris-connector](https://github.com/apache/incubator-doris/tree/master/extension/spark-doris-connector) is the upstream of this Connector. We are very grateful to Apache Doris(incubating) community for contributing such an excellent connector.
 
 We will continue to contribute to Apache Doris(incubating) and help to build the open source ecosystem in the future. 
 
