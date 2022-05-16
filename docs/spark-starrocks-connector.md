@@ -19,9 +19,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Spark StarRocks Connector
+# Connector
 
-Spark StarRocks Connector can support reading data stored in StarRocks through Spark.
+This Connector can support reading data stored in StarRocks through Apache Spark™.
 
 - The current version only supports reading data from `StarRocks`.
 - You can map the `StarRocks` table to `DataFrame` or `RDD`, it is recommended to use `DataFrame`.
@@ -29,7 +29,7 @@ Spark StarRocks Connector can support reading data stored in StarRocks through S
 
 ## Version Compatibility
 
-| Connector | Spark | StarRocks | Java | Scala |
+| Connector | Apache Spark™ | StarRocks | Java | Scala |
 | --------- | ----- | --------- | ---- | ----- |
 | 1.0.0     | 2.x   | 1.18+     | 8    | 2.11  |
 | 1.0.0     | 3.x   | 1.18+     | 8    | 2.12  |
@@ -40,11 +40,11 @@ Spark StarRocks Connector can support reading data stored in StarRocks through S
 Execute following command
 
 ```bash
-sh build.sh 3  ## spark 3.x, default 3.1.2
-sh build.sh 2  ## spark 2.x, default 2.3.4
+sh build.sh 3  ## Apache Spark™ 3.x, default 3.1.2
+sh build.sh 2  ## Apache Spark™ 2.x, default 2.3.4
 ```
 
-After successful compilation, the file `starrocks-spark2_2.11-1.0.0.jar` will be generated in the `output/` directory. Copy this file to `ClassPath` in `Spark` to use `Spark StarRocks Connector`. For example, `Spark` running in `Local` mode, put this file in the `jars/` folder. `Spark` running in `Yarn` cluster mode, put this file in the pre-deployment package.
+After successful compilation, the file `starrocks-spark2_2.11-1.0.0.jar` will be generated in the `output/` directory. Copy this file to `ClassPath` in `Apache Spark™` to use `Apache Spark™ StarRocks Connector`. For example, `Apache Spark™` running in `Local` mode, put this file in the `jars/` folder. `Apache Spark™` running in `Yarn` cluster mode, put this file in the pre-deployment package.
 
 ## Example
 
@@ -104,8 +104,8 @@ starrocksSparkRDD.collect()
 | starrocks.request.connect.timeout.ms | 30000             | Connection timeout for sending requests to StarRocks                                |
 | starrocks.request.read.timeout.ms    | 30000             | Read timeout for sending request to StarRocks                                |
 | starrocks.request.query.timeout.s    | 3600              | Query the timeout time of StarRocks, the default is 1 hour, -1 means no timeout limit             |
-| starrocks.request.tablet.size        | Integer.MAX_VALUE | The number of StarRocks Tablets corresponding to an RDD Partition. The smaller this value is set, the more partitions will be generated. This will increase the parallelism on the Spark side, but at the same time will cause greater pressure on StarRocks. |
-| starrocks.batch.size                 | 1024              | The maximum number of rows to read data from BE at one time. Increasing this value can reduce the number of connections between Spark and StarRocks. Thereby reducing the extra time overhead caused by network delay. |
+| starrocks.request.tablet.size        | Integer.MAX_VALUE | The number of StarRocks Tablets corresponding to an RDD Partition. The smaller this value is set, the more partitions will be generated. This will increase the parallelism on the Apache Spark™ side, but at the same time will cause greater pressure on StarRocks. |
+| starrocks.batch.size                 | 1024              | The maximum number of rows to read data from BE at one time. Increasing this value can reduce the number of connections between Apache Spark™ and StarRocks. Thereby reducing the extra time overhead caused by network delay. |
 | starrocks.exec.mem.limit             | 2147483648        | Memory limit for a single query. The default is 2GB, in bytes.                     |
 | starrocks.deserialize.arrow.async    | false             | Whether to support asynchronous conversion of Arrow format to RowBatch required for spark-starrocks-connector iteration                 |
 | starrocks.deserialize.queue.size     | 64                | Asynchronous conversion of the internal processing queue in Arrow format takes effect when starrocks.deserialize.arrow.async is true        |
@@ -116,7 +116,7 @@ starrocksSparkRDD.collect()
 | ----------------------------------- | ------------- | ------------------------------------------------------------ |
 | user                                | --            | StarRocks username                                           |
 | password                            | --            | StarRocks password                                           |
-| starrocks.filter.query.in.max.count | 100           | In the predicate pushdown, the maximum number of elements in the in expression value list. If this number is exceeded, the in-expression conditional filtering is processed on the Spark side. |
+| starrocks.filter.query.in.max.count | 100           | In the predicate pushdown, the maximum number of elements in the in expression value list. If this number is exceeded, the in-expression conditional filtering is processed on the Apache Spark™ side. |
 
 ### RDD Configuration
 
@@ -129,9 +129,9 @@ starrocksSparkRDD.collect()
 
 
 
-## StarRocks & Spark Column Type Mapping
+## StarRocks & Apache Spark™ Column Type Mapping
 
-| StarRocks Type | Spark Type            |
+| StarRocks Type | Apache Spark™ Type            |
 | -------------- | --------------------- |
 | BOOLEAN        | DataTypes.BooleanType |
 | TINYINT        | DataTypes.ByteType    |
