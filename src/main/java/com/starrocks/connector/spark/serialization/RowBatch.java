@@ -21,6 +21,7 @@ package com.starrocks.connector.spark.serialization;
 
 import com.google.common.base.Preconditions;
 import com.starrocks.connector.spark.exception.StarrocksException;
+import com.starrocks.connector.spark.rest.models.Field;
 import com.starrocks.connector.spark.rest.models.Schema;
 import com.starrocks.connector.thrift.TScanBatchResult;
 import org.apache.arrow.memory.RootAllocator;
@@ -45,9 +46,8 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * row batch data container.
@@ -80,20 +80,29 @@ public class RowBatch {
     private final VectorSchemaRoot root;
     private List<FieldVector> fieldVectors;
     private RootAllocator rootAllocator;
-    private final Schema schema;
+    private Schema schema;
 
-    public RowBatch(TScanBatchResult nextResult, Schema schema) throws StarrocksException {
-        this.schema = schema;
+    private ConcurrentHashMap<String, FieldVector> fieldVectorMap;
+
+    private List<String> queryColumns;
+
+    public RowBatch(TScanBatchResult nextResult, Schema schema, List<String> queryColumns) throws StarrocksException {
+        convertSchema(schema, queryColumns);
         this.rootAllocator = new RootAllocator(Integer.MAX_VALUE);
         this.arrowStreamReader = new ArrowStreamReader(
                 new ByteArrayInputStream(nextResult.getRows()),
                 rootAllocator
         );
         this.offsetInRowBatch = 0;
+        this.fieldVectorMap = new ConcurrentHashMap<>();
+        this.queryColumns = queryColumns;
         try {
             this.root = arrowStreamReader.getVectorSchemaRoot();
             while (arrowStreamReader.loadNextBatch()) {
                 fieldVectors = root.getFieldVectors();
+                fieldVectors.parallelStream().forEach(vector -> {
+                    fieldVectorMap.put(vector.getName(), vector);
+                });
                 if (fieldVectors.size() != schema.size()) {
                     logger.error("Schema size '{}' is not equal to arrow field size '{}'.",
                             fieldVectors.size(), schema.size());
@@ -119,6 +128,23 @@ public class RowBatch {
         }
     }
 
+    private void convertSchema(Schema schema, List<String> queryColumns) throws StarrocksException {
+        Map<String, Field> fieldMap = new HashMap<>();
+        schema.getProperties().forEach(field -> {
+            String name = field.getName();
+            fieldMap.put(name, field);
+        });
+        this.schema = new Schema();
+        for (String column : queryColumns) {
+            Field field = fieldMap.get(column);
+            if (field == null) {
+                throw new StarrocksException(String.format("The column {} can't be found from schema, schema is %s",
+                        column, schema));
+            }
+            this.schema.put(field);
+        }
+    }
+
     public boolean hasNext() {
         if (offsetInRowBatch < readRowCount) {
             return true;
@@ -136,7 +162,20 @@ public class RowBatch {
         rowBatch.get(readRowCount + rowIndex).put(obj);
     }
 
+    private void convertFieldsOrder(List<FieldVector> fieldVectors, List<String> queryColumns) throws StarrocksException {
+        this.fieldVectors = new ArrayList<>(fieldVectors.size());
+        for (String column : queryColumns) {
+            FieldVector fieldVector = fieldVectorMap.get(column);
+            if (fieldVector == null) {
+                throw new StarrocksException(String.format("The column {} can't be found from schema, schema is %s",
+                        column, schema));
+            }
+            this.fieldVectors.add(fieldVector);
+        }
+    }
+
     public void convertArrowToRowBatch() throws StarrocksException {
+        convertFieldsOrder(fieldVectors, queryColumns);
         try {
             for (int col = 0; col < fieldVectors.size(); col++) {
                 FieldVector curFieldVector = fieldVectors.get(col);

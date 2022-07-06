@@ -50,6 +50,9 @@ class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
   protected val client = new BackendClient(new Routing(partition.getBeAddress), settings)
   protected var offset = 0
   protected var eos: AtomicBoolean = new AtomicBoolean(false)
+  private val queryFields = settings.getProperty(STARROCKS_READ_FIELD).split(",")
+    .map(_.replace("`", ""))
+    .toList
   protected var rowBatch: RowBatch = _
   // flag indicate if support deserialize Arrow to RowBatch asynchronously
   protected var deserializeArrowToRowBatchAsync: Boolean = Try {
@@ -139,7 +142,7 @@ class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
         val nextResult = client.getNext(nextBatchParams)
         eos.set(nextResult.isEos)
         if (!eos.get) {
-          val rowBatch = new RowBatch(nextResult, schema)
+          val rowBatch = new RowBatch(nextResult, schema, queryFields)
           offset += rowBatch.getReadRowCount
           rowBatch.close
           rowBatchBlockingQueue.put(rowBatch)
@@ -197,7 +200,7 @@ class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
         val nextResult = client.getNext(nextBatchParams)
         eos.set(nextResult.isEos)
         if (!eos.get) {
-          rowBatch = new RowBatch(nextResult, schema)
+          rowBatch = new RowBatch(nextResult, schema, queryFields)
         }
       }
       hasNext = !eos.get
