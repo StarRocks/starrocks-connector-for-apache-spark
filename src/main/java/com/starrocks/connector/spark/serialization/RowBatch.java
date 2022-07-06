@@ -175,8 +175,8 @@ public class RowBatch {
     }
 
     public void convertArrowToRowBatch() throws StarrocksException {
-        convertFieldsOrder(fieldVectors, queryColumns);
         try {
+            convertFieldsOrder(fieldVectors, queryColumns);
             for (int col = 0; col < fieldVectors.size(); col++) {
                 FieldVector curFieldVector = fieldVectors.get(col);
                 Types.MinorType mt = curFieldVector.getMinorType();
