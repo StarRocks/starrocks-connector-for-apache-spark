@@ -24,7 +24,8 @@ import com.starrocks.connector.spark.exception.StarrocksException;
 import com.starrocks.connector.spark.rest.models.Field;
 import com.starrocks.connector.spark.rest.models.Schema;
 import com.starrocks.connector.spark.util.DataTypeUtils;
-import com.starrocks.connector.thrift.TScanBatchResult;
+import com.starrocks.thrift.TScanBatchResult;
+
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;

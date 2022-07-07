@@ -19,7 +19,7 @@
 
 package com.starrocks.connector.spark.exception;
 
-import com.starrocks.connector.thrift.TStatusCode;
+import com.starrocks.thrift.TStatusCode;
 
 import java.util.List;
 

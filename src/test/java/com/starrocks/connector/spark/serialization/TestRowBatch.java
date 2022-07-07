@@ -19,14 +19,15 @@
 
 package com.starrocks.connector.spark.serialization;
 
+import com.starrocks.connector.spark.rest.RestService;
+import com.starrocks.connector.spark.rest.models.Schema;
+import com.starrocks.thrift.TScanBatchResult;
+import com.starrocks.thrift.TStatus;
+import com.starrocks.thrift.TStatusCode;
+
 import static org.hamcrest.core.StringStartsWith.startsWith;
 
 import com.google.common.collect.ImmutableList;
-import com.starrocks.connector.spark.rest.RestService;
-import com.starrocks.connector.spark.rest.models.Schema;
-import com.starrocks.connector.thrift.TScanBatchResult;
-import com.starrocks.connector.thrift.TStatus;
-import com.starrocks.connector.thrift.TStatusCode;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;

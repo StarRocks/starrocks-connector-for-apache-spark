@@ -83,6 +83,19 @@
 
         <profile>
             <id>spark3</id>
+            <activation>
+                <property>
+                    <name>env.spark3</name>
+                </property>
+            </activation>
+
+            <repositories>
+                <repository>
+                    <id>central</id>
+                    <name>central maven repo https</name>
+                    <url>https://repo.maven.apache.org/maven2</url>
+                </repository>
+            </repositories>
 
             <properties>
                 <env.STARROCKS_SCALA_VERSION>2.12</env.STARROCKS_SCALA_VERSION>
@@ -94,9 +107,31 @@
 
     <dependencies>
         <dependency>
+            <groupId>com.starrocks</groupId>
+            <artifactId>starrocks-stream-load-sdk</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
             <version>2.12.10</version>
+        </dependency>
+        <dependency>
+            <groupId>com.starrocks</groupId>
+            <artifactId>starrocks-thrift-sdk</artifactId>
+            <version>1.0.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.29</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.alibaba.fastjson2</groupId>
+            <artifactId>fastjson2</artifactId>
+            <version>2.0.1</version>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>

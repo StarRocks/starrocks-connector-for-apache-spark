@@ -26,21 +26,15 @@ import com.starrocks.connector.spark.exception.StarrocksInternalException;
 import com.starrocks.connector.spark.util.ErrorMessages;
 import com.starrocks.connector.spark.cfg.Settings;
 import com.starrocks.connector.spark.serialization.Routing;
-import com.starrocks.connector.thrift.TStarrocksExternalService;
-import com.starrocks.connector.thrift.TScanBatchResult;
-import com.starrocks.connector.thrift.TScanCloseParams;
-import com.starrocks.connector.thrift.TScanCloseResult;
-import com.starrocks.connector.thrift.TScanNextBatchParams;
-import com.starrocks.connector.thrift.TScanOpenParams;
-import com.starrocks.connector.thrift.TScanOpenResult;
-import com.starrocks.connector.thrift.TStatusCode;
-import org.apache.thrift.TConfiguration;
-import org.apache.thrift.TException;
-import org.apache.thrift.protocol.TBinaryProtocol;
-import org.apache.thrift.protocol.TProtocol;
-import org.apache.thrift.transport.TSocket;
-import org.apache.thrift.transport.TTransport;
-import org.apache.thrift.transport.TTransportException;
+
+import com.starrocks.shade.org.apache.thrift.TException;
+import com.starrocks.shade.org.apache.thrift.protocol.TBinaryProtocol;
+import com.starrocks.shade.org.apache.thrift.protocol.TProtocol;
+import com.starrocks.shade.org.apache.thrift.transport.TSocket;
+import com.starrocks.shade.org.apache.thrift.transport.TTransport;
+import com.starrocks.shade.org.apache.thrift.transport.TTransportException;
+import com.starrocks.thrift.*;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,8 +74,7 @@ public class BackendClient {
             logger.debug("Attempt {} to connect {}.", attempt, routing);
             TBinaryProtocol.Factory factory = new TBinaryProtocol.Factory();
             try {
-                transport = new TSocket(TConfiguration.custom().build(), routing.getHost(), routing.getPort(), 
-                        socketTimeout, connectTimeout);
+                transport = new TSocket(routing.getHost(), routing.getPort(), socketTimeout, connectTimeout);
                 TProtocol protocol = factory.getProtocol(transport);
                 client = new TStarrocksExternalService.Client(protocol);
                 logger.trace("Connect status before open transport to {} is '{}'.", routing, isConnected);

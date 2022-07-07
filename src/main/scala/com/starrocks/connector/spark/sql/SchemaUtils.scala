@@ -25,7 +25,7 @@ import com.starrocks.connector.spark.cfg.Settings
 import com.starrocks.connector.spark.exception.StarrocksException
 import com.starrocks.connector.spark.rest.RestService
 import com.starrocks.connector.spark.rest.models.{Field, Schema}
-import com.starrocks.connector.thrift.TScanColumnDesc
+import com.starrocks.thrift.TScanColumnDesc
 
 import org.apache.spark.sql.types._
 

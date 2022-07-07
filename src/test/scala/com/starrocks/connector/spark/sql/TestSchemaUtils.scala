@@ -21,7 +21,7 @@ package com.starrocks.connector.spark.sql
 
 import com.starrocks.connector.spark.exception.StarrocksException
 import com.starrocks.connector.spark.rest.models.{Field, Schema}
-import com.starrocks.connector.thrift.{TPrimitiveType, TScanColumnDesc}
+import com.starrocks.thrift.{TPrimitiveType, TScanColumnDesc}
 import org.apache.spark.sql.types._
 import org.hamcrest.core.StringStartsWith.startsWith
 import org.junit.{Assert, Test}
