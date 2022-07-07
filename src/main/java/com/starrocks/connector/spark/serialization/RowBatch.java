@@ -22,7 +22,7 @@ package com.starrocks.connector.spark.serialization;
 import com.google.common.base.Preconditions;
 import com.starrocks.connector.spark.exception.StarrocksException;
 import com.starrocks.connector.spark.rest.models.Schema;
-import com.starrocks.connector.thrift.TScanBatchResult;
+import com.starrocks.thrift.TScanBatchResult;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
