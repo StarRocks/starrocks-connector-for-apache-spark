@@ -47,7 +47,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * row batch data container.
@@ -80,29 +79,22 @@ public class RowBatch {
     private final VectorSchemaRoot root;
     private List<FieldVector> fieldVectors;
     private RootAllocator rootAllocator;
-    private Schema schema;
-
-    private ConcurrentHashMap<String, FieldVector> fieldVectorMap;
-
-    private List<String> queryColumns;
+    private final Schema schema;
+    private Map<Integer, Integer> columnIndexMap;
 
     public RowBatch(TScanBatchResult nextResult, Schema schema, List<String> queryColumns) throws StarrocksException {
-        convertSchema(schema, queryColumns);
+        mapColumnIndex(schema, queryColumns);
+        this.schema = schema;
         this.rootAllocator = new RootAllocator(Integer.MAX_VALUE);
         this.arrowStreamReader = new ArrowStreamReader(
                 new ByteArrayInputStream(nextResult.getRows()),
                 rootAllocator
         );
         this.offsetInRowBatch = 0;
-        this.fieldVectorMap = new ConcurrentHashMap<>();
-        this.queryColumns = queryColumns;
         try {
             this.root = arrowStreamReader.getVectorSchemaRoot();
             while (arrowStreamReader.loadNextBatch()) {
                 fieldVectors = root.getFieldVectors();
-                fieldVectors.parallelStream().forEach(vector -> {
-                    fieldVectorMap.put(vector.getName(), vector);
-                });
                 if (fieldVectors.size() != schema.size()) {
                     logger.error("Schema size '{}' is not equal to arrow field size '{}'.",
                             fieldVectors.size(), schema.size());
@@ -128,20 +120,24 @@ public class RowBatch {
         }
     }
 
-    private void convertSchema(Schema schema, List<String> queryColumns) throws StarrocksException {
-        Map<String, Field> fieldMap = new HashMap<>();
-        schema.getProperties().forEach(field -> {
-            String name = field.getName();
-            fieldMap.put(name, field);
-        });
-        this.schema = new Schema();
-        for (String column : queryColumns) {
-            Field field = fieldMap.get(column);
-            if (field == null) {
-                throw new StarrocksException(String.format("The column {} can't be found from schema, schema is %s",
-                        column, schema));
+    private void mapColumnIndex(Schema schema, List<String> queryColumns) throws StarrocksException {
+        Preconditions.checkArgument(schema.size() == queryColumns.size(),
+                "The size of query columns don't equal with the size of schema.");
+        int columnSize = queryColumns.size();
+        List<Field> fields = schema.getProperties();
+        Map<String, Integer> columnIndex = new HashMap<>(columnSize);
+        for (int i = 0; i < columnSize; i++) {
+            columnIndex.put(fields.get(i).getName(), i);
+        }
+        columnIndexMap = new HashMap<>(columnSize);
+        for (int i = 0; i < columnSize; i++) {
+            String column = queryColumns.get(i);
+            Integer index = columnIndex.get(column);
+            if (index == null) {
+                throw new StarrocksException(
+                        String.format("The column [%s] can't be found from schema.", column));
             }
-            this.schema.put(field);
+            columnIndexMap.put(i, index);
         }
     }
 
@@ -162,26 +158,14 @@ public class RowBatch {
         rowBatch.get(readRowCount + rowIndex).put(obj);
     }
 
-    private void convertFieldsOrder(List<FieldVector> fieldVectors, List<String> queryColumns) throws StarrocksException {
-        this.fieldVectors = new ArrayList<>(fieldVectors.size());
-        for (String column : queryColumns) {
-            FieldVector fieldVector = fieldVectorMap.get(column);
-            if (fieldVector == null) {
-                throw new StarrocksException(String.format("The column {} can't be found from schema, schema is %s",
-                        column, schema));
-            }
-            this.fieldVectors.add(fieldVector);
-        }
-    }
-
     public void convertArrowToRowBatch() throws StarrocksException {
         try {
-            convertFieldsOrder(fieldVectors, queryColumns);
             for (int col = 0; col < fieldVectors.size(); col++) {
-                FieldVector curFieldVector = fieldVectors.get(col);
+                Integer index = columnIndexMap.get(col);
+                FieldVector curFieldVector = fieldVectors.get(index);
                 Types.MinorType mt = curFieldVector.getMinorType();
 
-                final String currentType = schema.get(col).getType();
+                final String currentType = schema.get(index).getType();
                 switch (currentType) {
                     case "NULL_TYPE":
                         for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
@@ -316,7 +300,7 @@ public class RowBatch {
                         }
                         break;
                     default:
-                        String errMsg = "Unsupported type " + schema.get(col).getType();
+                        String errMsg = "Unsupported type " + schema.get(index).getType();
                         logger.error(errMsg);
                         throw new StarrocksException(errMsg);
                 }
