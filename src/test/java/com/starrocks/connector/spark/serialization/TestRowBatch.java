@@ -22,6 +22,7 @@ package com.starrocks.connector.spark.serialization;
 import static org.hamcrest.core.StringStartsWith.startsWith;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.starrocks.connector.spark.rest.RestService;
 import com.starrocks.connector.spark.rest.models.Schema;
 import com.starrocks.connector.thrift.TScanBatchResult;
@@ -245,7 +246,8 @@ public class TestRowBatch {
 
         Schema schema = RestService.parseSchema(schemaStr, logger);
 
-        RowBatch rowBatch = new RowBatch(scanBatchResult, schema);
+        RowBatch rowBatch = new RowBatch(scanBatchResult, schema,
+                Lists.newArrayList("k0", "k1", "k2", "k3", "k4", "k9", "k8", "k10", "k11", "k5", "k6"));
 
         List<Object> expectedRow1 = Arrays.asList(
                 Boolean.TRUE,
@@ -359,7 +361,7 @@ public class TestRowBatch {
 
         Schema schema = RestService.parseSchema(schemaStr, logger);
 
-        RowBatch rowBatch = new RowBatch(scanBatchResult, schema);
+        RowBatch rowBatch = new RowBatch(scanBatchResult, schema, Lists.newArrayList("k7"));
 
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow0 = rowBatch.next();
@@ -423,7 +425,7 @@ public class TestRowBatch {
 
         Schema schema = RestService.parseSchema(schemaStr, logger);
 
-        RowBatch rowBatch = new RowBatch(scanBatchResult, schema);
+        RowBatch rowBatch = new RowBatch(scanBatchResult, schema, Lists.newArrayList("k7"));
 
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow0 = rowBatch.next();
@@ -488,7 +490,7 @@ public class TestRowBatch {
 
         Schema schema = RestService.parseSchema(schemaStr, logger);
 
-        RowBatch rowBatch = new RowBatch(scanBatchResult, schema);
+        RowBatch rowBatch = new RowBatch(scanBatchResult, schema, Lists.newArrayList("k8"));
 
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow0 = rowBatch.next();

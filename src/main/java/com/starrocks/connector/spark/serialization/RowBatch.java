@@ -21,6 +21,7 @@ package com.starrocks.connector.spark.serialization;
 
 import com.google.common.base.Preconditions;
 import com.starrocks.connector.spark.exception.StarrocksException;
+import com.starrocks.connector.spark.rest.models.Field;
 import com.starrocks.connector.spark.rest.models.Schema;
 import com.starrocks.connector.thrift.TScanBatchResult;
 import org.apache.arrow.memory.RootAllocator;
@@ -45,9 +46,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
 
 /**
  * row batch data container.
@@ -81,8 +80,10 @@ public class RowBatch {
     private List<FieldVector> fieldVectors;
     private RootAllocator rootAllocator;
     private final Schema schema;
+    private Map<Integer, Integer> columnIndexMap;
 
-    public RowBatch(TScanBatchResult nextResult, Schema schema) throws StarrocksException {
+    public RowBatch(TScanBatchResult nextResult, Schema schema, List<String> queryColumns) throws StarrocksException {
+        mapColumnIndex(schema, queryColumns);
         this.schema = schema;
         this.rootAllocator = new RootAllocator(Integer.MAX_VALUE);
         this.arrowStreamReader = new ArrowStreamReader(
@@ -119,6 +120,27 @@ public class RowBatch {
         }
     }
 
+    private void mapColumnIndex(Schema schema, List<String> queryColumns) throws StarrocksException {
+        Preconditions.checkArgument(schema.size() == queryColumns.size(),
+                "The size of query columns don't equal with the size of schema.");
+        int columnSize = queryColumns.size();
+        List<Field> fields = schema.getProperties();
+        Map<String, Integer> columnIndex = new HashMap<>(columnSize);
+        for (int i = 0; i < columnSize; i++) {
+            columnIndex.put(fields.get(i).getName(), i);
+        }
+        columnIndexMap = new HashMap<>(columnSize);
+        for (int i = 0; i < columnSize; i++) {
+            String column = queryColumns.get(i);
+            Integer index = columnIndex.get(column);
+            if (index == null) {
+                throw new StarrocksException(
+                        String.format("The column [%s] can't be found from schema.", column));
+            }
+            columnIndexMap.put(i, index);
+        }
+    }
+
     public boolean hasNext() {
         if (offsetInRowBatch < readRowCount) {
             return true;
@@ -139,10 +161,11 @@ public class RowBatch {
     public void convertArrowToRowBatch() throws StarrocksException {
         try {
             for (int col = 0; col < fieldVectors.size(); col++) {
-                FieldVector curFieldVector = fieldVectors.get(col);
+                Integer index = columnIndexMap.get(col);
+                FieldVector curFieldVector = fieldVectors.get(index);
                 Types.MinorType mt = curFieldVector.getMinorType();
 
-                final String currentType = schema.get(col).getType();
+                final String currentType = schema.get(index).getType();
                 switch (currentType) {
                     case "NULL_TYPE":
                         for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
@@ -277,7 +300,7 @@ public class RowBatch {
                         }
                         break;
                     default:
-                        String errMsg = "Unsupported type " + schema.get(col).getType();
+                        String errMsg = "Unsupported type " + schema.get(index).getType();
                         logger.error(errMsg);
                         throw new StarrocksException(errMsg);
                 }
