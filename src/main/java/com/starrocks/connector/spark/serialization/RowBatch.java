@@ -96,7 +96,7 @@ public class RowBatch {
                 fieldVectors = root.getFieldVectors();
                 if (fieldVectors.size() != schema.size()) {
                     logger.error("Schema size '{}' is not equal to arrow field size '{}'.",
-                            fieldVectors.size(), schema.size());
+                            schema.size(), fieldVectors.size());
                     throw new StarrocksException("Load StarRocks data failed, schema size of fetch data is wrong.");
                 }
                 if (fieldVectors.size() == 0 || root.getRowCount() == 0) {
