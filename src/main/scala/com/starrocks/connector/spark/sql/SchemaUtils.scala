@@ -94,6 +94,7 @@ private[spark] object SchemaUtils {
       case "DECIMAL64"       => DecimalType(precision, scale)
       case "DECIMAL128"      => DecimalType(precision, scale)
       case "TIME"            => DataTypes.DoubleType
+      case "JSON"            => DataTypes.StringType
       // ARRAY HLL BITMAP
       case _                 =>
         throw new StarrocksException("Unsupported type " + starrocksType)

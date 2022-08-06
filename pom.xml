@@ -31,8 +31,8 @@
     <version>1.0.0</version>
 
     <properties>
-        <scala.version>${env.STARROCKS_SCALA_VERSION}</scala.version>
-        <spark.version>${env.STARROCKS_SPARK_VERSION}</spark.version>
+        <sr_scala.version>${env.STARROCKS_SCALA_VERSION}</sr_scala.version>
+        <sr_spark.version>${env.STARROCKS_SPARK_VERSION}</sr_spark.version>
         <libthrift.version>0.14.0</libthrift.version>
         <arrow.version>5.0.0</arrow.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -80,19 +80,34 @@
                 </repository>
             </repositories>
         </profile>
+
+        <profile>
+            <id>spark3</id>
+
+            <properties>
+                <env.STARROCKS_SCALA_VERSION>2.12</env.STARROCKS_SCALA_VERSION>
+                <env.STARROCKS_SPARK_VERSION>3.1.2</env.STARROCKS_SPARK_VERSION>
+                <env.STARROCKS_SPARK_BASE_VERSION>3</env.STARROCKS_SPARK_BASE_VERSION>
+            </properties>
+        </profile>
     </profiles>
 
     <dependencies>
         <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-library</artifactId>
+            <version>2.12.10</version>
+        </dependency>
+        <dependency>
             <groupId>org.apache.spark</groupId>
-            <artifactId>spark-core_${scala.version}</artifactId>
-            <version>${spark.version}</version>
+            <artifactId>spark-core_${sr_scala.version}</artifactId>
+            <version>${sr_spark.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
-            <artifactId>spark-sql_${scala.version}</artifactId>
-            <version>${spark.version}</version>
+            <artifactId>spark-sql_${sr_scala.version}</artifactId>
+            <version>${sr_spark.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -126,7 +141,7 @@
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
-            <artifactId>mockito-scala_${scala.version}</artifactId>
+            <artifactId>mockito-scala_${sr_scala.version}</artifactId>
             <version>1.4.7</version>
             <exclusions>
                 <exclusion>
@@ -156,6 +171,11 @@
                 <groupId>org.apache.thrift.tools</groupId>
                 <artifactId>maven-thrift-plugin</artifactId>
                 <version>0.1.11</version>
+                <configuration>
+                    <thriftSourceRoot>${basedir}/src/main/thrift</thriftSourceRoot>
+                    <outputDirectory>${basedir}/gen-thrift</outputDirectory>
+                    <generator>java</generator>
+                </configuration>
                 <executions>
                     <execution>
                         <id>thrift-sources</id>

@@ -30,3 +30,5 @@ buildNumber.properties
 .vscode/
 
 !.gitignore
+
+gen-thrift
