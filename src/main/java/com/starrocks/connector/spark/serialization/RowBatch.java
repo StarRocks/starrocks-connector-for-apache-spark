@@ -21,7 +21,9 @@ package com.starrocks.connector.spark.serialization;
 
 import com.google.common.base.Preconditions;
 import com.starrocks.connector.spark.exception.StarrocksException;
+import com.starrocks.connector.spark.rest.models.Field;
 import com.starrocks.connector.spark.rest.models.Schema;
+import com.starrocks.connector.spark.util.DataTypeUtils;
 import com.starrocks.connector.thrift.TScanBatchResult;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
@@ -47,7 +49,10 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * row batch data container.
@@ -81,9 +86,17 @@ public class RowBatch {
     private List<FieldVector> fieldVectors;
     private RootAllocator rootAllocator;
     private final Schema schema;
+    private final Map<String, Field> fieldMap;
 
     public RowBatch(TScanBatchResult nextResult, Schema schema) throws StarrocksException {
         this.schema = schema;
+        this.fieldMap = schema.getProperties().stream()
+                .collect(
+                        Collectors.toMap(
+                                Field::getName,
+                                Function.identity()
+                        )
+                );
         this.rootAllocator = new RootAllocator(Integer.MAX_VALUE);
         this.arrowStreamReader = new ArrowStreamReader(
                 new ByteArrayInputStream(nextResult.getRows()),
@@ -141,8 +154,16 @@ public class RowBatch {
             for (int col = 0; col < fieldVectors.size(); col++) {
                 FieldVector curFieldVector = fieldVectors.get(col);
                 Types.MinorType mt = curFieldVector.getMinorType();
+                Field field = fieldMap.get(curFieldVector.getName());
 
-                final String currentType = schema.get(col).getType();
+                String currentType;
+
+                if (field != null) {
+                    currentType = field.getType();
+                } else {
+                    currentType = DataTypeUtils.map(mt);
+                }
+
                 switch (currentType) {
                     case "NULL_TYPE":
                         for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
