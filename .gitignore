@@ -17,7 +17,7 @@ buildNumber.properties
 # IntelliJ
 #
 *.iml
-.idea/*
+.idea
 !.idea/runConfigurations/
 
 #

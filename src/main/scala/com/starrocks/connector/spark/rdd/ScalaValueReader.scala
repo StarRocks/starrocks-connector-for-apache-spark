@@ -34,7 +34,7 @@ import com.starrocks.connector.spark.serialization.{Routing, RowBatch}
 import com.starrocks.connector.spark.sql.SchemaUtils
 import com.starrocks.connector.spark.util.ErrorMessages
 import com.starrocks.connector.spark.util.ErrorMessages.SHOULD_NOT_HAPPEN_MESSAGE
-import com.starrocks.connector.thrift.{TScanCloseParams, TScanNextBatchParams, TScanOpenParams, TScanOpenResult}
+import com.starrocks.thrift.{TScanCloseParams, TScanNextBatchParams, TScanOpenParams, TScanOpenResult}
 import org.apache.log4j.Logger
 
 import scala.util.control.Breaks
