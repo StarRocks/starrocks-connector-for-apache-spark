@@ -20,19 +20,19 @@
 package com.starrocks.connector.spark.backend;
 
 import com.starrocks.connector.spark.cfg.ConfigurationOptions;
+import com.starrocks.connector.spark.cfg.Settings;
 import com.starrocks.connector.spark.exception.ConnectedFailedException;
 import com.starrocks.connector.spark.exception.StarrocksException;
 import com.starrocks.connector.spark.exception.StarrocksInternalException;
-import com.starrocks.connector.spark.util.ErrorMessages;
-import com.starrocks.connector.spark.cfg.Settings;
 import com.starrocks.connector.spark.serialization.Routing;
-import com.starrocks.connector.thrift.TStarrocksExternalService;
+import com.starrocks.connector.spark.util.ErrorMessages;
 import com.starrocks.connector.thrift.TScanBatchResult;
 import com.starrocks.connector.thrift.TScanCloseParams;
 import com.starrocks.connector.thrift.TScanCloseResult;
 import com.starrocks.connector.thrift.TScanNextBatchParams;
 import com.starrocks.connector.thrift.TScanOpenParams;
 import com.starrocks.connector.thrift.TScanOpenResult;
+import com.starrocks.connector.thrift.TStarrocksExternalService;
 import com.starrocks.connector.thrift.TStatusCode;
 import org.apache.thrift.TConfiguration;
 import org.apache.thrift.TException;
@@ -59,6 +59,7 @@ public class BackendClient {
     private final int retries;
     private final int socketTimeout;
     private final int connectTimeout;
+    private final int thriftMaxMessageSize;
 
     public BackendClient(Routing routing, Settings settings) throws ConnectedFailedException {
         this.routing = routing;
@@ -68,8 +69,11 @@ public class BackendClient {
                 ConfigurationOptions.STARROCKS_REQUEST_READ_TIMEOUT_MS_DEFAULT);
         this.retries = settings.getIntegerProperty(ConfigurationOptions.STARROCKS_REQUEST_RETRIES,
                 ConfigurationOptions.STARROCKS_REQUEST_RETRIES_DEFAULT);
-        logger.trace("connect timeout set to '{}'. socket timeout set to '{}'. retries set to '{}'.",
-                this.connectTimeout, this.socketTimeout, this.retries);
+        this.thriftMaxMessageSize = settings.getIntegerProperty(ConfigurationOptions.STARROCKS_THRIFT_MAX_MESSAGE_SIZE,
+                ConfigurationOptions.STARROCKS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT);
+        logger.trace("connect timeout set to '{}'. socket timeout set to '{}'. retries set to '{}'." +
+                        " thrift MAX_MESSAGE_SIZE set to '{}'.",
+                this.connectTimeout, this.socketTimeout, this.retries, this.thriftMaxMessageSize);
         open();
     }
 
@@ -80,7 +84,9 @@ public class BackendClient {
             logger.debug("Attempt {} to connect {}.", attempt, routing);
             TBinaryProtocol.Factory factory = new TBinaryProtocol.Factory();
             try {
-                transport = new TSocket(TConfiguration.custom().build(), routing.getHost(), routing.getPort(), 
+                TConfiguration.Builder builder = TConfiguration.custom();
+                builder.setMaxMessageSize(thriftMaxMessageSize);
+                transport = new TSocket(builder.build(), routing.getHost(), routing.getPort(),
                         socketTimeout, connectTimeout);
                 TProtocol protocol = factory.getProtocol(transport);
                 client = new TStarrocksExternalService.Client(protocol);
