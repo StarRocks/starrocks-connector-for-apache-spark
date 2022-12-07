@@ -65,4 +65,7 @@ public interface ConfigurationOptions {
 
     String STARROCKS_DESERIALIZE_QUEUE_SIZE = "starrocks.deserialize.queue.size";
     int STARROCKS_DESERIALIZE_QUEUE_SIZE_DEFAULT = 64;
+
+    String STARROCKS_THRIFT_MAX_MESSAGE_SIZE = "starrocks.thrift.max.message.size";
+    int STARROCKS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT = Integer.MAX_VALUE;
 }
