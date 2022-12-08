@@ -53,7 +53,7 @@ public interface ConfigurationOptions {
     int STARROCKS_TABLET_SIZE_MIN = 1;
 
     String STARROCKS_BATCH_SIZE = "starrocks.batch.size";
-    int STARROCKS_BATCH_SIZE_DEFAULT = 1024;
+    int STARROCKS_BATCH_SIZE_DEFAULT = 4096;
 
     String STARROCKS_EXEC_MEM_LIMIT = "starrocks.exec.mem.limit";
     long STARROCKS_EXEC_MEM_LIMIT_DEFAULT = 2147483648L;
