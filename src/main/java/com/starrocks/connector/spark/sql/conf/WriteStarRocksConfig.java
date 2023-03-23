@@ -169,10 +169,11 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
         Map<String, String> props = getProperties();
         String format = getFormat();
         String rowDelimiter = getRowDelimiter();
+        String joinedColumns = columns == null ? null : String.join(",", columns);
         StreamLoadTableProperties tableProperties = StreamLoadTableProperties.builder()
                 .database(getDatabase())
                 .table(getTable())
-                .columns(getColumns())
+                .columns(joinedColumns)
                 .streamLoadDataFormat("json".equalsIgnoreCase(format) ? StreamLoadDataFormat.JSON : new StreamLoadDataFormat.CSVFormat(rowDelimiter))
                 .addProperties(props)
                 .build();
