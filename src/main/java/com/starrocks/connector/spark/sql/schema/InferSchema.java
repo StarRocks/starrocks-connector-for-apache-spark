@@ -30,7 +30,7 @@ public final class InferSchema {
 
         StarRocksSchema schema = StarRocksConnector.getSchema(config);
 
-        if (config.getColumns().length > 0) {
+        if (config.getColumns() != null && config.getColumns().length > 0) {
             return inferSchema(schema.sortAndListField(config.getColumns()));
         }
 
