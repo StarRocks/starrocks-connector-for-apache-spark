@@ -28,9 +28,9 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
 
     private static final String PROPS_PREFIX = WRITE_PREFIX + "properties.";
     private static final String KEY_PROPS_FORMAT = PROPS_PREFIX + "format";
-    private static final String KEY_PROPS_ROW_DELIMITER = PROPS_PREFIX + "rowDelimiter";
-    private static final String KEY_PROPS_COLUMN_SEPARATOR = PROPS_PREFIX + "columnSeparator";
-    private static final String KEY_PROPS_CHUNK_LIMIT = PROPS_PREFIX + "chunkLimit";
+    private static final String KEY_PROPS_ROW_DELIMITER = PROPS_PREFIX + "row_delimiter";
+    private static final String KEY_PROPS_COLUMN_SEPARATOR = PROPS_PREFIX + "column_separator";
+    private static final String KEY_PROPS_CHUNK_LIMIT = PROPS_PREFIX + "chunk_limit";
 
     private final Map<String, String> originOptions;
 
