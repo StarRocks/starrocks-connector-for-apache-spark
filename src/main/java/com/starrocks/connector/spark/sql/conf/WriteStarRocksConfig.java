@@ -30,6 +30,7 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
     private static final String KEY_PROPS_FORMAT = PROPS_PREFIX + "format";
     private static final String KEY_PROPS_ROW_DELIMITER = PROPS_PREFIX + "row_delimiter";
     private static final String KEY_PROPS_COLUMN_SEPARATOR = PROPS_PREFIX + "column_separator";
+    private static final String KEY_PROPS_CHUNK_LIMIT = PROPS_PREFIX + "chunk_limit";
 
     private final Map<String, String> originOptions;
 
@@ -48,6 +49,8 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
     private Integer connectTimeout;
     private String labelPrefix;
     private Integer ioThreadCount;
+
+    private Long chunkLimit;
 
     private Map<String, String> properties;
 
@@ -72,6 +75,8 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
         labelPrefix = get(KEY_CTL_LABEL_PREFIX);
         ioThreadCount = getInt(KEY_CTL_IO_THREAD_COUNT, 1);
 
+        chunkLimit = getLong(KEY_PROPS_CHUNK_LIMIT, 3221225472L);
+
         properties = originOptions.entrySet().stream()
                 .filter(entry -> entry.getKey().startsWith(PROPS_PREFIX))
                 .collect(
@@ -83,6 +88,11 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
 
         if (!properties.containsKey("columns") && columns != null) {
             properties.put("columns", get(KEY_COLUMNS));
+        }
+        String format = getFormat();
+        properties.put("format", format); // force insert format key for stream load http header
+        if ("json".equalsIgnoreCase(format)) {
+            properties.put("strip_outer_array", "true"); // stream loader sdk will surround json rows with []
         }
     }
 
@@ -165,6 +175,10 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
         return originOptions.getOrDefault(KEY_PROPS_COLUMN_SEPARATOR, "\t");
     }
 
+    public Long getChunkLimit() {
+        return chunkLimit;
+    }
+
     public StreamLoadProperties toStreamLoadProperties() {
         Map<String, String> props = getProperties();
         String format = getFormat();
@@ -175,6 +189,7 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
                 .table(getTable())
                 .columns(joinedColumns)
                 .streamLoadDataFormat("json".equalsIgnoreCase(format) ? StreamLoadDataFormat.JSON : new StreamLoadDataFormat.CSVFormat(rowDelimiter))
+                .chunkLimit(chunkLimit)
                 .addProperties(props)
                 .build();
 

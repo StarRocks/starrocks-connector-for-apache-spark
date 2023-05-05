@@ -133,6 +133,11 @@ public interface StarRocksConfig {
         return value == null ? null : Integer.parseInt(value);
     }
 
+    default long getLong(final String key, final long defaultValue) {
+        String value = get(key);
+        return value == null ? defaultValue : Long.parseLong(value);
+    }
+
     default Long getLong(String key) {
         String value = get(key);
         return value == null ? null : Long.parseLong(value);
