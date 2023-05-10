@@ -25,13 +25,12 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
     private static final String KEY_CTL_CONNECT_TIME_OUT = CTL_PREFIX + "connectTimeout";
     private static final String KEY_CTL_LABEL_PREFIX = CTL_PREFIX + "labelPrefix";
     private static final String KEY_CTL_IO_THREAD_COUNT = CTL_PREFIX + "ioThreadCount";
+    private static final String KEY_CTL_CHUNK_LIMIT = CTL_PREFIX + "chunk_limit";
 
     private static final String PROPS_PREFIX = WRITE_PREFIX + "properties.";
     private static final String KEY_PROPS_FORMAT = PROPS_PREFIX + "format";
     private static final String KEY_PROPS_ROW_DELIMITER = PROPS_PREFIX + "row_delimiter";
     private static final String KEY_PROPS_COLUMN_SEPARATOR = PROPS_PREFIX + "column_separator";
-    private static final String KEY_PROPS_CHUNK_LIMIT = PROPS_PREFIX + "chunk_limit";
-
     private final Map<String, String> originOptions;
 
     private String[] feHttpUrls;
@@ -75,7 +74,7 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
         labelPrefix = get(KEY_CTL_LABEL_PREFIX);
         ioThreadCount = getInt(KEY_CTL_IO_THREAD_COUNT, 1);
 
-        chunkLimit = getLong(KEY_PROPS_CHUNK_LIMIT, 3221225472L);
+        chunkLimit = getLong(KEY_CTL_CHUNK_LIMIT, 3221225472L);
 
         properties = originOptions.entrySet().stream()
                 .filter(entry -> entry.getKey().startsWith(PROPS_PREFIX))
