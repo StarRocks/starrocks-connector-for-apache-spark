@@ -56,7 +56,6 @@ public final class InferSchema {
         String type = field.getType().toLowerCase(Locale.ROOT);
 
         switch (type) {
-            case "largeint":
             case "bigint":
                 return DataTypes.LongType;
             case "tinyint":
@@ -70,18 +69,25 @@ public final class InferSchema {
             case "double":
                 return DataTypes.DoubleType;
             case "decimal":
-                return DataTypes.createDecimalType(Integer.parseInt(field.getSize()), Integer.parseInt(field.getScale()));
+                int size = field.getSize() == null ? 10 : Integer.parseInt(field.getSize());
+                int scale = field.getScale() == null ? 0 : Integer.parseInt(field.getScale());
+
+                if (size > 38) {
+                    return DataTypes.StringType;
+                }
+
+                return DataTypes.createDecimalType(size, scale);
             case "char":
             case "varchar":
             case "json":
             case "string":
-                return DataTypes.StringType;
             case "date":
-                return DataTypes.DateType;
             case "datetime":
-                return DataTypes.TimestampType;
+            case "bigint unsigned":
+            case "largeint":
+                return DataTypes.StringType;
             default:
-                return DataTypes.NullType;
+                return DataTypes.StringType;
         }
     }
 }

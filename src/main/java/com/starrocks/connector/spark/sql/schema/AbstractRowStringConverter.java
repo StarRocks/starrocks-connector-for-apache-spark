@@ -94,6 +94,8 @@ public abstract class AbstractRowStringConverter implements RowStringConverter, 
                     }
                 }
                 return jsonObject;
+            } else if (dataType instanceof BinaryType) {
+                return data;
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
