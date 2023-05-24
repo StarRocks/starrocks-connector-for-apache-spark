@@ -5,10 +5,7 @@ import com.starrocks.connector.spark.sql.schema.InferSchema;
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableProvider;
 import org.apache.spark.sql.connector.expressions.Transform;
-import org.apache.spark.sql.internal.connector.SimpleTableProvider;
 import org.apache.spark.sql.sources.DataSourceRegister;
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 

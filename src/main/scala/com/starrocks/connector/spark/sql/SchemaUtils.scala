@@ -75,7 +75,7 @@ private[spark] object SchemaUtils {
   def getCatalystType(starrocksType: String, precision: Int, scale: Int): DataType = {
     starrocksType match {
       case "NULL_TYPE"       => DataTypes.NullType
-      case "BOOLEAN"         => DataTypes.BooleanType
+      case "BOOLEAN"         => DataTypes.IntegerType
       case "TINYINT"         => DataTypes.ByteType
       case "SMALLINT"        => DataTypes.ShortType
       case "INT"             => DataTypes.IntegerType
