@@ -20,18 +20,18 @@
 package com.starrocks.connector
 
 import scala.language.implicitConversions
-
 import com.starrocks.connector.spark.rdd.StarrocksSpark
 import org.apache.spark.SparkContext
+import org.apache.spark.rdd.RDD
 
 package object spark {
-  implicit def sparkContextFunctions(sc: SparkContext) = new SparkContextFunctions(sc)
+  implicit def sparkContextFunctions(sc: SparkContext): SparkContextFunctions = new SparkContextFunctions(sc)
 
   class SparkContextFunctions(sc: SparkContext) extends Serializable {
     def starrocksRDD(
         tableIdentifier: Option[String] = None,
         query: Option[String] = None,
-        cfg: Option[Map[String, String]] = None) =
+        cfg: Option[Map[String, String]] = None): RDD[AnyRef] =
       StarrocksSpark.starrocksRDD(sc, tableIdentifier, query, cfg)
   }
 }

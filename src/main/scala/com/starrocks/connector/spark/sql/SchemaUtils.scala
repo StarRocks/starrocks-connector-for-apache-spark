@@ -20,15 +20,12 @@
 package com.starrocks.connector.spark.sql
 
 import scala.collection.JavaConverters._
-
-import com.starrocks.connector.spark.cfg.Settings
 import com.starrocks.connector.spark.exception.StarrocksException
 import com.starrocks.connector.spark.rest.RestService
 import com.starrocks.connector.spark.rest.models.{Field, Schema}
+import com.starrocks.connector.spark.sql.conf.StarRocksConfig
 import com.starrocks.thrift.TScanColumnDesc
-
 import org.apache.spark.sql.types._
-
 import org.slf4j.LoggerFactory
 
 private[spark] object SchemaUtils {
@@ -39,7 +36,7 @@ private[spark] object SchemaUtils {
    * @param cfg configuration
    * @return Spark Catalyst StructType
    */
-  def discoverSchema(cfg: Settings): StructType = {
+  def discoverSchema(cfg: StarRocksConfig): StructType = {
     val schema = discoverSchemaFromFe(cfg)
     convertToStruct(schema)
   }
@@ -49,7 +46,7 @@ private[spark] object SchemaUtils {
    * @param cfg configuration
    * @return inner schema struct
    */
-  def discoverSchemaFromFe(cfg: Settings): Schema = {
+  def discoverSchemaFromFe(cfg: StarRocksConfig): Schema = {
     RestService.getSchema(cfg, logger)
   }
 
@@ -75,7 +72,7 @@ private[spark] object SchemaUtils {
   def getCatalystType(starrocksType: String, precision: Int, scale: Int): DataType = {
     starrocksType match {
       case "NULL_TYPE"       => DataTypes.NullType
-      case "BOOLEAN"         => DataTypes.IntegerType
+      case "BOOLEAN"         => DataTypes.BooleanType
       case "TINYINT"         => DataTypes.ByteType
       case "SMALLINT"        => DataTypes.ShortType
       case "INT"             => DataTypes.IntegerType

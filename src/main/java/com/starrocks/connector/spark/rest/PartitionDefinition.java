@@ -19,9 +19,8 @@
 
 package com.starrocks.connector.spark.rest;
 
-import com.starrocks.connector.spark.cfg.PropertiesSettings;
-import com.starrocks.connector.spark.cfg.Settings;
 import com.starrocks.connector.spark.exception.IllegalArgumentException;
+import com.starrocks.connector.spark.sql.conf.StarRocksConfig;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -39,16 +38,12 @@ public class PartitionDefinition implements Serializable, Comparable<PartitionDe
     private final String beAddress;
     private final Set<Long> tabletIds;
     private final String queryPlan;
-    private final String serializedSettings;
+    private final StarRocksConfig config;
 
     public PartitionDefinition(String database, String table,
-                               Settings settings, String beAddress, Set<Long> tabletIds, String queryPlan)
+                               StarRocksConfig config, String beAddress, Set<Long> tabletIds, String queryPlan)
             throws IllegalArgumentException {
-        if (settings != null) {
-            this.serializedSettings = settings.save();
-        } else {
-            this.serializedSettings = null;
-        }
+        this.config = config;
         this.database = database;
         this.table = table;
         this.beAddress = beAddress;
@@ -76,9 +71,8 @@ public class PartitionDefinition implements Serializable, Comparable<PartitionDe
         return queryPlan;
     }
 
-    public Settings settings() throws IllegalArgumentException {
-        PropertiesSettings settings = new PropertiesSettings();
-        return serializedSettings != null ? settings.load(serializedSettings) : settings;
+    public StarRocksConfig config() throws IllegalArgumentException {
+        return config;
     }
 
     public int compareTo(PartitionDefinition o) {
@@ -130,8 +124,7 @@ public class PartitionDefinition implements Serializable, Comparable<PartitionDe
                 Objects.equals(table, that.table) &&
                 Objects.equals(beAddress, that.beAddress) &&
                 Objects.equals(tabletIds, that.tabletIds) &&
-                Objects.equals(queryPlan, that.queryPlan) &&
-                Objects.equals(serializedSettings, that.serializedSettings);
+                Objects.equals(queryPlan, that.queryPlan);
     }
 
     @Override
@@ -141,6 +134,7 @@ public class PartitionDefinition implements Serializable, Comparable<PartitionDe
         result = 31 * result + beAddress.hashCode();
         result = 31 * result + queryPlan.hashCode();
         result = 31 * result + tabletIds.hashCode();
+        result = 31 * result + queryPlan.hashCode();
         return result;
     }
 

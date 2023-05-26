@@ -19,23 +19,13 @@
 
 package com.starrocks.connector.spark.rest;
 
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_FENODES;
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_FILTER_QUERY;
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_READ_FIELD;
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD;
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER;
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLET_SIZE;
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLET_SIZE_DEFAULT;
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLET_SIZE_MIN;
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLE_IDENTIFIER;
 import static com.starrocks.connector.spark.util.ErrorMessages.CONNECT_FAILED_MESSAGE;
 import static com.starrocks.connector.spark.util.ErrorMessages.ILLEGAL_ARGUMENT_MESSAGE;
-import static com.starrocks.connector.spark.util.ErrorMessages.PARSE_NUMBER_FAILED_MESSAGE;
 import static com.starrocks.connector.spark.util.ErrorMessages.SHOULD_NOT_HAPPEN_MESSAGE;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.starrocks.connector.spark.cfg.ConfigurationOptions;
-import com.starrocks.connector.spark.cfg.Settings;
 import com.starrocks.connector.spark.exception.ConnectedFailedException;
 import com.starrocks.connector.spark.exception.StarrocksException;
 import com.starrocks.connector.spark.exception.IllegalArgumentException;
@@ -43,6 +33,8 @@ import com.starrocks.connector.spark.exception.ShouldNeverHappenException;
 import com.starrocks.connector.spark.rest.models.QueryPlan;
 import com.starrocks.connector.spark.rest.models.Schema;
 import com.starrocks.connector.spark.rest.models.Tablet;
+import com.starrocks.connector.spark.sql.conf.ReadStarRocksConfig;
+import com.starrocks.connector.spark.sql.conf.StarRocksConfig;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpStatus;
 import org.apache.http.auth.AuthenticationException;
@@ -93,14 +85,11 @@ public class RestService implements Serializable {
      * @return StarRocks FE response in json string
      * @throws ConnectedFailedException throw when cannot connect to StarRocks FE
      */
-    private static String send(Settings cfg, HttpRequestBase request, Logger logger) throws
+    private static String send(StarRocksConfig cfg, HttpRequestBase request, Logger logger) throws
             ConnectedFailedException {
-        int connectTimeout = cfg.getIntegerProperty(ConfigurationOptions.STARROCKS_REQUEST_CONNECT_TIMEOUT_MS,
-                ConfigurationOptions.STARROCKS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT);
-        int socketTimeout = cfg.getIntegerProperty(ConfigurationOptions.STARROCKS_REQUEST_READ_TIMEOUT_MS,
-                ConfigurationOptions.STARROCKS_REQUEST_READ_TIMEOUT_MS_DEFAULT);
-        int retries = cfg.getIntegerProperty(ConfigurationOptions.STARROCKS_REQUEST_RETRIES,
-                ConfigurationOptions.STARROCKS_REQUEST_RETRIES_DEFAULT);
+        int connectTimeout = cfg.getRequestConnectTimeoutMs();
+        int socketTimeout = cfg.getRequestSocketTimeoutMs();
+        int retries = cfg.getRequestRetries();
         logger.trace("connect timeout set to '{}'. socket timeout set to '{}'. retries set to '{}'.",
                 connectTimeout, socketTimeout, retries);
 
@@ -111,8 +100,8 @@ public class RestService implements Serializable {
 
         request.setConfig(requestConfig);
 
-        String user = cfg.getProperty(STARROCKS_REQUEST_AUTH_USER, "");
-        String password = cfg.getProperty(STARROCKS_REQUEST_AUTH_PASSWORD, "");
+        String user = cfg.getUsername();
+        String password = cfg.getPassword();
         UsernamePasswordCredentials creds = new UsernamePasswordCredentials(user, password);
         HttpClientContext context = HttpClientContext.create();
         try {
@@ -184,13 +173,13 @@ public class RestService implements Serializable {
      * @throws IllegalArgumentException fe nodes is illegal
      */
     @VisibleForTesting
-    static String randomEndpoint(String feNodes, Logger logger) throws IllegalArgumentException {
-        logger.trace("Parse fenodes '{}'.", feNodes);
-        if (StringUtils.isEmpty(feNodes)) {
-            logger.error(ILLEGAL_ARGUMENT_MESSAGE, "fenodes", feNodes);
-            throw new IllegalArgumentException("fenodes", feNodes);
+    static String randomEndpoint(String[] feNodes, Logger logger) throws IllegalArgumentException {
+        if (feNodes.length == 0) {
+            logger.error(ILLEGAL_ARGUMENT_MESSAGE, "fe.urls.http", "empty");
+            throw new IllegalArgumentException("fe.urls.http", "empty");
         }
-        List<String> nodes = Arrays.asList(feNodes.split(","));
+
+        List<String> nodes = Arrays.asList(feNodes);
         Collections.shuffle(nodes);
         return nodes.get(0).trim();
     }
@@ -204,12 +193,11 @@ public class RestService implements Serializable {
      * @throws IllegalArgumentException throw when configuration is illegal
      */
     @VisibleForTesting
-    static String getUriStr(Settings cfg, Logger logger) throws IllegalArgumentException {
-        String[] identifier = parseIdentifier(cfg.getProperty(STARROCKS_TABLE_IDENTIFIER), logger);
+    static String getUriStr(StarRocksConfig cfg, Logger logger) throws IllegalArgumentException {
         return "http://" +
-                randomEndpoint(cfg.getProperty(STARROCKS_FENODES), logger) + API_PREFIX +
-                "/" + identifier[0] +
-                "/" + identifier[1] +
+                randomEndpoint(cfg.getFeHttpUrls(), logger) + API_PREFIX +
+                "/" + cfg.getDatabase() +
+                "/" + cfg.getTable() +
                 "/";
     }
 
@@ -221,7 +209,7 @@ public class RestService implements Serializable {
      * @return StarRocks table schema
      * @throws StarrocksException throw when discover failed
      */
-    public static Schema getSchema(Settings cfg, Logger logger)
+    public static Schema getSchema(StarRocksConfig cfg, Logger logger)
             throws StarrocksException {
         logger.trace("Finding schema.");
         HttpGet httpGet = new HttpGet(getUriStr(cfg, logger) + SCHEMA);
@@ -281,13 +269,16 @@ public class RestService implements Serializable {
      * @return an list of StarRocks RDD partitions
      * @throws StarrocksException throw when find partition failed
      */
-    public static List<PartitionDefinition> findPartitions(Settings cfg, Logger logger) throws StarrocksException {
-        String[] tableIdentifiers = parseIdentifier(cfg.getProperty(STARROCKS_TABLE_IDENTIFIER), logger);
-        String sql = "select " + cfg.getProperty(STARROCKS_READ_FIELD, "*") +
-                " from `" + tableIdentifiers[0] + "`.`" + tableIdentifiers[1] + "`";
-        if (!StringUtils.isEmpty(cfg.getProperty(STARROCKS_FILTER_QUERY))) {
-            sql += " where " + cfg.getProperty(STARROCKS_FILTER_QUERY);
+    public static List<PartitionDefinition> findPartitions(StarRocksConfig cfg, Logger logger) throws StarrocksException {
+        ReadStarRocksConfig readConf = cfg.toReadConfig();
+        String columns = readConf.getColumns() == null ? "*" : String.join(",", readConf.getColumns());
+        String sql = "select " + columns +
+                " from `" + readConf.getDatabase() + "`.`" + readConf.getTable() + "`";
+
+        if (!StringUtils.isEmpty(readConf.getQueryFilterConditions())) {
+            sql += " where " + readConf.getQueryFilterConditions();
         }
+
         logger.debug("Query SQL Sending to StarRocks FE is: '{}'.", sql);
 
         HttpPost httpPost = new HttpPost(getUriStr(cfg, logger) + QUERY_PLAN);
@@ -303,11 +294,11 @@ public class RestService implements Serializable {
         QueryPlan queryPlan = getQueryPlan(resStr, logger);
         Map<String, List<Long>> be2Tablets = selectBeForTablet(queryPlan, logger);
         return tabletsMapToPartition(
-                cfg,
+                readConf,
                 be2Tablets,
                 queryPlan.getOpaqued_query_plan(),
-                tableIdentifiers[0],
-                tableIdentifiers[1],
+                readConf.getDatabase(),
+                readConf.getTable(),
                 logger);
     }
 
@@ -413,15 +404,9 @@ public class RestService implements Serializable {
      * @return tablet count limit
      */
     @VisibleForTesting
-    static int tabletCountLimitForOnePartition(Settings cfg, Logger logger) {
-        int tabletsSize = STARROCKS_TABLET_SIZE_DEFAULT;
-        if (cfg.getProperty(STARROCKS_TABLET_SIZE) != null) {
-            try {
-                tabletsSize = Integer.parseInt(cfg.getProperty(STARROCKS_TABLET_SIZE));
-            } catch (NumberFormatException e) {
-                logger.warn(PARSE_NUMBER_FAILED_MESSAGE, STARROCKS_TABLET_SIZE, cfg.getProperty(STARROCKS_TABLET_SIZE));
-            }
-        }
+    static int tabletCountLimitForOnePartition(ReadStarRocksConfig cfg, Logger logger) {
+        int tabletsSize = cfg.getRequestTabletSize();
+
         if (tabletsSize < STARROCKS_TABLET_SIZE_MIN) {
             logger.warn("{} is less than {}, set to default value {}.",
                     STARROCKS_TABLET_SIZE, STARROCKS_TABLET_SIZE_MIN, STARROCKS_TABLET_SIZE_MIN);
@@ -444,7 +429,7 @@ public class RestService implements Serializable {
      * @throws IllegalArgumentException throw when translate failed
      */
     @VisibleForTesting
-    static List<PartitionDefinition> tabletsMapToPartition(Settings cfg, Map<String, List<Long>> be2Tablets,
+    static List<PartitionDefinition> tabletsMapToPartition(ReadStarRocksConfig cfg, Map<String, List<Long>> be2Tablets,
                                                            String opaquedQueryPlan, String database, String table,
                                                            Logger logger)
             throws IllegalArgumentException {

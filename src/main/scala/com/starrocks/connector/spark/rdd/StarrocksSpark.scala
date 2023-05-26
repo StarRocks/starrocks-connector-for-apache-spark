@@ -33,6 +33,6 @@ object StarrocksSpark {
     val params = collection.mutable.Map(cfg.getOrElse(Map.empty).toSeq: _*)
     query.map { s => params += (STARROCKS_FILTER_QUERY -> s) }
     tableIdentifier.map { s => params += (STARROCKS_TABLE_IDENTIFIER -> s) }
-    new ScalaStarrocksRDD[AnyRef](sc, params.toMap)
+    new ScalaStarRocksRDD[AnyRef](sc, params.toMap)
   }
 }

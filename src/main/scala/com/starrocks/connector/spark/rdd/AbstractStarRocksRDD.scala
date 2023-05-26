@@ -21,50 +21,45 @@ package com.starrocks.connector.spark.rdd
 
 import scala.collection.JavaConversions._
 import scala.reflect.ClassTag
-
-import com.starrocks.connector.spark.cfg.SparkSettings
 import com.starrocks.connector.spark.rest.{PartitionDefinition, RestService}
-
+import com.starrocks.connector.spark.sql.conf.StarRocksConfig
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, SparkContext}
 
-private[spark] abstract class AbstractStarrocksRDD[T: ClassTag](
+private[spark] abstract class AbstractStarRocksRDD[T: ClassTag](
     @transient private var sc: SparkContext,
     val params: Map[String, String] = Map.empty)
     extends RDD[T](sc, Nil) {
 
   override def getPartitions: Array[Partition] = {
-    starrocksPartitions.zipWithIndex.map { case (starrocksPartition, idx) =>
-      new StarrocksPartition(id, idx, starrocksPartition)
+    starRocksPartitions.zipWithIndex.map { case (starRocksPartition, idx) =>
+      new StarRocksPartition(id, idx, starRocksPartition)
     }.toArray
   }
 
   override def getPreferredLocations(split: Partition): Seq[String] = {
-    val starrocksSplit = split.asInstanceOf[StarrocksPartition]
-    Seq(starrocksSplit.starrocksPartition.getBeAddress)
+    val starRocksSplit = split.asInstanceOf[StarRocksPartition]
+    Seq(starRocksSplit.starRocksPartition.getBeAddress)
   }
 
   override def checkpoint(): Unit = {
-    // Do nothing. Starrocks RDD should not be checkpointed.
+    // Do nothing. StarRocks RDD should not be checkpointed.
   }
 
   /**
    * starrocks configuration get from rdd parameters and spark conf.
    */
-  @transient private[spark] lazy val starrocksCfg = {
-    val cfg = new SparkSettings(sc.getConf)
-    cfg.merge(params)
-  }
+  @transient private[spark] lazy val starRocksCfg = StarRocksConfig.createConfig(params)
 
-  @transient private[spark] lazy val starrocksPartitions = {
-    RestService.findPartitions(starrocksCfg, log)
+  @transient private[spark] lazy val starRocksPartitions = {
+    RestService.findPartitions(starRocksCfg, log)
   }
 }
 
-private[spark] class StarrocksPartition(rddId: Int, idx: Int, val starrocksPartition: PartitionDefinition)
+private[spark] class StarRocksPartition(rddId: Int, idx: Int, val starRocksPartition: PartitionDefinition)
     extends Partition {
 
-  override def hashCode(): Int = 31 * (31 * (31 + rddId) + idx) + starrocksPartition.hashCode()
+  override def hashCode(): Int = 31 * (31 * (31 + rddId) + idx) + starRocksPartition.hashCode()
 
   override val index: Int = idx
 }

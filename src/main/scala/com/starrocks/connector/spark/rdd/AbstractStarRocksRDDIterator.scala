@@ -19,15 +19,13 @@
 
 package com.starrocks.connector.spark.rdd
 
-import com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_VALUE_READER_CLASS
-import com.starrocks.connector.spark.cfg.Settings
 import com.starrocks.connector.spark.rest.PartitionDefinition
-
+import com.starrocks.connector.spark.sql.conf.ReadStarRocksConfig
 import org.apache.spark.util.TaskCompletionListener
 import org.apache.spark.internal.Logging
 import org.apache.spark.{TaskContext, TaskKilledException}
 
-private[spark] abstract class AbstractStarrocksRDDIterator[T](
+private[spark] abstract class AbstractStarRocksRDDIterator[T](
     context: TaskContext,
     partition: PartitionDefinition) extends Iterator[T] with Logging {
 
@@ -35,14 +33,11 @@ private[spark] abstract class AbstractStarrocksRDDIterator[T](
   private var closed = false
 
   // the reader obtain data from StarRocks BE
-  lazy val reader = {
+  private lazy val reader = {
     initialized = true
-    val settings = partition.settings()
-    initReader(settings)
-    val valueReaderName = settings.getProperty(STARROCKS_VALUE_READER_CLASS)
-    logDebug(s"Use value reader '$valueReaderName'.")
-    val cons = Class.forName(valueReaderName).getDeclaredConstructor(classOf[PartitionDefinition], classOf[Settings])
-    cons.newInstance(partition, settings).asInstanceOf[ScalaValueReader]
+    val config = partition.config().toReadConfig
+
+    newReader(config)
   }
 
   context.addTaskCompletionListener(new TaskCompletionListener() {
@@ -81,7 +76,7 @@ private[spark] abstract class AbstractStarrocksRDDIterator[T](
     }
   }
 
-  def initReader(settings: Settings): Unit
+  def newReader(config: ReadStarRocksConfig): ScalaValueReader
 
   /**
    * convert value of row from reader.next return type to T.

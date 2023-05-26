@@ -19,37 +19,35 @@
 
 package com.starrocks.connector.spark.sql
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable
-import scala.math.min
-import com.starrocks.connector.spark.cfg.ConfigurationOptions._
-import com.starrocks.connector.spark.cfg.{ConfigurationOptions, SparkSettings}
+import com.starrocks.connector.spark.cfg.ConfigurationOptions
+import com.starrocks.connector.spark.sql.conf.StarRocksConfig
+import com.starrocks.connector.spark.sql.schema.InferSchema
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.jdbc.JdbcDialects
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, Row, SQLContext, SaveMode}
 
+import scala.collection.JavaConverters._
+import scala.collection.mutable
 
-private[sql] class StarrocksRelation(
+
+private[sql] class StarRocksRelation(
     val sqlContext: SQLContext, parameters: Map[String, String])
     extends BaseRelation with TableScan with PrunedScan with PrunedFilteredScan with InsertableRelation {
 
-  private lazy val cfg = {
-    val conf = new SparkSettings(sqlContext.sparkContext.getConf)
-    conf.merge(parameters.asJava)
+  private lazy val conf = {
+    val conf = StarRocksConfig.createConfig(parameters.asJava)
     conf
   }
 
-  private lazy val inValueLengthLimit =
-    min(cfg.getProperty(STARROCKS_FILTER_QUERY_IN_MAX_COUNT, "100").toInt,
-      STARROCKS_FILTER_QUERY_IN_VALUE_UPPER_LIMIT)
+  private lazy val inValueLengthLimit = conf.toReadConfig.getQueryFilterInMaxCount
 
-  private lazy val lazySchema = SchemaUtils.discoverSchema(cfg)
+  private lazy val lazySchema = SchemaUtils.discoverSchema(conf)
 
   private lazy val dialect = JdbcDialects.get("")
 
-  override def schema: StructType = lazySchema
+  override def schema: StructType = InferSchema.inferSchema(parameters.asJava)
 
   override def unhandledFilters(filters: Array[Filter]): Array[Filter] = {
     filters.filter(Utils.compileFilter(_, dialect, inValueLengthLimit).isEmpty)
@@ -84,13 +82,13 @@ private[sql] class StarrocksRelation(
       paramWithScan += (ConfigurationOptions.STARROCKS_FILTER_QUERY -> filterWhereClause)
     }
 
-    new ScalaStarrocksRowRDD(sqlContext.sparkContext, paramWithScan.toMap, lazySchema)
+    new ScalaStarRocksRowRDD(sqlContext.sparkContext, paramWithScan.toMap)
   }
 
   override def insert(data: DataFrame, overwrite: Boolean): Unit = {
     data.write
       .format("starrocks_writer")
-      .options(cfg.toMap())
+      .options(conf.getOriginOptions)
       .mode(SaveMode.Append)
       .save()
   }

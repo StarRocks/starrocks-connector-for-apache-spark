@@ -10,17 +10,13 @@ import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public final class InferSchema {
 
-    public static StructType inferSchema(final CaseInsensitiveStringMap options) {
+    public static StructType inferSchema(final Map<String, String> options) {
         StarRocksConfig config = StarRocksConfig.createConfig(options);
 
         List<StarRocksField> inferFields = config.inferFields();
@@ -69,6 +65,7 @@ public final class InferSchema {
             case "double":
                 return DataTypes.DoubleType;
             case "decimal":
+                
                 int size = field.getSize() == null ? 10 : Integer.parseInt(field.getSize());
                 int scale = field.getScale() == null ? 0 : Integer.parseInt(field.getScale());
 

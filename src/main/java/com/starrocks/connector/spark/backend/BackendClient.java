@@ -19,12 +19,11 @@
 
 package com.starrocks.connector.spark.backend;
 
-import com.starrocks.connector.spark.cfg.ConfigurationOptions;
 import com.starrocks.connector.spark.exception.ConnectedFailedException;
 import com.starrocks.connector.spark.exception.StarrocksException;
 import com.starrocks.connector.spark.exception.StarrocksInternalException;
+import com.starrocks.connector.spark.sql.conf.StarRocksConfig;
 import com.starrocks.connector.spark.util.ErrorMessages;
-import com.starrocks.connector.spark.cfg.Settings;
 import com.starrocks.connector.spark.serialization.Routing;
 
 import com.starrocks.shade.org.apache.thrift.TException;
@@ -54,14 +53,11 @@ public class BackendClient {
     private final int socketTimeout;
     private final int connectTimeout;
 
-    public BackendClient(Routing routing, Settings settings) throws ConnectedFailedException {
+    public BackendClient(Routing routing, StarRocksConfig config) throws ConnectedFailedException {
         this.routing = routing;
-        this.connectTimeout = settings.getIntegerProperty(ConfigurationOptions.STARROCKS_REQUEST_CONNECT_TIMEOUT_MS,
-                ConfigurationOptions.STARROCKS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT);
-        this.socketTimeout = settings.getIntegerProperty(ConfigurationOptions.STARROCKS_REQUEST_READ_TIMEOUT_MS,
-                ConfigurationOptions.STARROCKS_REQUEST_READ_TIMEOUT_MS_DEFAULT);
-        this.retries = settings.getIntegerProperty(ConfigurationOptions.STARROCKS_REQUEST_RETRIES,
-                ConfigurationOptions.STARROCKS_REQUEST_RETRIES_DEFAULT);
+        this.connectTimeout = config.getRequestConnectTimeoutMs();
+        this.socketTimeout = config.getRequestSocketTimeoutMs();
+        this.retries = config.getRequestRetries();
         logger.trace("connect timeout set to '{}'. socket timeout set to '{}'. retries set to '{}'.",
                 this.connectTimeout, this.socketTimeout, this.retries);
         open();

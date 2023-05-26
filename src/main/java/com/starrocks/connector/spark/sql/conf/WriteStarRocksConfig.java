@@ -10,14 +10,6 @@ import java.util.stream.Collectors;
 
 public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
 
-    private static final String KEY_FE_HTTP = WRITE_PREFIX + "fe.urls.http";
-    private static final String KEY_FE_JDBC = WRITE_PREFIX + "fe.urls.jdbc";
-    private static final String KEY_DATABASE = WRITE_PREFIX + "database";
-    private static final String KEY_TABLE = WRITE_PREFIX + "table";
-    private static final String KEY_COLUMNS = WRITE_PREFIX + "columns";
-    private static final String KEY_USERNAME = WRITE_PREFIX + "username";
-    private static final String KEY_PASSWORD = WRITE_PREFIX + "password";
-
     private static final String CTL_PREFIX = WRITE_PREFIX + "ctl.";
     private static final String KEY_CTL_ENABLE_TRANSACTION = CTL_PREFIX + "enable-transaction";
     private static final String KEY_CTL_CACHE_MAX_BYTES = CTL_PREFIX + "cacheMaxBytes";
@@ -31,7 +23,10 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
     private static final String KEY_PROPS_FORMAT = PROPS_PREFIX + "format";
     private static final String KEY_PROPS_ROW_DELIMITER = PROPS_PREFIX + "row_delimiter";
     private static final String KEY_PROPS_COLUMN_SEPARATOR = PROPS_PREFIX + "column_separator";
+
     private final Map<String, String> originOptions;
+
+    private StarRocksConfig parent;
 
     private String[] feHttpUrls;
     private String feJdbcUrl;
@@ -40,6 +35,9 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
     private String database;
     private String table;
     private String[] columns;
+    private int requestRetries;
+    private int requestConnectTimeoutMs;
+    private int requestSocketTimeoutMs;
 
     // ------------ CTL --------------- //
     private boolean enableTransaction;
@@ -58,6 +56,11 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
         load();
     }
 
+    public WriteStarRocksConfig(StarRocksConfig parent) {
+        this(parent.getOriginOptions());
+        this.parent = parent;
+    }
+
     private void load() {
         feHttpUrls = getArray(KEY_FE_HTTP, new String[0]);
         feJdbcUrl = get(KEY_FE_JDBC);
@@ -66,6 +69,9 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
         database = get(KEY_DATABASE);
         table = get(KEY_TABLE);
         columns = getArray(KEY_COLUMNS, null);
+        requestRetries = getInt(KEY_REQUEST_RETRIES, 3);
+        requestConnectTimeoutMs = getInt(KEY_REQUEST_CONNECT_TIMEOUT, 30000);
+        requestSocketTimeoutMs = getInt(KEY_REQUEST_SOCKET_TIMEOUT, 30000);
 
         enableTransaction = getBoolean(KEY_CTL_ENABLE_TRANSACTION, false);
         cacheMaxBytes = getLong(KEY_CTL_CACHE_MAX_BYTES);
@@ -106,6 +112,20 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
     }
 
     @Override
+    public WriteStarRocksConfig toWriteConfig() {
+        return this;
+    }
+
+    @Override
+    public ReadStarRocksConfig toReadConfig() {
+        if (parent != null) {
+            return parent.toReadConfig();
+        }
+
+        return StarRocksConfig.readConfig(getOriginOptions());
+    }
+
+    @Override
     public String getDatabase() {
         return database;
     }
@@ -123,6 +143,21 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
     @Override
     public String getPassword() {
         return password;
+    }
+
+    @Override
+    public int getRequestRetries() {
+        return requestRetries;
+    }
+
+    @Override
+    public int getRequestConnectTimeoutMs() {
+        return requestConnectTimeoutMs;
+    }
+
+    @Override
+    public int getRequestSocketTimeoutMs() {
+        return requestSocketTimeoutMs;
     }
 
     @Override
