@@ -6,20 +6,20 @@ import java.util.Map;
 
 public class ReadStarRocksConfig implements StarRocksConfig, Serializable {
 
-    private static final String KEY_REQUEST_PREFIX = READ_PREFIX + "request.";
+    public static final String KEY_REQUEST_PREFIX = READ_PREFIX + "request.";
 
-    private static final String KEY_REQUEST_QUERY_TIMEOUT = KEY_REQUEST_PREFIX + "query-timeout-ms";
-    private static final String KEY_REQUEST_TABLET_SIZE = KEY_REQUEST_PREFIX + "tablet-size";
+    public static final String KEY_REQUEST_QUERY_TIMEOUT = KEY_REQUEST_PREFIX + "query-timeout-ms";
+    public static final String KEY_REQUEST_TABLET_SIZE = KEY_REQUEST_PREFIX + "tablet-size";
 
-    private static final String KEY_QUERY_PREFIX = READ_PREFIX + "query.";
-    private static final String KEY_QUERY_BATCH_SIZE = KEY_QUERY_PREFIX + "batch-size";
-    private static final String KEY_QUERY_MEM_LIMIT_BYTES = KEY_QUERY_PREFIX + "memory-limit-bytes";
-    private static final String KEY_QUERY_DESERIALIZE_ARROW_ASYNC = KEY_QUERY_PREFIX + "deserialize-arrow-async";
-    private static final String KEY_QUERY_DESERIALIZE_QUEUE_SIZE = KEY_QUERY_PREFIX + "deserialize-queue-size";
+    public static final String KEY_QUERY_PREFIX = READ_PREFIX + "query.";
+    public static final String KEY_QUERY_BATCH_SIZE = KEY_QUERY_PREFIX + "batch-size";
+    public static final String KEY_QUERY_MEM_LIMIT_BYTES = KEY_QUERY_PREFIX + "memory-limit-bytes";
+    public static final String KEY_QUERY_DESERIALIZE_ARROW_ASYNC = KEY_QUERY_PREFIX + "deserialize-arrow-async";
+    public static final String KEY_QUERY_DESERIALIZE_QUEUE_SIZE = KEY_QUERY_PREFIX + "deserialize-queue-size";
 
-    private static final String KEY_QUERY_FILTER_PREFIX = KEY_QUERY_PREFIX + "filter.";
-    private static final String KEY_QUERY_FILTER_IN_MAX_COUNT = KEY_QUERY_FILTER_PREFIX + "in-max-count";
-    private static final String KEY_QUERY_FILTER_COND = KEY_QUERY_FILTER_PREFIX + "conditions";
+    public static final String KEY_QUERY_FILTER_PREFIX = KEY_QUERY_PREFIX + "filter.";
+    public static final String KEY_QUERY_FILTER_IN_MAX_COUNT = KEY_QUERY_FILTER_PREFIX + "in-max-count";
+    public static final String KEY_QUERY_FILTER_COND = KEY_QUERY_FILTER_PREFIX + "conditions";
 
     private final Map<String, String> properties;
 

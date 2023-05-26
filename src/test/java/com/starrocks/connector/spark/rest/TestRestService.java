@@ -34,6 +34,9 @@ import com.starrocks.connector.spark.rest.models.Field;
 import com.starrocks.connector.spark.rest.models.QueryPlan;
 import com.starrocks.connector.spark.rest.models.Schema;
 import com.starrocks.connector.spark.rest.models.Tablet;
+import com.starrocks.connector.spark.sql.conf.ReadStarRocksConfig;
+import com.starrocks.connector.spark.sql.conf.SimpleStarRocksConfig;
+import com.starrocks.connector.spark.sql.conf.StarRocksConfig;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -87,7 +90,7 @@ public class TestRestService {
 
     @Test
     public void testChoiceFe() throws Exception {
-        String validFes = "1,2 , 3";
+        String[] validFes = {"1", "2", "3"};
         String fe = RestService.randomEndpoint(validFes, logger);
         List<String> feNodes = new ArrayList<>(3);
         feNodes.add("1");
@@ -95,12 +98,12 @@ public class TestRestService {
         feNodes.add("3");
         Assert.assertTrue(feNodes.contains(fe));
 
-        String emptyFes = "";
+        String[] emptyFes = new String[0];
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("argument 'fenodes' is illegal, value is '" + emptyFes + "'.");
         RestService.randomEndpoint(emptyFes, logger);
 
-        String nullFes = null;
+        String[] nullFes = null;
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("argument 'fenodes' is illegal, value is '" + nullFes + "'.");
         RestService.randomEndpoint(nullFes, logger);
@@ -108,12 +111,14 @@ public class TestRestService {
 
     @Test
     public void testGetUriStr() throws Exception {
-        Settings settings = new PropertiesSettings();
-        settings.setProperty(STARROCKS_TABLE_IDENTIFIER, "a.b");
-        settings.setProperty(STARROCKS_FENODES, "fe");
+        Map<String, String> options = new HashMap<>();
+        options.put(StarRocksConfig.KEY_FE_HTTP, "fe");
+        options.put(StarRocksConfig.KEY_DATABASE, "a");
+        options.put(StarRocksConfig.KEY_TABLE, "b");
+        StarRocksConfig cfg = StarRocksConfig.createConfig(options);
 
         String expected = "http://fe/api/a/b/";
-        Assert.assertEquals(expected, RestService.getUriStr(settings, logger));
+        Assert.assertEquals(expected, RestService.getUriStr(cfg, logger));
     }
 
     @Test
@@ -244,19 +249,25 @@ public class TestRestService {
 
     @Test
     public void testGetTabletSize() {
-        Settings settings = new PropertiesSettings();
+
+        ReadStarRocksConfig cfg = StarRocksConfig.readConfig(new HashMap<>());
         Assert.assertEquals(STARROCKS_TABLET_SIZE_DEFAULT,
-                RestService.tabletCountLimitForOnePartition(settings, logger));
+                RestService.tabletCountLimitForOnePartition(cfg.toReadConfig(), logger));
 
-        settings.setProperty(STARROCKS_TABLET_SIZE, "xx");
+        Map<String, String> options = new HashMap<>();
+        options.put(ReadStarRocksConfig.KEY_REQUEST_TABLET_SIZE, "xx");
+        cfg = (ReadStarRocksConfig) cfg.withOptions(options);
+
         Assert.assertEquals(STARROCKS_TABLET_SIZE_DEFAULT,
-                RestService.tabletCountLimitForOnePartition(settings, logger));
+                RestService.tabletCountLimitForOnePartition(cfg.toReadConfig(), logger));
 
-        settings.setProperty(STARROCKS_TABLET_SIZE, "10");
-        Assert.assertEquals(10, RestService.tabletCountLimitForOnePartition(settings, logger));
+        options.put(ReadStarRocksConfig.KEY_REQUEST_TABLET_SIZE, "10");
+        cfg = (ReadStarRocksConfig) cfg.withOptions(options);
+        Assert.assertEquals(10, RestService.tabletCountLimitForOnePartition(cfg, logger));
 
-        settings.setProperty(STARROCKS_TABLET_SIZE, "1");
-        Assert.assertEquals(STARROCKS_TABLET_SIZE_MIN, RestService.tabletCountLimitForOnePartition(settings, logger));
+        options.put(ReadStarRocksConfig.KEY_REQUEST_TABLET_SIZE, "1");
+        cfg = (ReadStarRocksConfig) cfg.withOptions(options);
+        Assert.assertEquals(STARROCKS_TABLET_SIZE_MIN, RestService.tabletCountLimitForOnePartition(cfg, logger));
     }
 
     @Test
@@ -271,23 +282,24 @@ public class TestRestService {
         beToTablets.put("be1", tablets1);
         beToTablets.put("be2", tablets2);
 
-        Settings settings = new PropertiesSettings();
+        ReadStarRocksConfig cfg = StarRocksConfig.readConfig(new HashMap<>());
         String opaquedQueryPlan = "query_plan";
         String cluster = "c";
         String database = "d";
         String table = "t";
 
+
         Set<Long> be1Tablet = new HashSet<>();
         be1Tablet.add(1L);
         be1Tablet.add(2L);
         PartitionDefinition pd1 = new PartitionDefinition(
-                database, table, settings, "be1", be1Tablet, opaquedQueryPlan);
+                database, table, cfg, "be1", be1Tablet, opaquedQueryPlan);
 
         Set<Long> be2Tablet = new HashSet<>();
         be2Tablet.add(3L);
         be2Tablet.add(4L);
         PartitionDefinition pd2 = new PartitionDefinition(
-                database, table, settings, "be2", be2Tablet, opaquedQueryPlan);
+                database, table, cfg, "be2", be2Tablet, opaquedQueryPlan);
 
         List<PartitionDefinition> expected = new ArrayList<>();
         expected.add(pd1);
@@ -295,7 +307,7 @@ public class TestRestService {
         Collections.sort(expected);
 
         List<PartitionDefinition> actual = RestService.tabletsMapToPartition(
-                settings, beToTablets, opaquedQueryPlan, database, table, logger);
+                cfg, beToTablets, opaquedQueryPlan, database, table, logger);
         Collections.sort(actual);
 
         Assert.assertEquals(expected, actual);

@@ -10,19 +10,19 @@ import java.util.stream.Collectors;
 
 public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
 
-    private static final String CTL_PREFIX = WRITE_PREFIX + "ctl.";
-    private static final String KEY_CTL_ENABLE_TRANSACTION = CTL_PREFIX + "enable-transaction";
-    private static final String KEY_CTL_CACHE_MAX_BYTES = CTL_PREFIX + "cacheMaxBytes";
-    private static final String KEY_CTL_EXPECT_DELAY_TIME = CTL_PREFIX + "expectDelayTime";
-    private static final String KEY_CTL_CONNECT_TIME_OUT = CTL_PREFIX + "connectTimeout";
-    private static final String KEY_CTL_LABEL_PREFIX = CTL_PREFIX + "labelPrefix";
-    private static final String KEY_CTL_IO_THREAD_COUNT = CTL_PREFIX + "ioThreadCount";
-    private static final String KEY_CTL_CHUNK_LIMIT = CTL_PREFIX + "chunk_limit";
+    public static final String CTL_PREFIX = WRITE_PREFIX + "ctl.";
+    public static final String KEY_CTL_ENABLE_TRANSACTION = CTL_PREFIX + "enable-transaction";
+    public static final String KEY_CTL_CACHE_MAX_BYTES = CTL_PREFIX + "cacheMaxBytes";
+    public static final String KEY_CTL_EXPECT_DELAY_TIME = CTL_PREFIX + "expectDelayTime";
+    public static final String KEY_CTL_CONNECT_TIME_OUT = CTL_PREFIX + "connectTimeout";
+    public static final String KEY_CTL_LABEL_PREFIX = CTL_PREFIX + "labelPrefix";
+    public static final String KEY_CTL_IO_THREAD_COUNT = CTL_PREFIX + "ioThreadCount";
+    public static final String KEY_CTL_CHUNK_LIMIT = CTL_PREFIX + "chunk_limit";
 
-    private static final String PROPS_PREFIX = WRITE_PREFIX + "properties.";
-    private static final String KEY_PROPS_FORMAT = PROPS_PREFIX + "format";
-    private static final String KEY_PROPS_ROW_DELIMITER = PROPS_PREFIX + "row_delimiter";
-    private static final String KEY_PROPS_COLUMN_SEPARATOR = PROPS_PREFIX + "column_separator";
+    public static final String PROPS_PREFIX = WRITE_PREFIX + "properties.";
+    public static final String KEY_PROPS_FORMAT = PROPS_PREFIX + "format";
+    public static final String KEY_PROPS_ROW_DELIMITER = PROPS_PREFIX + "row_delimiter";
+    public static final String KEY_PROPS_COLUMN_SEPARATOR = PROPS_PREFIX + "column_separator";
 
     private final Map<String, String> originOptions;
 
