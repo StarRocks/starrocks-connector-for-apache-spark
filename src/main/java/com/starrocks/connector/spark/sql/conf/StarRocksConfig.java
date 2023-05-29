@@ -90,9 +90,12 @@ public interface StarRocksConfig {
             return Collections.emptyList();
         }
 
-        String[] columns = inferColumns.split(",");
+        String[] columns = inferColumns.replace(" ", "").split(",");
         List<StarRocksField> fields = new ArrayList<>(columns.length);
         for (String column : columns) {
+            if ("".equals(column)) {
+                continue;
+            }
             StarRocksField field = new StarRocksField();
             field.setName(column);
             field.setType(options.get(InferConf.KEY_COLUMN_PREFIX + column + InferConf.KEY_COLUMN_TYPE_SUFFIX));
