@@ -1,6 +1,7 @@
 package com.starrocks.connector.spark.sql;
 
 import com.starrocks.connector.spark.sql.conf.StarRocksConfig;
+import com.starrocks.connector.spark.sql.conf.WriteStarRocksConfig;
 import com.starrocks.connector.spark.sql.write.StarRocksWriteBuilder;
 import org.apache.spark.sql.connector.catalog.SupportsWrite;
 import org.apache.spark.sql.connector.catalog.Table;
@@ -42,7 +43,7 @@ public class StarRocksTable implements Table, SupportsWrite {
 
     @Override
     public WriteBuilder newWriteBuilder(LogicalWriteInfo info) {
-        return new StarRocksWriteBuilder(info, config.toWriteConfig());
+        return new StarRocksWriteBuilder(info, new WriteStarRocksConfig(config.getOriginOptions()));
     }
 
     @Override

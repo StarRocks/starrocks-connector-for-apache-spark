@@ -4,20 +4,14 @@ import com.starrocks.data.load.stream.StreamLoadDataFormat;
 import com.starrocks.data.load.stream.properties.StreamLoadProperties;
 import com.starrocks.data.load.stream.properties.StreamLoadTableProperties;
 
-import java.io.Serializable;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
+public class WriteStarRocksConfig extends StarRocksConfigBase {
 
-    private static final String KEY_FE_HTTP = WRITE_PREFIX + "fe.urls.http";
-    private static final String KEY_FE_JDBC = WRITE_PREFIX + "fe.urls.jdbc";
-    private static final String KEY_DATABASE = WRITE_PREFIX + "database";
-    private static final String KEY_TABLE = WRITE_PREFIX + "table";
-    private static final String KEY_COLUMNS = WRITE_PREFIX + "columns";
-    private static final String KEY_USERNAME = WRITE_PREFIX + "username";
-    private static final String KEY_PASSWORD = WRITE_PREFIX + "password";
+    private static final long serialVersionUID = 1L;
 
+    private static String WRITE_PREFIX = PREFIX + "write.";
     private static final String CTL_PREFIX = WRITE_PREFIX + "ctl.";
     private static final String KEY_CTL_ENABLE_TRANSACTION = CTL_PREFIX + "enable-transaction";
     private static final String KEY_CTL_CACHE_MAX_BYTES = CTL_PREFIX + "cacheMaxBytes";
@@ -31,15 +25,6 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
     private static final String KEY_PROPS_FORMAT = PROPS_PREFIX + "format";
     private static final String KEY_PROPS_ROW_DELIMITER = PROPS_PREFIX + "row_delimiter";
     private static final String KEY_PROPS_COLUMN_SEPARATOR = PROPS_PREFIX + "column_separator";
-    private final Map<String, String> originOptions;
-
-    private String[] feHttpUrls;
-    private String feJdbcUrl;
-    private String username;
-    private String password;
-    private String database;
-    private String table;
-    private String[] columns;
 
     // ------------ CTL --------------- //
     private boolean enableTransaction;
@@ -54,19 +39,11 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
     private Map<String, String> properties;
 
     public WriteStarRocksConfig(Map<String, String> originOptions) {
-        this.originOptions = originOptions;
+        super(originOptions);
         load();
     }
 
     private void load() {
-        feHttpUrls = getArray(KEY_FE_HTTP, new String[0]);
-        feJdbcUrl = get(KEY_FE_JDBC);
-        username = get(KEY_USERNAME);
-        password = get(KEY_PASSWORD);
-        database = get(KEY_DATABASE);
-        table = get(KEY_TABLE);
-        columns = getArray(KEY_COLUMNS, null);
-
         enableTransaction = getBoolean(KEY_CTL_ENABLE_TRANSACTION, false);
         cacheMaxBytes = getLong(KEY_CTL_CACHE_MAX_BYTES);
         expectDelayTime = getLong(KEY_CTL_EXPECT_DELAY_TIME);
@@ -85,7 +62,7 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
                         )
                 );
 
-        if (!properties.containsKey("columns") && columns != null) {
+        if (!properties.containsKey("columns") && getColumns() != null) {
             properties.put("columns", get(KEY_COLUMNS));
         }
         String format = getFormat();
@@ -93,49 +70,6 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
         if ("json".equalsIgnoreCase(format)) {
             properties.put("strip_outer_array", "true"); // stream loader sdk will surround json rows with []
         }
-    }
-
-    @Override
-    public Map<String, String> getOriginOptions() {
-        return originOptions;
-    }
-
-    @Override
-    public WriteStarRocksConfig withOptions(Map<String, String> options) {
-        return new WriteStarRocksConfig(withOverrides(WRITE_PREFIX, options));
-    }
-
-    @Override
-    public String getDatabase() {
-        return database;
-    }
-
-    @Override
-    public String getTable() {
-        return table;
-    }
-
-    @Override
-    public String getUsername() {
-        return username;
-    }
-
-    @Override
-    public String getPassword() {
-        return password;
-    }
-
-    @Override
-    public String[] getColumns() {
-        return columns;
-    }
-
-    public String[] getFeHttpUrls() {
-        return feHttpUrls;
-    }
-
-    public String getFeJdbcUrl() {
-        return feJdbcUrl;
     }
 
     public Long getCacheMaxBytes() {
@@ -182,7 +116,7 @@ public class WriteStarRocksConfig implements StarRocksConfig, Serializable {
         Map<String, String> props = getProperties();
         String format = getFormat();
         String rowDelimiter = getRowDelimiter();
-        String joinedColumns = columns == null ? null : String.join(",", columns);
+        String joinedColumns = getColumns() == null ? null : String.join(",", getColumns());
         StreamLoadTableProperties tableProperties = StreamLoadTableProperties.builder()
                 .database(getDatabase())
                 .table(getTable())
