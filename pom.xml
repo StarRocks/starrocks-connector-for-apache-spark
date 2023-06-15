@@ -27,18 +27,19 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.starrocks</groupId>
-    <artifactId>starrocks-spark${env.STARROCKS_SPARK_BASE_VERSION}_${env.STARROCKS_SCALA_VERSION}</artifactId>
+    <artifactId>starrocks-spark-connector-${env.STARROCKS_SPARK_VERSION}_${env.STARROCKS_SCALA_VERSION}</artifactId>
     <version>1.0.0</version>
 
     <properties>
         <sr_scala.version>${env.STARROCKS_SCALA_VERSION}</sr_scala.version>
         <sr_spark.version>${env.STARROCKS_SPARK_VERSION}</sr_spark.version>
+        <scala-lang.version>2.12.10</scala-lang.version>
         <libthrift.version>0.14.0</libthrift.version>
         <arrow.version>5.0.0</arrow.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <fasterxml.version>2.12.0</fasterxml.version>
-        <slf4j.version>2.0.6</slf4j.version>
-        <log4j.version>2.19.0</log4j.version>
+        <slf4j.version>1.7.32</slf4j.version>
+        <log4j.version>2.17.2</log4j.version>
     </properties>
 
     <profiles>
@@ -85,30 +86,58 @@
         </profile>
 
         <profile>
-            <id>spark3</id>
+            <id>spark-3.2</id>
             <activation>
                 <property>
-                    <name>env.spark3</name>
+                    <name>env.spark-3.2</name>
                 </property>
             </activation>
-
-            <repositories>
-                <repository>
-                    <id>central</id>
-                    <name>central maven repo https</name>
-                    <url>https://repo.maven.apache.org/maven2</url>
-                </repository>
-            </repositories>
 
             <properties>
                 <env.STARROCKS_SCALA_VERSION>2.12</env.STARROCKS_SCALA_VERSION>
                 <env.STARROCKS_SPARK_VERSION>3.2.0</env.STARROCKS_SPARK_VERSION>
-                <env.STARROCKS_SPARK_BASE_VERSION>3</env.STARROCKS_SPARK_BASE_VERSION>
+                <fasterxml.version>2.12.0</fasterxml.version>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>spark-3.3</id>
+            <activation>
+                <property>
+                    <name>env.spark-3.3</name>
+                </property>
+            </activation>
+
+            <properties>
+                <env.STARROCKS_SCALA_VERSION>2.12</env.STARROCKS_SCALA_VERSION>
+                <env.STARROCKS_SPARK_VERSION>3.3.0</env.STARROCKS_SPARK_VERSION>
+                <fasterxml.version>2.13.0</fasterxml.version>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>spark-3.4</id>
+            <activation>
+                <property>
+                    <name>env.spark-3.4</name>
+                </property>
+            </activation>
+
+            <properties>
+                <env.STARROCKS_SCALA_VERSION>2.12</env.STARROCKS_SCALA_VERSION>
+                <env.STARROCKS_SPARK_VERSION>3.4.0</env.STARROCKS_SPARK_VERSION>
+                <fasterxml.version>2.13.0</fasterxml.version>
             </properties>
         </profile>
     </profiles>
 
     <dependencies>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+            <version>4.1.87.Final</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>com.starrocks</groupId>
             <artifactId>starrocks-stream-load-sdk</artifactId>
@@ -117,7 +146,7 @@
         <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
-            <version>2.12.10</version>
+            <version>${scala-lang.version}</version>
         </dependency>
         <dependency>
             <groupId>com.starrocks</groupId>
@@ -198,7 +227,7 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-scala_${sr_scala.version}</artifactId>
-            <version>1.4.7</version>
+            <version>1.6.2</version>
             <exclusions>
                 <exclusion>
                     <artifactId>hamcrest-core</artifactId>
@@ -239,9 +268,10 @@
             <version>${slf4j.version}</version>
             <scope>provided</scope>
         </dependency>
+
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j2-impl</artifactId>
+            <artifactId>log4j-slf4j-impl</artifactId>
             <version>${log4j.version}</version>
             <scope>provided</scope>
         </dependency>
@@ -254,6 +284,13 @@
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-core</artifactId>
+            <version>${log4j.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <!-- API bridge between log4j 1 and 2 -->
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-1.2-api</artifactId>
             <version>${log4j.version}</version>
             <scope>provided</scope>
         </dependency>
