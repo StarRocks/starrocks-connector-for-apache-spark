@@ -1,9 +1,11 @@
 package com.starrocks.connector.spark.sql.conf;
 
 import com.starrocks.data.load.stream.StreamLoadDataFormat;
+import com.starrocks.data.load.stream.StreamLoadUtils;
 import com.starrocks.data.load.stream.properties.StreamLoadProperties;
 import com.starrocks.data.load.stream.properties.StreamLoadTableProperties;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -11,32 +13,41 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
 
     private static final long serialVersionUID = 1L;
 
-    private static String WRITE_PREFIX = PREFIX + "write.";
-    private static final String CTL_PREFIX = WRITE_PREFIX + "ctl.";
-    private static final String KEY_CTL_ENABLE_TRANSACTION = CTL_PREFIX + "enable-transaction";
-    private static final String KEY_CTL_CACHE_MAX_BYTES = CTL_PREFIX + "cacheMaxBytes";
-    private static final String KEY_CTL_EXPECT_DELAY_TIME = CTL_PREFIX + "expectDelayTime";
-    private static final String KEY_CTL_CONNECT_TIME_OUT = CTL_PREFIX + "connectTimeout";
-    private static final String KEY_CTL_LABEL_PREFIX = CTL_PREFIX + "labelPrefix";
-    private static final String KEY_CTL_IO_THREAD_COUNT = CTL_PREFIX + "ioThreadCount";
-    private static final String KEY_CTL_CHUNK_LIMIT = CTL_PREFIX + "chunk_limit";
-
+    private static final String WRITE_PREFIX = PREFIX + "write.";
+    // The prefix of the stream load label. Available values are within [-_A-Za-z0-9]
+    private static final String KEY_LABEL_PREFIX = WRITE_PREFIX + "label.prefix";
+    // Timeout in millisecond to wait for 100-continue response from FE
+    private static final String KEY_WAIT_FOR_CONTINUE_TIMEOUT = WRITE_PREFIX + "wait-for-continue.timeout.ms";
+    // Data chunk size in a http request for stream load
+    private static final String KEY_CHUNK_LIMIT = WRITE_PREFIX + "chunk.limit";
+    // Scan frequency in milliseconds
+    private static final String KEY_SCAN_FREQUENCY = WRITE_PREFIX + "scan-frequency.ms";
+    // Whether to use transaction stream load
+    private static final String KEY_ENABLE_TRANSACTION = WRITE_PREFIX + "enable.transaction-stream-load";
+    // The memory size used to buffer the rows before loading the data to StarRocks.
+    // This can improve the performance for writing to starrocks.
+    private static final String KEY_BUFFER_SIZE = WRITE_PREFIX + "buffer.size";
+    // Flush interval of the row batch in millisecond
+    private static final String KEY_FLUSH_INTERVAL = WRITE_PREFIX + "flush.interval.ms";
     private static final String PROPS_PREFIX = WRITE_PREFIX + "properties.";
     private static final String KEY_PROPS_FORMAT = PROPS_PREFIX + "format";
     private static final String KEY_PROPS_ROW_DELIMITER = PROPS_PREFIX + "row_delimiter";
     private static final String KEY_PROPS_COLUMN_SEPARATOR = PROPS_PREFIX + "column_separator";
 
-    // ------------ CTL --------------- //
-    private boolean enableTransaction;
-    private Long cacheMaxBytes;
-    private Long expectDelayTime;
-    private Integer connectTimeout;
-    private String labelPrefix;
-    private Integer ioThreadCount;
-
-    private Long chunkLimit;
-
+    private String labelPrefix = "spark-";
+    private int waitForContinueTimeoutMs = 30000;
+    // Only support to write to one table, and one thread is enough
+    private int ioThreadCount = 1;
+    private long chunkLimit = 3221225472L;
+    private int scanFrequencyInMs = 50;
+    private boolean enableTransactionStreamLoad = true;
+    private long bufferSize = 104857600;
+    private int flushInterval = 300000;
     private Map<String, String> properties;
+    private String format = "CSV";
+    private String rowDelimiter = "\n";
+    private String columnSeparator = "\t";
+    private boolean supportTransactionStreamLoad = true;
 
     public WriteStarRocksConfig(Map<String, String> originOptions) {
         super(originOptions);
@@ -44,14 +55,13 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
     }
 
     private void load() {
-        enableTransaction = getBoolean(KEY_CTL_ENABLE_TRANSACTION, false);
-        cacheMaxBytes = getLong(KEY_CTL_CACHE_MAX_BYTES);
-        expectDelayTime = getLong(KEY_CTL_EXPECT_DELAY_TIME);
-        connectTimeout = getInt(KEY_CTL_CONNECT_TIME_OUT);
-        labelPrefix = get(KEY_CTL_LABEL_PREFIX);
-        ioThreadCount = getInt(KEY_CTL_IO_THREAD_COUNT, 1);
-
-        chunkLimit = getLong(KEY_CTL_CHUNK_LIMIT, 3221225472L);
+        labelPrefix = get(KEY_LABEL_PREFIX);
+        waitForContinueTimeoutMs = getInt(KEY_WAIT_FOR_CONTINUE_TIMEOUT, 30000);
+        chunkLimit = getLong(KEY_CHUNK_LIMIT, 3221225472L);
+        scanFrequencyInMs = getInt(KEY_SCAN_FREQUENCY, 50);
+        enableTransactionStreamLoad = getBoolean(KEY_ENABLE_TRANSACTION, true);
+        bufferSize = getLong(KEY_BUFFER_SIZE, 104857600);
+        flushInterval = getInt(KEY_FLUSH_INTERVAL, 300000);
 
         properties = originOptions.entrySet().stream()
                 .filter(entry -> entry.getKey().startsWith(PROPS_PREFIX))
@@ -61,94 +71,65 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
                                 Map.Entry::getValue
                         )
                 );
-
-        if (!properties.containsKey("columns") && getColumns() != null) {
-            properties.put("columns", get(KEY_COLUMNS));
-        }
-        String format = getFormat();
-        properties.put("format", format); // force insert format key for stream load http header
+        format = originOptions.getOrDefault(KEY_PROPS_FORMAT, "CSV");
+        rowDelimiter = originOptions.getOrDefault(KEY_PROPS_ROW_DELIMITER, "\n");
+        columnSeparator = originOptions.getOrDefault(KEY_PROPS_COLUMN_SEPARATOR, "\t");
         if ("json".equalsIgnoreCase(format)) {
-            properties.put("strip_outer_array", "true"); // stream loader sdk will surround json rows with []
+            if (!properties.containsKey("strip_outer_array")) {
+                properties.put("strip_outer_array", "true");
+            }
+
+            if (!properties.containsKey("ignore_json_size")) {
+                properties.put("ignore_json_size", "true");
+            }
         }
-    }
-
-    public Long getCacheMaxBytes() {
-        return cacheMaxBytes;
-    }
-
-    public Long getExpectDelayTime() {
-        return expectDelayTime;
-    }
-
-    public Integer getConnectTimeout() {
-        return connectTimeout;
-    }
-
-    public String getLabelPrefix() {
-        return labelPrefix;
-    }
-
-    public int getIoThreadCount() {
-        return ioThreadCount;
-    }
-
-    public Map<String, String> getProperties() {
-        return properties;
+        supportTransactionStreamLoad = StreamLoadUtils.isStarRocksSupportTransactionLoad(
+                Arrays.asList(getFeHttpUrls()), getHttpRequestConnectTimeoutMs(), getUsername(), getPassword());
     }
 
     public String getFormat() {
-        return originOptions.getOrDefault(KEY_PROPS_FORMAT, "json");
-    }
-
-    public String getRowDelimiter() {
-        return originOptions.getOrDefault(KEY_PROPS_ROW_DELIMITER, "\n");
+        return format;
     }
 
     public String getColumnSeparator() {
-        return originOptions.getOrDefault(KEY_PROPS_COLUMN_SEPARATOR, "\t");
-    }
-
-    public Long getChunkLimit() {
-        return chunkLimit;
+        return columnSeparator;
     }
 
     public StreamLoadProperties toStreamLoadProperties() {
-        Map<String, String> props = getProperties();
-        String format = getFormat();
-        String rowDelimiter = getRowDelimiter();
-        String joinedColumns = getColumns() == null ? null : String.join(",", getColumns());
+        StreamLoadDataFormat dataFormat = "json".equalsIgnoreCase(format) ?
+                StreamLoadDataFormat.JSON : new StreamLoadDataFormat.CSVFormat(rowDelimiter);
+        String columns = null;
+        if (!properties.containsKey("columns") && getColumns() != null) {
+            columns = Arrays.stream(getColumns())
+                    .map(f -> String.format("`%s`", f.trim().replace("`", "")))
+                    .collect(Collectors.joining(","));
+        }
         StreamLoadTableProperties tableProperties = StreamLoadTableProperties.builder()
                 .database(getDatabase())
                 .table(getTable())
-                .columns(joinedColumns)
-                .streamLoadDataFormat("json".equalsIgnoreCase(format) ? StreamLoadDataFormat.JSON : new StreamLoadDataFormat.CSVFormat(rowDelimiter))
+                .columns(columns)
+                .streamLoadDataFormat(dataFormat)
                 .chunkLimit(chunkLimit)
-                .addProperties(props)
+                .columns(columns)
                 .build();
 
         StreamLoadProperties.Builder builder = StreamLoadProperties.builder()
                 .defaultTableProperties(tableProperties)
-                .jdbcUrl(getFeJdbcUrl())
                 .loadUrls(getFeHttpUrls())
-                .ioThreadCount(getIoThreadCount())
+                .jdbcUrl(getFeJdbcUrl())
                 .username(getUsername())
-                .password(getPassword());
+                .password(getPassword())
+                .connectTimeout(getHttpRequestConnectTimeoutMs())
+                .waitForContinueTimeoutMs(waitForContinueTimeoutMs)
+                .ioThreadCount(ioThreadCount)
+                .scanningFrequency(scanFrequencyInMs)
+                .cacheMaxBytes(bufferSize)
+                .expectDelayTime(flushInterval)
+                .labelPrefix(labelPrefix)
+                .addHeaders(properties);
 
-        if (enableTransaction) {
+        if (enableTransactionStreamLoad && supportTransactionStreamLoad) {
             builder.enableTransaction();
-        }
-
-        if (getCacheMaxBytes() != null) {
-            builder.cacheMaxBytes(getCacheMaxBytes());
-        }
-        if (getExpectDelayTime() != null) {
-            builder.expectDelayTime(getExpectDelayTime());
-        }
-        if (getConnectTimeout() != null) {
-            builder.connectTimeout(getConnectTimeout());
-        }
-        if (getLabelPrefix() != null) {
-            builder.labelPrefix(getLabelPrefix());
         }
 
         return builder.build();

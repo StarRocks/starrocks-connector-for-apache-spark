@@ -41,6 +41,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Ignore
 public class WriteITTest {
 
 // StarRocks table
@@ -92,12 +93,120 @@ public class WriteITTest {
         Dataset<Row> df = spark.createDataFrame(data, schema);
 
         Map<String, String> options = new HashMap<>();
-        options.put("starrocks.fe.urls.http", FE_HTTP);
-        options.put("starrocks.fe.urls.jdbc", FE_JDBC);
-        options.put("starrocks.database", DB);
-        options.put("starrocks.table", TABLE);
-        options.put("starrocks.username", USER);
+        options.put("starrocks.fenodes", FE_HTTP);
+        options.put("starrocks.fe.jdbc.url", FE_JDBC);
+        options.put("starrocks.table.identifier", TABLE_ID);
+        options.put("starrocks.user", USER);
         options.put("starrocks.password", PASSWORD);
+
+        df.write().format("starrocks_writer")
+                .mode(SaveMode.Append)
+                .options(options)
+                .save();
+
+        spark.stop();
+    }
+
+    @Test
+    public void testDefaultConfiguration() throws Exception {
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testDataFrame")
+                .getOrCreate();
+
+        List<Row> data = Arrays.asList(
+                RowFactory.create(1, "2", 3),
+                RowFactory.create(2, "3", 4)
+        );
+
+        StructType schema = new StructType(new StructField[]{
+                new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
+                new StructField("name", DataTypes.StringType, false, Metadata.empty()),
+                new StructField("age", DataTypes.IntegerType, false, Metadata.empty())
+        });
+
+        Dataset<Row> df = spark.createDataFrame(data, schema);
+
+        Map<String, String> options = new HashMap<>();
+        options.put("starrocks.fenodes", FE_HTTP);
+        options.put("starrocks.fe.jdbc.url", FE_JDBC);
+        options.put("starrocks.table.identifier", TABLE_ID);
+        options.put("starrocks.user", USER);
+        options.put("starrocks.password", PASSWORD);
+
+        df.write().format("starrocks_writer")
+                .mode(SaveMode.Append)
+                .options(options)
+                .save();
+
+        spark.stop();
+    }
+
+    @Test
+    public void testCsvConfiguration() throws Exception {
+        Map<String, String> options = new HashMap<>();
+        options.put("starrocks.write.properties.format", "csv");
+        options.put("starrocks.write.properties.row_delimiter", "|");
+        options.put("starrocks.write.properties.column_separator", ",");
+        testConfigurationBase(options);
+    }
+
+    @Test
+    public void testJsonConfiguration() throws Exception {
+        Map<String, String> options = new HashMap<>();
+        options.put("starrocks.write.properties.format", "json");
+        testConfigurationBase(options);
+    }
+
+    @Test
+    public void testTransactionConfiguration() throws Exception {
+        Map<String, String> options = new HashMap<>();
+        options.put("starrocks.write.enable.transaction-stream-load", "false");
+        testConfigurationBase(options);
+    }
+
+    private void testConfigurationBase(Map<String, String> customOptions) throws Exception {
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testDataFrame")
+                .getOrCreate();
+
+        List<Row> data = Arrays.asList(
+                RowFactory.create(1, "2", 3),
+                RowFactory.create(2, "3", 4)
+        );
+
+        StructType schema = new StructType(new StructField[]{
+                new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
+                new StructField("name", DataTypes.StringType, false, Metadata.empty()),
+                new StructField("age", DataTypes.IntegerType, false, Metadata.empty())
+        });
+
+        Dataset<Row> df = spark.createDataFrame(data, schema);
+
+        Map<String, String> options = new HashMap<>();
+        options.put("starrocks.fenodes", FE_HTTP);
+        options.put("starrocks.fe.jdbc.url", FE_JDBC);
+        options.put("starrocks.table.identifier", TABLE_ID);
+        options.put("starrocks.user", USER);
+        options.put("starrocks.password", PASSWORD);
+        options.put("starrocks.request.retries", "4");
+        options.put("starrocks.request.connect.timeout.ms", "40000");
+        options.put("starrocks.request.read.timeout.ms", "5000");
+        options.put("starrocks.columns", "id,name,age");
+        options.put("starrocks.write.label.prefix", "spark-connector-");
+        options.put("starrocks.write.wait-for-continue.timeout.ms", "10000");
+        options.put("starrocks.write.chunk.limit", "102400");
+        options.put("starrocks.write.scan-frequency.ms", "100");
+        options.put("starrocks.write.enable.transaction-stream-load", "true");
+        options.put("starrocks.write.buffer.size", "12000");
+        options.put("starrocks.write.flush.interval.ms", "3000");
+        options.put("starrocks.write.properties.format", "csv");
+        options.put("starrocks.write.properties.row_delimiter", "\n");
+        options.put("starrocks.write.properties.column_separator", "\t");
+        options.putAll(customOptions);
 
         df.write().format("starrocks_writer")
                 .mode(SaveMode.Append)

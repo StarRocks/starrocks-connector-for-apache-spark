@@ -28,22 +28,17 @@ public class StarRocksTable implements Table, SupportsWrite {
     );
 
     private final StructType schema;
-    private final Transform[] partitioning;
     private final StarRocksConfig config;
-
-    public StarRocksTable(StructType schema, StarRocksConfig config) {
-        this(schema, null, config);
-    }
 
     public StarRocksTable(StructType schema, Transform[] partitioning, StarRocksConfig config) {
         this.schema = schema;
-        this.partitioning = partitioning;
         this.config = config;
     }
 
     @Override
     public WriteBuilder newWriteBuilder(LogicalWriteInfo info) {
-        return new StarRocksWriteBuilder(info, new WriteStarRocksConfig(config.getOriginOptions()));
+        WriteStarRocksConfig writeConfig = new WriteStarRocksConfig(config.getOriginOptions());
+        return new StarRocksWriteBuilder(info, writeConfig);
     }
 
     @Override

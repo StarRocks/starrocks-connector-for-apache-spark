@@ -1,7 +1,6 @@
 package com.starrocks.connector.spark.sql.write;
 
 import com.starrocks.connector.spark.sql.conf.WriteStarRocksConfig;
-import com.starrocks.connector.spark.sql.schema.AbstractRowStringConverter;
 import com.starrocks.connector.spark.sql.schema.CsvRowStringConverter;
 import com.starrocks.connector.spark.sql.schema.JSONRowStringConverter;
 import com.starrocks.connector.spark.sql.schema.RowStringConverter;
@@ -21,7 +20,7 @@ public class StarRocksWriteBuilder implements WriteBuilder {
 
         RowStringConverter converter;
         if ("csv".equalsIgnoreCase(config.getFormat())) {
-            converter = new CsvRowStringConverter(config, info.schema());
+            converter = new CsvRowStringConverter(info.schema(), config.getColumnSeparator());
         }  else if ("json".equalsIgnoreCase(config.getFormat())) {
             converter = new JSONRowStringConverter(info.schema());
         } else {
