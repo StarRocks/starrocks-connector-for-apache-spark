@@ -36,6 +36,9 @@
         <libthrift.version>0.14.0</libthrift.version>
         <arrow.version>5.0.0</arrow.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <fasterxml.version>2.12.0</fasterxml.version>
+        <slf4j.version>2.0.6</slf4j.version>
+        <log4j.version>2.19.0</log4j.version>
     </properties>
 
     <profiles>
@@ -99,7 +102,7 @@
 
             <properties>
                 <env.STARROCKS_SCALA_VERSION>2.12</env.STARROCKS_SCALA_VERSION>
-                <env.STARROCKS_SPARK_VERSION>3.1.2</env.STARROCKS_SPARK_VERSION>
+                <env.STARROCKS_SPARK_VERSION>3.2.0</env.STARROCKS_SPARK_VERSION>
                 <env.STARROCKS_SPARK_BASE_VERSION>3</env.STARROCKS_SPARK_BASE_VERSION>
             </properties>
         </profile>
@@ -167,6 +170,24 @@
             <version>${arrow.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${fasterxml.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${fasterxml.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${fasterxml.version}</version>
+        </dependency>
+
         <!--Test-->
         <dependency>
             <groupId>org.hamcrest</groupId>
@@ -198,6 +219,46 @@
             </exclusions>
             <scope>test</scope>
         </dependency>
+
+        <!-- log4j -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jul-to-slf4j</artifactId>
+            <version>${slf4j.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
+            <version>${slf4j.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
+            <version>${log4j.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>${log4j.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>${log4j.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- end -->
     </dependencies>
 
     <build>
@@ -260,6 +321,18 @@
                     </artifactSet>
                     <relocations>
                         <relocation>
+                            <pattern>com.alibaba</pattern>
+                            <shadedPattern>com.starrocks.shade.com.alibaba</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.apache.http</pattern>
+                            <shadedPattern>com.starrocks.shade.org.apache.http</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.apache.commons</pattern>
+                            <shadedPattern>com.starrocks.shade.org.apache.commons</shadedPattern>
+                        </relocation>
+                        <relocation>
                             <pattern>org.apache.arrow</pattern>
                             <shadedPattern>com.starrocks.shaded.org.apache.arrow</shadedPattern>
                         </relocation>
@@ -274,6 +347,10 @@
                         <relocation>
                             <pattern>org.apache.commons.codec</pattern>
                             <shadedPattern>com.starrocks.shaded.org.apache.commons.codec</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>com.google.common</pattern>
+                            <shadedPattern>com.starrocks.shade.com.google.common</shadedPattern>
                         </relocation>
                         <relocation>
                             <pattern>com.google.flatbuffers</pattern>
