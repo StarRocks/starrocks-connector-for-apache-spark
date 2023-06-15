@@ -30,25 +30,20 @@ import org.junit.Test;
 public class ReadITTest {
 
 // StarRocks table
-//    CREATE TABLE `read_it_test` (
-//        `id` int(11) NULL COMMENT "",
-//        `name` varchar(65533) NULL COMMENT "",
-//        `age` int(11) NULL COMMENT ""
+//    CREATE TABLE `score_board` (
+//    `id` int(11) NOT NULL COMMENT "",
+//    `name` varchar(65533) NULL DEFAULT "" COMMENT "",
+//    `score` int(11) NOT NULL DEFAULT "0" COMMENT ""
 //    ) ENGINE=OLAP
-//    DUPLICATE KEY(`id`)
+//    PRIMARY KEY(`id`)
 //    COMMENT "OLAP"
-//    DISTRIBUTED BY HASH(`id`) BUCKETS 2
+//    DISTRIBUTED BY HASH(`id`)
 //    PROPERTIES (
-//    "replication_num" = "1",
-//        "in_memory" = "false",
-//        "storage_format" = "DEFAULT",
-//        "enable_persistent_index" = "false",
-//        "replicated_storage" = "true",
-//        "compression" = "LZ4"
+//        "replication_num" = "1"
 //    );
 
     private static final String FE_HTTP = "127.0.0.1:11901";
-    private static final String TABLE_ID = "starrocks.read_it_test";
+    private static final String TABLE_ID = "starrocks.score_board";
     private static final String USER = "root";
     private static final String PASSWORD = "";
 

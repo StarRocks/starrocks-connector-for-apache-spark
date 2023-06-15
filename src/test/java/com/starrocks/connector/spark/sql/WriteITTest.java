@@ -45,28 +45,23 @@ import java.util.Map;
 public class WriteITTest {
 
 // StarRocks table
-//    CREATE TABLE `read_it_test` (
-//        `id` int(11) NULL COMMENT "",
-//        `name` varchar(65533) NULL COMMENT "",
-//        `age` int(11) NULL COMMENT ""
+//    CREATE TABLE `score_board` (
+//    `id` int(11) NOT NULL COMMENT "",
+//    `name` varchar(65533) NULL DEFAULT "" COMMENT "",
+//    `score` int(11) NOT NULL DEFAULT "0" COMMENT ""
 //    ) ENGINE=OLAP
-//    DUPLICATE KEY(`id`)
+//    PRIMARY KEY(`id`)
 //    COMMENT "OLAP"
-//    DISTRIBUTED BY HASH(`id`) BUCKETS 2
+//    DISTRIBUTED BY HASH(`id`)
 //    PROPERTIES (
-//    "replication_num" = "1",
-//        "in_memory" = "false",
-//        "storage_format" = "DEFAULT",
-//        "enable_persistent_index" = "false",
-//        "replicated_storage" = "true",
-//        "compression" = "LZ4"
+//        "replication_num" = "1"
 //    );
 
 
     private static final String FE_HTTP = "127.0.0.1:11901";
     private static final String FE_JDBC = "jdbc:mysql://127.0.0.1:11903";
     private static final String DB = "starrocks";
-    private static final String TABLE = "read_it_test";
+    private static final String TABLE = "score_board";
     private static final String TABLE_ID = DB + "." + TABLE;
     private static final String USER = "root";
     private static final String PASSWORD = "";
@@ -87,7 +82,7 @@ public class WriteITTest {
         StructType schema = new StructType(new StructField[]{
                 new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
                 new StructField("name", DataTypes.StringType, false, Metadata.empty()),
-                new StructField("age", DataTypes.IntegerType, false, Metadata.empty())
+                new StructField("score", DataTypes.IntegerType, false, Metadata.empty())
         });
 
         Dataset<Row> df = spark.createDataFrame(data, schema);
@@ -123,7 +118,7 @@ public class WriteITTest {
         StructType schema = new StructType(new StructField[]{
                 new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
                 new StructField("name", DataTypes.StringType, false, Metadata.empty()),
-                new StructField("age", DataTypes.IntegerType, false, Metadata.empty())
+                new StructField("score", DataTypes.IntegerType, false, Metadata.empty())
         });
 
         Dataset<Row> df = spark.createDataFrame(data, schema);
@@ -181,7 +176,7 @@ public class WriteITTest {
         StructType schema = new StructType(new StructField[]{
                 new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
                 new StructField("name", DataTypes.StringType, false, Metadata.empty()),
-                new StructField("age", DataTypes.IntegerType, false, Metadata.empty())
+                new StructField("score", DataTypes.IntegerType, false, Metadata.empty())
         });
 
         Dataset<Row> df = spark.createDataFrame(data, schema);
@@ -195,7 +190,7 @@ public class WriteITTest {
         options.put("starrocks.request.retries", "4");
         options.put("starrocks.request.connect.timeout.ms", "40000");
         options.put("starrocks.request.read.timeout.ms", "5000");
-        options.put("starrocks.columns", "id,name,age");
+        options.put("starrocks.columns", "id,name,score");
         options.put("starrocks.write.label.prefix", "spark-connector-");
         options.put("starrocks.write.wait-for-continue.timeout.ms", "10000");
         options.put("starrocks.write.chunk.limit", "102400");
