@@ -27,7 +27,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.starrocks</groupId>
-    <artifactId>starrocks-spark-connector-${env.STARROCKS_SPARK_VERSION}_${env.STARROCKS_SCALA_VERSION}</artifactId>
+    <artifactId>starrocks-spark-connector-${env.SPARK_FEATURE_VERSION}_${env.STARROCKS_SCALA_VERSION}</artifactId>
     <version>1.0.0</version>
 
     <properties>
@@ -95,7 +95,8 @@
 
             <properties>
                 <env.STARROCKS_SCALA_VERSION>2.12</env.STARROCKS_SCALA_VERSION>
-                <env.STARROCKS_SPARK_VERSION>3.2.0</env.STARROCKS_SPARK_VERSION>
+                <env.STARROCKS_SPARK_VERSION>3.2.4</env.STARROCKS_SPARK_VERSION>
+                <env.SPARK_FEATURE_VERSION>3.2</env.SPARK_FEATURE_VERSION>
                 <fasterxml.version>2.12.0</fasterxml.version>
             </properties>
         </profile>
@@ -110,7 +111,8 @@
 
             <properties>
                 <env.STARROCKS_SCALA_VERSION>2.12</env.STARROCKS_SCALA_VERSION>
-                <env.STARROCKS_SPARK_VERSION>3.3.0</env.STARROCKS_SPARK_VERSION>
+                <env.STARROCKS_SPARK_VERSION>3.3.2</env.STARROCKS_SPARK_VERSION>
+                <env.SPARK_FEATURE_VERSION>3.3</env.SPARK_FEATURE_VERSION>
                 <fasterxml.version>2.13.0</fasterxml.version>
             </properties>
         </profile>
@@ -126,6 +128,7 @@
             <properties>
                 <env.STARROCKS_SCALA_VERSION>2.12</env.STARROCKS_SCALA_VERSION>
                 <env.STARROCKS_SPARK_VERSION>3.4.0</env.STARROCKS_SPARK_VERSION>
+                <env.SPARK_FEATURE_VERSION>3.4</env.SPARK_FEATURE_VERSION>
                 <fasterxml.version>2.13.0</fasterxml.version>
             </properties>
         </profile>
