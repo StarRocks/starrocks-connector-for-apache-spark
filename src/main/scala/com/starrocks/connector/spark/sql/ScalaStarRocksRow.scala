@@ -23,13 +23,13 @@ import scala.collection.mutable.ArrayBuffer
 
 import org.apache.spark.sql.Row
 
-private[spark] class ScalaStarrocksRow(rowOrder: Seq[String]) extends Row {
+private[spark] class ScalaStarRocksRow(rowOrder: Seq[String]) extends Row {
    lazy val values: ArrayBuffer[Any] = ArrayBuffer.fill(rowOrder.size)(null)
 
   /** No-arg constructor for Kryo serialization. */
   def this() = this(null)
 
-  def iterator = values.iterator
+  def iterator: Iterator[Any] = values.iterator
 
   override def length: Int = values.length
 
@@ -53,9 +53,9 @@ private[spark] class ScalaStarrocksRow(rowOrder: Seq[String]) extends Row {
 
   override def getByte(i: Int): Byte = getAs[Byte](i)
 
-  override def getString(i: Int): String = get(i).toString()
+  override def getString(i: Int): String = get(i).toString
 
   override def copy(): Row = this
 
-  override def toSeq = values.toSeq
+  override def toSeq: Seq[Any] = values
 }

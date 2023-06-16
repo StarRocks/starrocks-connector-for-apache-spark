@@ -19,37 +19,30 @@
 
 package com.starrocks.connector.spark.sql
 
-import com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_VALUE_READER_CLASS
-import com.starrocks.connector.spark.cfg.Settings
-import com.starrocks.connector.spark.rdd.{AbstractStarrocksRDD, AbstractStarrocksRDDIterator, StarrocksPartition}
+import com.starrocks.connector.spark.rdd.{AbstractStarRocksRDD, AbstractStarRocksRDDIterator, ScalaValueReader, StarRocksPartition}
 import com.starrocks.connector.spark.rest.PartitionDefinition
-
+import com.starrocks.connector.spark.sql.conf.ReadStarRocksConfig
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.types.StructType
 
-private[spark] class ScalaStarrocksRowRDD(
+private[spark] class ScalaStarRocksRowRDD(
   sc: SparkContext,
-  params: Map[String, String] = Map.empty,
-  struct: StructType)
-  extends AbstractStarrocksRDD[Row](sc, params) {
+  params: Map[String, String] = Map.empty)
+  extends AbstractStarRocksRDD[Row](sc, params) {
 
-  override def compute(split: Partition, context: TaskContext): ScalaStarrocksRowRDDIterator = {
-    new ScalaStarrocksRowRDDIterator(context, split.asInstanceOf[StarrocksPartition].starrocksPartition, struct)
+  override def compute(split: Partition, context: TaskContext): ScalaStarRocksRowRDDIterator = {
+    new ScalaStarRocksRowRDDIterator(context, split.asInstanceOf[StarRocksPartition].starRocksPartition)
   }
 }
 
-private[spark] class ScalaStarrocksRowRDDIterator(
+private[spark] class ScalaStarRocksRowRDDIterator(
   context: TaskContext,
-  partition: PartitionDefinition,
-  struct: StructType)
-  extends AbstractStarrocksRDDIterator[Row](context, partition) {
+  partition: PartitionDefinition)
+  extends AbstractStarRocksRDDIterator[Row](context, partition) {
 
-  override def initReader(settings: Settings) = {
-    settings.setProperty(STARROCKS_VALUE_READER_CLASS, classOf[ScalaStarrocksRowValueReader].getName)
-  }
+  override def newReader(config: ReadStarRocksConfig): ScalaValueReader = new ScalaStarRocksRowValueReader(partition, config)
 
   override def createValue(value: Object): Row = {
-    value.asInstanceOf[ScalaStarrocksRow]
+    value.asInstanceOf[ScalaStarRocksRow]
   }
 }

@@ -19,31 +19,33 @@
 
 package com.starrocks.connector.spark.sql
 
-import scala.collection.JavaConverters._
-
-import com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_READ_FIELD
-import com.starrocks.connector.spark.cfg.Settings
 import com.starrocks.connector.spark.exception.ShouldNeverHappenException
 import com.starrocks.connector.spark.rdd.ScalaValueReader
 import com.starrocks.connector.spark.rest.PartitionDefinition
+import com.starrocks.connector.spark.sql.conf.ReadStarRocksConfig
 import com.starrocks.connector.spark.util.ErrorMessages.SHOULD_NOT_HAPPEN_MESSAGE
-
 import org.apache.spark.internal.Logging
 
-class ScalaStarrocksRowValueReader(
-  partition: PartitionDefinition,
-  settings: Settings)
-  extends ScalaValueReader(partition, settings) with Logging {
+import scala.collection.JavaConverters._
 
-  val rowOrder: Seq[String] = settings.getProperty(STARROCKS_READ_FIELD).split(",")
+class ScalaStarRocksRowValueReader(partition: PartitionDefinition, config: ReadStarRocksConfig)
+  extends ScalaValueReader(partition, config) with Logging {
+
+  val rowOrder: Seq[String] = {
+    var columns = config.getColumns
+    if (columns == null) {
+      columns = Array("*")
+    }
+    columns
+  }
 
   override def next: AnyRef = {
     if (!hasNext) {
       logError(SHOULD_NOT_HAPPEN_MESSAGE)
       throw new ShouldNeverHappenException
     }
-    val row: ScalaStarrocksRow = new ScalaStarrocksRow(rowOrder)
-    rowBatch.next.asScala.zipWithIndex.foreach{
+    val row: ScalaStarRocksRow = new ScalaStarRocksRow(rowOrder)
+    rowBatch.next.asScala.zipWithIndex.foreach {
       case (s, index) if index < row.values.size => row.values.update(index, s)
       case _ => // nothing
     }

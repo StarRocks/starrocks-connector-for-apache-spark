@@ -54,10 +54,12 @@ After successful compilation, the file `starrocks-spark2_2.11-1.0.0.jar` will be
 CREATE TEMPORARY VIEW spark_starrocks
 USING starrocks
 OPTIONS(
-  "table.identifier" = "$YOUR_STARROCKS_DATABASE_NAME.$YOUR_STARROCKS_TABLE_NAME",
-  "fenodes" = "$YOUR_STARROCKS_FE_HOSTNAME:$YOUR_STARROCKS_FE_RESTFUL_PORT",
-  "user" = "$YOUR_STARROCKS_USERNAME",
-  "password" = "$YOUR_STARROCKS_PASSWORD"
+  "spark.starrocks.database" = "$YOUR_STARROCKS_DATABASE_NAME",
+  "spark.starrocks.table" = "$YOUR_STARROCKS_TABLE_NAME",
+  "spark.starrocks.fe.urls.http" = "$YOUR_STARROCKS_FE_HOSTNAME:$YOUR_STARROCKS_FE_RESTFUL_PORT",
+  "spark.starrocks.fe.urls.jdbc" = "$YOUR_STARROCKS_FE_HOSTNAME:$YOUR_STARROCKS_FE_QUERY_PORT",
+  "spark.starrocks.username" = "$YOUR_STARROCKS_USERNAME",
+  "spark.starrocks.password" = "$YOUR_STARROCKS_PASSWORD"
 );
 
 SELECT * FROM spark_starrocks;
@@ -67,10 +69,12 @@ SELECT * FROM spark_starrocks;
 
 ```scala
 val starrocksSparkDF = spark.read.format("starrocks")
-  .option("starrocks.table.identifier", "$YOUR_STARROCKS_DATABASE_NAME.$YOUR_STARROCKS_TABLE_NAME")
-  .option("starrocks.fenodes", "$YOUR_STARROCKS_FE_HOSTNAME:$YOUR_STARROCKS_FE_RESTFUL_PORT")
-  .option("user", "$YOUR_STARROCKS_USERNAME")
-  .option("password", "$YOUR_STARROCKS_PASSWORD")
+  .option("spark.starrocks.database", "$YOUR_STARROCKS_DATABASE_NAME")
+  .option("spark.starrocks.table", "$YOUR_STARROCKS_TABLE_NAME")
+  .option("spark.starrocks.fe.urls.http", "$YOUR_STARROCKS_FE_HOSTNAME:$YOUR_STARROCKS_FE_RESTFUL_PORT")
+  .option("spark.starrocks.fe.urls.jdbc", "$YOUR_STARROCKS_FE_HOSTNAME:$YOUR_STARROCKS_FE_QUERY_PORT")
+  .option("spark.starrocks.username", "$YOUR_STARROCKS_USERNAME")
+  .option("spark.starrocks.password", "$YOUR_STARROCKS_PASSWORD")
   .load()
 
 starrocksSparkDF.show(5)
@@ -81,11 +85,13 @@ starrocksSparkDF.show(5)
 ```scala
 import com.starrocks.connector.spark._
 val starrocksSparkRDD = sc.starrocksRDD(
-  tableIdentifier = Some("$YOUR_STARROCKS_DATABASE_NAME.$YOUR_STARROCKS_TABLE_NAME"),
   cfg = Some(Map(
-    "starrocks.fenodes" -> "$YOUR_STARROCKS_FE_HOSTNAME:$YOUR_STARROCKS_FE_RESTFUL_PORT",
-    "starrocks.request.auth.user" -> "$YOUR_STARROCKS_USERNAME",
-    "starrocks.request.auth.password" -> "$YOUR_STARROCKS_PASSWORD"
+    "spark.starrocks.database", "$YOUR_STARROCKS_DATABASE_NAME",
+    "spark.starrocks.table", "$YOUR_STARROCKS_TABLE_NAME",
+    "spark.starrocks.fe.urls.http" -> "$YOUR_STARROCKS_FE_HOSTNAME:$YOUR_STARROCKS_FE_RESTFUL_PORT",
+    "spark.starrocks.fe.urls.jdbc" -> "$YOUR_STARROCKS_FE_HOSTNAME:$YOUR_STARROCKS_FE_QUERY_PORT",
+    "spark.starrocks.username" -> "$YOUR_STARROCKS_USERNAME",
+    "spark.starrocks.password" -> "$YOUR_STARROCKS_PASSWORD"
   ))
 )
 
@@ -96,58 +102,58 @@ starrocksSparkRDD.collect()
 
 ### General
 
-| Key                                  | Default Value     | Comment                                                      |
-| ------------------------------------ | ----------------- | ------------------------------------------------------------ |
-| starrocks.fenodes                    | --                | StarRocks FE http address, support multiple addresses, separated by commas            |
-| starrocks.table.identifier           | --                | StarRocks table identifier, eg, db1.tbl1                                 |
-| starrocks.request.retries            | 3                 | Number of retries to send requests to StarRocks                                    |
-| starrocks.request.connect.timeout.ms | 30000             | Connection timeout for sending requests to StarRocks                                |
-| starrocks.request.read.timeout.ms    | 30000             | Read timeout for sending request to StarRocks                                |
-| starrocks.request.query.timeout.s    | 3600              | Query the timeout time of StarRocks, the default is 1 hour, -1 means no timeout limit             |
-| starrocks.request.tablet.size        | Integer.MAX_VALUE | The number of StarRocks Tablets corresponding to an RDD Partition. The smaller this value is set, the more partitions will be generated. This will increase the parallelism on the Apache Spark™ side, but at the same time will cause greater pressure on StarRocks. |
-| starrocks.batch.size                 | 1024              | The maximum number of rows to read data from BE at one time. Increasing this value can reduce the number of connections between Apache Spark™ and StarRocks. Thereby reducing the extra time overhead caused by network delay. |
-| starrocks.exec.mem.limit             | 2147483648        | Memory limit for a single query. The default is 2GB, in bytes.                     |
-| starrocks.deserialize.arrow.async    | false             | Whether to support asynchronous conversion of Arrow format to RowBatch required for spark-starrocks-connector iteration                 |
-| starrocks.deserialize.queue.size     | 64                | Asynchronous conversion of the internal processing queue in Arrow format takes effect when starrocks.deserialize.arrow.async is true        |
+| Key                                                | Default Value     | Comment                                                                                                                                                                                                                                                               |
+|----------------------------------------------------|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| spark.starrocks.fe.urls.http                       | --                | StarRocks FE http address, support multiple addresses, separated by commas                                                                                                                                                                                            |
+| spark.starrocks.fe.urls.jdbc                       | --                | StarRocks FE jdbc address, support multiple addresses, separated by commas                                                                                                                                                                                            |
+| spark.starrocks.database                           | --                | Database name                                                                                                                                                                                                                                                         |
+| spark.starrocks.table                              | --                | Table name                                                                                                                                                                                                                                                            |
+| spark.starrocks.request.retries                    | 3                 | Number of retries to send requests to StarRocks                                                                                                                                                                                                                       |
+| spark.starrocks.connect-timeout-ms                 | 30000             | Connection timeout for sending requests to StarRocks                                                                                                                                                                                                                  |
+| spark.starrocks.socket-timeout-ms                  | 30000             | Read timeout for sending request to StarRocks                                                                                                                                                                                                                         |
+| spark.starrocks.read.request.query-timeout-ms      | 3600000           | Query the timeout time of StarRocks, the default is 1 hour, -1 means no timeout limit                                                                                                                                                                                 |
+| spark.starrocks.read.request.tablet-size           | Integer.MAX_VALUE | The number of StarRocks Tablets corresponding to an RDD Partition. The smaller this value is set, the more partitions will be generated. This will increase the parallelism on the Apache Spark™ side, but at the same time will cause greater pressure on StarRocks. |
+| spark.starrocks.read.query.batch-size              | 1024              | The maximum number of rows to read data from BE at one time. Increasing this value can reduce the number of connections between Apache Spark™ and StarRocks. Thereby reducing the extra time overhead caused by network delay.                                        |
+| spark.starrocks.read.query.memory-limit-bytes      | 2147483648        | Memory limit for a single query. The default is 2GB, in bytes.                                                                                                                                                                                                        |
+| spark.starrocks.read.query.deserialize-arrow-async | false             | Whether to support asynchronous conversion of Arrow format to RowBatch required for spark-starrocks-connector iteration                                                                                                                                               |
+| spark.starrocks.read.query.deserialize-queue-size  | 64                | Asynchronous conversion of the internal processing queue in Arrow format takes effect when starrocks.deserialize.arrow.async is true                                                                                                                                  |
 
 ### SQL & Dataframe Configuration
 
-| Key                                 | Default Value | Comment                                                      |
-| ----------------------------------- | ------------- | ------------------------------------------------------------ |
-| user                                | --            | StarRocks username                                           |
-| password                            | --            | StarRocks password                                           |
-| starrocks.filter.query.in.max.count | 100           | In the predicate pushdown, the maximum number of elements in the in expression value list. If this number is exceeded, the in-expression conditional filtering is processed on the Apache Spark™ side. |
+| Key                                            | Default Value | Comment                                                                                                                                                                                                |
+|------------------------------------------------| ------------- |--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| spark.starrocks.username                       | --            | StarRocks username                                                                                                                                                                                     |
+| spark.starrocks.password                       | --            | StarRocks password                                                                                                                                                                                     |
+| spark.starrocks.read.query.filter.in-max-count | 100           | In the predicate pushdown, the maximum number of elements in the in expression value list. If this number is exceeded, the in-expression conditional filtering is processed on the Apache Spark™ side. |
 
 ### RDD Configuration
 
-| Key                             | Default Value | Comment                                                      |
-| ------------------------------- | ------------- | ------------------------------------------------------------ |
-| starrocks.request.auth.user     | --            | StarRocks username                                           |
-| starrocks.request.auth.password | --            | StarRocks password                                           |
-| starrocks.read.field            | --            | List of column names in the StarRocks table, separated by commas                  |
-| starrocks.filter.query          | --            | Filter expression of the query, which is transparently transmitted to StarRocks. StarRocks uses this expression to complete source-side data filtering. |
+| Key                                    | Default Value | Comment                                                                                                                                                 |
+|----------------------------------------| ------------- |---------------------------------------------------------------------------------------------------------------------------------------------------------|
+| spark.starrocks.columns                | --            | List of column names in the StarRocks table, separated by commas                                                                                        |
+| spark.starrocks.read.filter.conditions | --            | Filter expression of the query, which is transparently transmitted to StarRocks. StarRocks uses this expression to complete source-side data filtering. |
 
 
 
 ## StarRocks & Apache Spark™ Column Type Mapping
 
-| StarRocks Type | Apache Spark™ Type            |
-| -------------- | --------------------- |
-| BOOLEAN        | DataTypes.BooleanType |
-| TINYINT        | DataTypes.ByteType    |
-| SMALLINT       | DataTypes.ShortType   |
-| INT            | DataTypes.IntegerType |
-| BIGINT         | DataTypes.LongType    |
-| LARGEINT       | DataTypes.StringType  |
-| FLOAT          | DataTypes.FloatType   |
-| DOUBLE         | DataTypes.DoubleType  |
-| DECIMAL        | DecimalType           |
-| DATE           | DataTypes.StringType  |
-| DATETIME       | DataTypes.StringType  |
-| CHAR           | DataTypes.StringType  |
-| VARCHAR        | DataTypes.StringType  |
-| ARRAY          | Unsupported datatype  |
-| HLL            | Unsupported datatype  |
-| BITMAP         | Unsupported datatype  |
+| StarRocks Type | Apache Spark™ Type      |
+| -------------- |-------------------------|
+| BOOLEAN        | DataTypes.IntegerType   |
+| TINYINT        | DataTypes.IntegerType   |
+| SMALLINT       | DataTypes.IntegerType   |
+| INT            | DataTypes.IntegerType   |
+| BIGINT         | DataTypes.LongType      |
+| LARGEINT       | DataTypes.StringType    |
+| FLOAT          | DataTypes.FloatType     |
+| DOUBLE         | DataTypes.DoubleType    |
+| DECIMAL        | DecimalType             |
+| DATE           | DataTypes.StringType    |
+| DATETIME       | DataTypes.StringType    |
+| CHAR           | DataTypes.StringType    |
+| VARCHAR        | DataTypes.StringType    |
+| ARRAY          | DataTypes.StringType    |
+| HLL            | Unsupported datatype    |
+| BITMAP         | Unsupported datatype    |
 
 * Note: In Connector, `DATE` and` DATETIME` are mapped to `String`. Due to the processing logic of the StarRocks underlying storage engine, when the time type is used directly, the time range covered cannot meet the demand. So use `String` type to directly return the corresponding time readable text.

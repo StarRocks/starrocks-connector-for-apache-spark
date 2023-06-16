@@ -23,10 +23,10 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.sources.{BaseRelation, DataSourceRegister, RelationProvider}
 
-private[sql] class StarrocksSourceProvider extends DataSourceRegister with RelationProvider with Logging {
+private[sql] class StarRocksSourceProvider extends DataSourceRegister with RelationProvider with Logging {
   override def shortName(): String = "starrocks"
 
   override def createRelation(sqlContext: SQLContext, parameters: Map[String, String]): BaseRelation = {
-    new StarrocksRelation(sqlContext, Utils.params(parameters, log))
+    new StarRocksRelation(sqlContext, parameters)
   }
 }

@@ -6,37 +6,47 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 public interface StarRocksConfig {
 
     static StarRocksConfig createConfig(final Map<String, String> options) {
-        String type = options.getOrDefault(CONF_TYPE, "").toLowerCase(Locale.ROOT);
-        switch (type) {
-            case "write":
-                return new WriteStarRocksConfig(options);
-            case "read":
-                return new ReadStarRocksConfig(options);
-            default:
-                return new SimpleStarRocksConfig(options);
-        }
+        return new SimpleStarRocksConfig(options);
     }
 
     static ReadStarRocksConfig readConfig(final Map<String, String> options) {
         return new ReadStarRocksConfig(options);
     }
 
+    static ReadStarRocksConfig readConfig(final StarRocksConfig parent) {
+        return new ReadStarRocksConfig(parent);
+    }
+
     static WriteStarRocksConfig writeConfig(final Map<String, String> options) {
         return new WriteStarRocksConfig(options);
+    }
+
+    static WriteStarRocksConfig writeConfig(final StarRocksConfig parent) {
+        return new WriteStarRocksConfig(parent);
     }
 
     String PREFIX = "spark.starrocks.";
     String WRITE_PREFIX = PREFIX + "write.";
     String READ_PREFIX = PREFIX + "read.";
     String INFER_PREFIX = PREFIX + "infer.";
+
+    String KEY_FE_HTTP = PREFIX + "fe.urls.http";
+    String KEY_FE_JDBC = PREFIX + "fe.urls.jdbc";
+    String KEY_DATABASE = PREFIX + "database";
+    String KEY_TABLE = PREFIX + "table";
+    String KEY_COLUMNS = PREFIX + "columns";
+    String KEY_USERNAME = PREFIX + "username";
+    String KEY_PASSWORD = PREFIX + "password";
+
+    String KEY_REQUEST_RETRIES = PREFIX + "retries";
+    String KEY_REQUEST_CONNECT_TIMEOUT = PREFIX + "connect-timeout-ms";
+    String KEY_REQUEST_SOCKET_TIMEOUT = PREFIX + "socket-timeout-ms";
 
     String CONF_TYPE = PREFIX + "conf";
 
@@ -51,11 +61,24 @@ public interface StarRocksConfig {
     Map<String, String> getOriginOptions();
 
     String getDatabase();
+
     String getTable();
+
     String[] getColumns();
+
     String getFeJdbcUrl();
+
+    String[] getFeHttpUrls();
+
     String getUsername();
+
     String getPassword();
+
+    int getRequestRetries();
+
+    int getRequestConnectTimeoutMs();
+
+    int getRequestSocketTimeoutMs();
 
     StarRocksConfig withOptions(Map<String, String> options);
 
@@ -67,9 +90,12 @@ public interface StarRocksConfig {
             return Collections.emptyList();
         }
 
-        String[] columns = inferColumns.split(",");
+        String[] columns = inferColumns.replace(" ", "").split(",");
         List<StarRocksField> fields = new ArrayList<>(columns.length);
         for (String column : columns) {
+            if ("".equals(column)) {
+                continue;
+            }
             StarRocksField field = new StarRocksField();
             field.setName(column);
             field.setType(options.get(InferConf.KEY_COLUMN_PREFIX + column + InferConf.KEY_COLUMN_TYPE_SUFFIX));
@@ -99,6 +125,13 @@ public interface StarRocksConfig {
             return (WriteStarRocksConfig) this;
         }
         return writeConfig(getOriginOptions());
+    }
+
+    default ReadStarRocksConfig toReadConfig() {
+        if (this instanceof ReadStarRocksConfig) {
+            return (ReadStarRocksConfig) this;
+        }
+        return readConfig(getOriginOptions());
     }
 
     default String get(final String key) {

@@ -40,7 +40,7 @@ public class StarRocksConnector {
             field.setName(columnValue.get("COLUMN_NAME"));
             field.setType(columnValue.get("DATA_TYPE"));
             field.setSize(columnValue.get("COLUMN_SIZE"));
-            field.setSize(columnValue.get("DECIMAL_DIGITS"));
+            field.setScale(columnValue.get("DECIMAL_DIGITS"));
 
             columns.put(field.getName(), field);
 
