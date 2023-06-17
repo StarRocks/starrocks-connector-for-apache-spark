@@ -49,30 +49,47 @@ public class StarRocksDataWriter implements DataWriter<InternalRow>, Serializabl
         String data = converter.fromRow(internalRow);
         manager.write(null, config.getDatabase(), config.getTable(), data);
 
-        log.debug("Receive raw row: {}", internalRow);
-        log.debug("Receive converted row: {}", data);
+        log.debug("partitionId: {}, taskId: {}, epochId: {}, receive raw row: {}",
+                partitionId, taskId, epochId, internalRow);
+        log.debug("partitionId: {}, taskId: {}, epochId: {}, receive converted row: {}",
+                partitionId, taskId, epochId, data);
     }
 
     @Override
     public WriterCommitMessage commit() throws IOException {
-        log.info("pid: {}, taskId: {}, epochId: {} commit", partitionId, taskId, epochId);
-        manager.flush();
-        StreamLoadSnapshot snapshot = manager.snapshot();
-        manager.commit(snapshot);
-        return new StarRocksWriterCommitMessage(partitionId, taskId, epochId, null);
+        log.info("partitionId: {}, taskId: {}, epochId: {} commit", partitionId, taskId, epochId);
+        try {
+            manager.flush();
+            return new StarRocksWriterCommitMessage(partitionId, taskId, epochId, null);
+        } catch (Exception e) {
+            String errMsg = String.format("Failed to commit, partitionId: %s, taskId: %s, epochId: %s",
+                    partitionId, taskId, epochId);
+            log.error("{}", errMsg, e);
+            throw new IOException(errMsg, e);
+        }
     }
 
     @Override
     public void abort() throws IOException {
-        log.info("pid: {}, taskId: {}, epochId: {} abort", partitionId, taskId, epochId);
+        log.info("partitionId: {}, taskId: {}, epochId: {} abort", partitionId, taskId, epochId);
         StreamLoadSnapshot snapshot = manager.snapshot();
-        manager.abort(snapshot);
-        manager.close();
+        try {
+            boolean success = manager.abort(snapshot);;
+            if (success) {
+                return;
+            }
+            throw new IOException("abort not successful");
+        } catch (Exception e) {
+            String errMsg = String.format("Failed to abort, partitionId: %s, taskId: %s, epochId: %s",
+                    partitionId, taskId, epochId);
+            log.error("{}", errMsg, e);
+            throw new IOException(errMsg, e);
+        }
     }
 
     @Override
     public void close() throws IOException {
-        log.info("pid: {}, taskId: {}, epochId: {} close", partitionId, taskId, epochId);
+        log.info("partitionId: {}, taskId: {}, epochId: {} close", partitionId, taskId, epochId);
         if (managerInit.compareAndSet(true, false)) {
             manager.close();
         }
