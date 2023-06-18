@@ -36,6 +36,7 @@ import org.junit.Test;
 import scala.Option;
 import scala.collection.JavaConverters;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -248,6 +249,55 @@ public class WriteITTest {
                 .start();
 
         query.awaitTermination();
+        spark.stop();
+    }
+
+    @Test
+    public void testDataFramePartition() {
+        testDataFramePartitionBase("5", null);
+    }
+
+    @Test
+    public void testDataFramePartitionColumns() {
+        testDataFramePartitionBase("10", "name,score");
+    }
+
+    private void testDataFramePartitionBase(String numPartitions, String partitionColumns) {
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testDataFrame")
+                .getOrCreate();
+
+        List<Row> data = new ArrayList<>();
+        for (int i = 0; i < 10000; i++) {
+            data.add(RowFactory.create(i, String.valueOf(i + 1), i + 2));
+        }
+
+        StructType schema = new StructType(new StructField[]{
+                new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
+                new StructField("name", DataTypes.StringType, false, Metadata.empty()),
+                new StructField("score", DataTypes.IntegerType, false, Metadata.empty())
+        });
+
+        Dataset<Row> df = spark.createDataFrame(data, schema);
+
+        Map<String, String> options = new HashMap<>();
+        options.put("starrocks.fenodes", FE_HTTP);
+        options.put("starrocks.fe.jdbc.url", FE_JDBC);
+        options.put("starrocks.table.identifier", TABLE_ID);
+        options.put("starrocks.user", USER);
+        options.put("starrocks.password", PASSWORD);
+        options.put("starrocks.write.num.partitions", numPartitions);
+        if (partitionColumns != null) {
+            options.put("starrocks.write.partition.columns", partitionColumns);
+        }
+
+        df.write().format("starrocks_writer")
+                .mode(SaveMode.Append)
+                .options(options)
+                .save();
+
         spark.stop();
     }
 }

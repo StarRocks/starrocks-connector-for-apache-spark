@@ -34,6 +34,9 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
     private static final String KEY_PROPS_ROW_DELIMITER = PROPS_PREFIX + "row_delimiter";
     private static final String KEY_PROPS_COLUMN_SEPARATOR = PROPS_PREFIX + "column_separator";
 
+    private static final String KEY_NUM_PARTITIONS = WRITE_PREFIX + "num.partitions";
+    private static final String KEY_PARTITION_COLUMNS = WRITE_PREFIX + "partition.columns";
+
     private String labelPrefix = "spark-";
     private int waitForContinueTimeoutMs = 30000;
     // Only support to write to one table, and one thread is enough
@@ -48,6 +51,12 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
     private String rowDelimiter = "\n";
     private String columnSeparator = "\t";
     private boolean supportTransactionStreamLoad = true;
+
+    // According to Spark RequiresDistributionAndOrdering#requiredNumPartitions(),
+    // any value less than 1 mean no requirement
+    private int numPartitions = 0;
+    // columns used for partition. will use all columns if not set
+    private String[] partitionColumns;
 
     public WriteStarRocksConfig(Map<String, String> originOptions) {
         super(originOptions);
@@ -83,6 +92,8 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
                 properties.put("ignore_json_size", "true");
             }
         }
+        numPartitions = getInt(KEY_NUM_PARTITIONS, 0);
+        partitionColumns = getArray(KEY_PARTITION_COLUMNS, null);
         supportTransactionStreamLoad = StreamLoadUtils.isStarRocksSupportTransactionLoad(
                 Arrays.asList(getFeHttpUrls()), getHttpRequestConnectTimeoutMs(), getUsername(), getPassword());
     }
@@ -93,6 +104,14 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
 
     public String getColumnSeparator() {
         return columnSeparator;
+    }
+
+    public int getNumPartitions() {
+        return numPartitions;
+    }
+
+    public String[] getPartitionColumns() {
+        return partitionColumns;
     }
 
     public StreamLoadProperties toStreamLoadProperties() {
