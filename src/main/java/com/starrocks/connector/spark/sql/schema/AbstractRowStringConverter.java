@@ -3,17 +3,19 @@ package com.starrocks.connector.spark.sql.schema;
 import com.alibaba.fastjson2.JSONObject;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.types.*;
-import scala.collection.JavaConverters;
-import scala.collection.Seq;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Decimal;
+import org.apache.spark.sql.types.DecimalType;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Date;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public abstract class AbstractRowStringConverter implements RowStringConverter, Serializable {
 
@@ -54,36 +56,6 @@ public abstract class AbstractRowStringConverter implements RowStringConverter, 
                 return data instanceof BigDecimal
                         ? (BigDecimal) data
                         : ((Decimal) data).toBigDecimal().bigDecimal();
-            } else if (dataType instanceof ArrayType) {
-                DataType elementType = ((ArrayType) dataType).elementType();
-                List<Object> dataList;
-                if (data instanceof Collection) {
-                    dataList = new ArrayList<>((Collection<?>) data);
-                } else {
-                    dataList = JavaConverters.seqAsJavaList((Seq<Object>) data);
-                }
-
-                return dataList.stream().map(d -> convert(elementType, d)).collect(Collectors.toList());
-            } else if (dataType instanceof MapType) {
-                DataType keyType = ((MapType) dataType).keyType();
-                DataType valueType = ((MapType) dataType).valueType();
-                if (!(keyType instanceof StringType)) {
-                    throw new RuntimeException(String.format("Can't cast %s. Invalid key type %s.", data, keyType));
-                }
-
-                Map<String, Object> dataMap;
-                if (data instanceof Map) {
-                    dataMap = (Map<String, Object>) data;
-                } else {
-                    dataMap = JavaConverters.mapAsJavaMap((scala.collection.Map<String, Object>) data);
-                }
-
-                return dataMap.entrySet().stream().collect(
-                        Collectors.toMap(
-                                Map.Entry::getKey,
-                                entry -> convert(valueType, entry.getValue())
-                        )
-                );
             } else if (dataType instanceof StructType) {
                 Row row = (Row) data;
                 JSONObject jsonObject = new JSONObject();

@@ -1,41 +1,32 @@
 package com.starrocks.connector.spark.sql.schema;
 
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class StarRocksSchema {
-    private LinkedHashMap<String, StarRocksField> fieldMap;
-    private List<StarRocksField> pks;
+    private final List<StarRocksField> columns;
+    private final List<StarRocksField> pks;
+    private final Map<String, StarRocksField> columnMap;
 
-    public LinkedHashMap<String, StarRocksField> getFieldMap() {
-        return fieldMap;
+    public StarRocksSchema(List<StarRocksField> columns, List<StarRocksField> pks) {
+        this.columns = columns;
+        this.pks = pks;
+        this.columnMap = new HashMap<>();
+        for (StarRocksField field : columns) {
+            columnMap.put(field.getName(), field);
+        }
     }
 
-    public void setFieldMap(LinkedHashMap<String, StarRocksField> fieldMap) {
-        this.fieldMap = fieldMap;
+    public List<StarRocksField> getColumns() {
+        return columns;
     }
 
     public List<StarRocksField> getPks() {
         return pks;
     }
 
-    public void setPks(List<StarRocksField> pks) {
-        this.pks = pks;
-    }
-
-    public List<StarRocksField> sortAndListField(String[] fieldNames) {
-        List<StarRocksField> fields = new LinkedList<>();
-        for (String fieldName : fieldNames) {
-            if (StarRocksField.__OP.getName().equalsIgnoreCase(fieldName)) {
-                fields.add(StarRocksField.__OP);
-                continue;
-            }
-            StarRocksField field = fieldMap.get(fieldName);
-            if (field != null) {
-                fields.add(field);
-            }
-        }
-        return fields;
+    public StarRocksField getField(String columnName) {
+        return columnMap.get(columnName);
     }
 }
