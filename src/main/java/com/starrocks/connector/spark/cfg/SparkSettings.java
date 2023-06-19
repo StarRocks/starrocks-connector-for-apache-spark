@@ -22,6 +22,8 @@ package com.starrocks.connector.spark.cfg;
 import com.google.common.base.Preconditions;
 import org.apache.spark.SparkConf;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 import scala.Option;
@@ -73,5 +75,28 @@ public class SparkSettings extends Settings {
         }
 
         return props;
+    }
+
+    public Map<String, String> toMap() {
+        Map<String, String> map = new HashMap<>();
+
+        if (cfg != null) {
+            String sparkPrefix = "spark.";
+            for (Tuple2<String, String> tuple : cfg.getAll()) {
+                // spark. are special so save them without the prefix as well
+                // since its unlikely the other implementations will be aware of this convention
+                String key = tuple._1;
+                map.put(key, tuple._2);
+                if (key.startsWith(sparkPrefix)) {
+                    String simpleKey = key.substring(sparkPrefix.length());
+                    // double check to not override a property defined directly in the config
+                    if (!map.containsKey(simpleKey)) {
+                        map.put(simpleKey, tuple._2);
+                    }
+                }
+            }
+        }
+
+        return map;
     }
 }
