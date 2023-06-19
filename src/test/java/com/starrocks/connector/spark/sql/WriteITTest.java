@@ -43,7 +43,7 @@ import java.util.List;
 import java.util.Map;
 
 @Ignore
-public class WriteITTest {
+public class WriteITTest extends ITTestBase {
 
 // StarRocks table
 //    CREATE TABLE `score_board` (
@@ -58,14 +58,9 @@ public class WriteITTest {
 //        "replication_num" = "1"
 //    );
 
-
-    private static final String FE_HTTP = "127.0.0.1:11901";
-    private static final String FE_JDBC = "jdbc:mysql://127.0.0.1:11903";
     private static final String DB = "starrocks";
     private static final String TABLE = "score_board";
     private static final String TABLE_ID = DB + "." + TABLE;
-    private static final String USER = "root";
-    private static final String PASSWORD = "";
 
     @Test
     public void testDataFrame() {
@@ -95,7 +90,7 @@ public class WriteITTest {
         options.put("starrocks.user", USER);
         options.put("starrocks.password", PASSWORD);
 
-        df.write().format("starrocks_writer")
+        df.write().format("starrocks")
                 .mode(SaveMode.Append)
                 .options(options)
                 .save();
@@ -131,7 +126,7 @@ public class WriteITTest {
         options.put("starrocks.user", USER);
         options.put("starrocks.password", PASSWORD);
 
-        df.write().format("starrocks_writer")
+        df.write().format("starrocks")
                 .mode(SaveMode.Append)
                 .options(options)
                 .save();
@@ -204,7 +199,7 @@ public class WriteITTest {
         options.put("starrocks.write.properties.column_separator", "\t");
         options.putAll(customOptions);
 
-        df.write().format("starrocks_writer")
+        df.write().format("starrocks")
                 .mode(SaveMode.Append)
                 .options(options)
                 .save();
@@ -244,7 +239,7 @@ public class WriteITTest {
         options.put("spark.starrocks.password", "");
         options.put("checkpointLocation", "/Users/lpf/Downloads/spark-cpt");
 
-        StreamingQuery query = df.writeStream().format("starrocks_writer")
+        StreamingQuery query = df.writeStream().format("starrocks")
                 .options(options)
                 .start();
 
@@ -293,7 +288,7 @@ public class WriteITTest {
             options.put("starrocks.write.partition.columns", partitionColumns);
         }
 
-        df.write().format("starrocks_writer")
+        df.write().format("starrocks")
                 .mode(SaveMode.Append)
                 .options(options)
                 .save();

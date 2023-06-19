@@ -51,7 +51,7 @@ import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_R
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER;
 
 @Ignore
-public class SchemaITTest {
+public class SchemaITTest extends ITTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(SchemaITTest.class);
 
 // StarRocks Table with json
@@ -69,7 +69,8 @@ public class SchemaITTest {
 //        c10 VARCHAR(100),
 //        c11 STRING,
 //        c12 DATE,
-//        c13 DATETIME
+//        c13 DATETIME,
+//        c14 JSON
 //    ) ENGINE=OLAP
 //        PRIMARY KEY(`c0`, `c1`)
 //        COMMENT "OLAP"
@@ -102,16 +103,11 @@ public class SchemaITTest {
 //        "replication_num" = "1"
 //        );
 
-
-    private static final String FE_HTTP = "127.0.0.1:11901";
-    private static final String FE_JDBC = "jdbc:mysql://127.0.0.1:11903";
     private static final String DB = "starrocks";
     private static final String TABLE_WITH_JSON = "schema_test_with_json";
     private static final String TABLE_ID_WITH_JSON = DB + "." + TABLE_WITH_JSON;
     private static final String TABLE_WITHOUT_JSON = "schema_test_without_json";
     private static final String TABLE_ID_WITHOUT_JSON = DB + "." + TABLE_WITHOUT_JSON;
-    private static final String USER = "root";
-    private static final String PASSWORD = "";
 
     @Test
     public void testStarRocksSchema() throws Exception {
@@ -252,7 +248,7 @@ public class SchemaITTest {
         options.put("starrocks.user", USER);
         options.put("starrocks.password", PASSWORD);
 
-        df.write().format("starrocks_writer")
+        df.write().format("starrocks")
                 .mode(SaveMode.Append)
                 .options(options)
                 .save();
@@ -322,7 +318,7 @@ public class SchemaITTest {
         options.put("starrocks.user", USER);
         options.put("starrocks.password", PASSWORD);
 
-        df.write().format("starrocks_writer")
+        df.write().format("starrocks")
                 .mode(SaveMode.Append)
                 .options(options)
                 .save();
