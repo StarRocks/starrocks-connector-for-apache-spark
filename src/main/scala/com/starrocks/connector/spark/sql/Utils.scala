@@ -93,14 +93,6 @@ private[sql] object Utils {
     // Convert password parameters from "password" into internal password properties
     // reuse credentials mask method in spark ExternalCatalogUtils#maskCredentials
     val processedParams = dottedParams.map {
-      case (ConfigurationOptions.STARROCKS_PASSWORD, _) =>
-        logger.error(s"${ConfigurationOptions.STARROCKS_PASSWORD} cannot use in StarRocks Datasource.")
-        throw new StarrocksException(s"${ConfigurationOptions.STARROCKS_PASSWORD} cannot use in StarRocks Datasource," +
-          s" use 'password' option to set password.")
-      case (ConfigurationOptions.STARROCKS_USER, _) =>
-        logger.error(s"${ConfigurationOptions.STARROCKS_USER} cannot use in StarRocks Datasource.")
-        throw new StarrocksException(s"${ConfigurationOptions.STARROCKS_USER} cannot use in StarRocks Datasource," +
-          s" use 'user' option to set user.")
       case (k, v) =>
         if (k.startsWith("starrocks.")) (k, v)
         else ("starrocks." + k, v)

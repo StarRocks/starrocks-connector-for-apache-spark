@@ -1,18 +1,18 @@
 package com.starrocks.connector.spark.sql.schema;
 
-import com.starrocks.connector.spark.sql.conf.WriteStarRocksConfig;
-
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CsvRowStringConverter extends AbstractRowStringConverter {
 
     private final String separator;
 
-    public CsvRowStringConverter(WriteStarRocksConfig config, StructType schema) {
+    public CsvRowStringConverter(StructType schema, String separator) {
         super(schema);
-        this.separator = config.getColumnSeparator();
+        this.separator = separator;
     }
 
     @Override
@@ -21,16 +21,21 @@ public class CsvRowStringConverter extends AbstractRowStringConverter {
             throw new RuntimeException("Can't convert Row without schema");
         }
         String[] data = new String[row.length()];
-
-        for (StructField field : row.schema().fields()) {
-            int idx = row.fieldIndex(field.name());
-            if (field.nullable() && row.isNullAt(idx)) {
-                data[idx] = null;
-            } else {
-                data[idx] = convert(field.dataType(), row.get(idx)).toString();
+        for (int i = 0; i < row.length(); i++) {
+            if (!row.isNullAt(i)) {
+                StructField field = row.schema().fields()[i];
+                data[i] = convert(field.dataType(), row.get(i)).toString();
             }
         }
 
-        return String.join(separator, data);
+        StringBuilder sb = new StringBuilder();
+        for (int idx = 0; idx < data.length; idx++) {
+            Object val = data[idx];
+            sb.append(null == val ? "\\N" : val);
+            if (idx < data.length - 1) {
+                sb.append(separator);
+            }
+        }
+        return sb.toString();
     }
 }

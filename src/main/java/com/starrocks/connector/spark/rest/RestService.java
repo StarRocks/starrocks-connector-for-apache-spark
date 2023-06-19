@@ -33,6 +33,9 @@ import static com.starrocks.connector.spark.util.ErrorMessages.ILLEGAL_ARGUMENT_
 import static com.starrocks.connector.spark.util.ErrorMessages.PARSE_NUMBER_FAILED_MESSAGE;
 import static com.starrocks.connector.spark.util.ErrorMessages.SHOULD_NOT_HAPPEN_MESSAGE;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.starrocks.connector.spark.cfg.ConfigurationOptions;
 import com.starrocks.connector.spark.cfg.Settings;
@@ -58,9 +61,6 @@ import org.apache.http.impl.auth.BasicScheme;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
-import org.codehaus.jackson.JsonParseException;
-import org.codehaus.jackson.map.JsonMappingException;
-import org.codehaus.jackson.map.ObjectMapper;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -161,7 +161,7 @@ public class RestService implements Serializable {
      * @throws IllegalArgumentException table identifier is illegal
      */
     @VisibleForTesting
-    static String[] parseIdentifier(String tableIdentifier, Logger logger) throws IllegalArgumentException {
+    public static String[] parseIdentifier(String tableIdentifier, Logger logger) throws IllegalArgumentException {
         logger.trace("Parse identifier '{}'.", tableIdentifier);
         if (StringUtils.isEmpty(tableIdentifier)) {
             logger.error(ILLEGAL_ARGUMENT_MESSAGE, "table.identifier", tableIdentifier);

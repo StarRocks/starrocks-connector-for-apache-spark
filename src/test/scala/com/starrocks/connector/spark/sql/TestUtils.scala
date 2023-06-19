@@ -91,32 +91,18 @@ class TestUtils extends ExpectedExceptionTest {
     Assert.assertEquals("a.b", result2(ConfigurationOptions.STARROCKS_TABLE_IDENTIFIER))
 
     val parameters3 = Map(
-      ConfigurationOptions.STARROCKS_PASSWORD -> "a.b"
-    )
-    thrown.expect(classOf[StarrocksException])
-    thrown.expectMessage(startsWith(s"${ConfigurationOptions.STARROCKS_PASSWORD} cannot use in StarRocks Datasource,"))
-    Utils.params(parameters3, logger)
-
-    val parameters4 = Map(
-      ConfigurationOptions.STARROCKS_USER -> "a.b"
-    )
-    thrown.expect(classOf[StarrocksException])
-    thrown.expectMessage(startsWith(s"${ConfigurationOptions.STARROCKS_USER} cannot use in StarRocks Datasource,"))
-    Utils.params(parameters4, logger)
-
-    val parameters5 = Map(
       ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD -> "a.b"
     )
     thrown.expect(classOf[StarrocksException])
     thrown.expectMessage(
       startsWith(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD} cannot use in StarRocks Datasource,"))
-    Utils.params(parameters5, logger)
+    Utils.params(parameters3, logger)
 
-    val parameters6 = Map(
+    val parameters4 = Map(
       ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER -> "a.b"
     )
     thrown.expect(classOf[StarrocksException])
     thrown.expectMessage(startsWith(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER} cannot use in StarRocks Datasource,"))
-    Utils.params(parameters6, logger)
+    Utils.params(parameters4, logger)
   }
 }

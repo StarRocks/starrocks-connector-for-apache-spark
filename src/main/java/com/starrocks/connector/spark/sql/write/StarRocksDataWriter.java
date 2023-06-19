@@ -2,10 +2,9 @@ package com.starrocks.connector.spark.sql.write;
 
 import com.starrocks.connector.spark.sql.conf.WriteStarRocksConfig;
 import com.starrocks.connector.spark.sql.schema.RowStringConverter;
-import com.starrocks.data.load.stream.DefaultStreamLoadManager;
 import com.starrocks.data.load.stream.StreamLoadManager;
 import com.starrocks.data.load.stream.StreamLoadSnapshot;
-
+import com.starrocks.data.load.stream.v2.StreamLoadManagerV2;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.write.DataWriter;
 import org.apache.spark.sql.connector.write.WriterCommitMessage;
@@ -15,11 +14,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.LockSupport;
 
 public class StarRocksDataWriter implements DataWriter<InternalRow>, Serializable {
-
     private static final Logger log = LoggerFactory.getLogger(StarRocksDataWriter.class);
 
     private final WriteStarRocksConfig config;
@@ -41,7 +37,7 @@ public class StarRocksDataWriter implements DataWriter<InternalRow>, Serializabl
         this.partitionId = partitionId;
         this.taskId = taskId;
         this.epochId = epochId;
-        this.manager = new DefaultStreamLoadManager(config.toStreamLoadProperties());
+        this.manager = new StreamLoadManagerV2(config.toStreamLoadProperties(), true);
     }
 
     @Override
@@ -49,7 +45,12 @@ public class StarRocksDataWriter implements DataWriter<InternalRow>, Serializabl
         if (managerInit.compareAndSet(false, true)) {
             manager.init();
         }
-        manager.write(null, config.getDatabase(), config.getTable(), converter.fromRow(internalRow));
+
+        String data = converter.fromRow(internalRow);
+        manager.write(null, config.getDatabase(), config.getTable(), data);
+
+        log.debug("Receive raw row: {}", internalRow);
+        log.debug("Receive converted row: {}", data);
     }
 
     @Override
