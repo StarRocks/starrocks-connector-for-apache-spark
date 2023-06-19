@@ -43,6 +43,7 @@ public class ReadITTest {
 //    );
 
     private static final String FE_HTTP = "127.0.0.1:11901";
+    private static final String FE_JDBC = "jdbc:mysql://127.0.0.1:11903";
     private static final String TABLE_ID = "starrocks.score_board";
     private static final String USER = "root";
     private static final String PASSWORD = "";
@@ -58,6 +59,7 @@ public class ReadITTest {
         Dataset<Row> df = spark.read().format("starrocks")
                 .option("starrocks.table.identifier", TABLE_ID)
                 .option("starrocks.fenodes", FE_HTTP)
+                .option("starrocks.fe.jdbc.url", FE_JDBC)
                 .option("user", USER)
                 .option("password", PASSWORD)
                 .load();
@@ -80,9 +82,10 @@ public class ReadITTest {
                 "OPTIONS(\n" +
                 "  \"starrocks.table.identifier\"=\"%s\",\n" +
                 "  \"starrocks.fenodes\"=\"%s\",\n" +
+                "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
                 "  \"user\"=\"%s\",\n" +
                 "  \"password\"=\"%s\"\n" +
-                ")", TABLE_ID, FE_HTTP, USER, PASSWORD);
+                ")", TABLE_ID, FE_HTTP, FE_JDBC, USER, PASSWORD);
         spark.sql(ddl);
         spark.sql("SELECT * FROM src").show(5);
         spark.stop();
@@ -99,6 +102,7 @@ public class ReadITTest {
         Dataset<Row> df = spark.read().format("starrocks")
                 .option("starrocks.table.identifier", TABLE_ID)
                 .option("starrocks.fenodes", FE_HTTP)
+                .option("starrocks.fe.jdbc.url", FE_JDBC)
                 .option("starrocks.user", USER)
                 .option("starrocks.password", PASSWORD)
                 .load();

@@ -13,11 +13,12 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public final class InferSchema {
 
-    public static StructType inferSchema(final CaseInsensitiveStringMap options) {
+    public static StructType inferSchema(final Map<String, String> options) {
         StarRocksConfig config = new SimpleStarRocksConfig(options);
         StarRocksSchema schema = StarRocksConnector.getSchema(config);
 

@@ -19,6 +19,7 @@
 
 package com.starrocks.connector.spark.cfg;
 
+import com.google.common.collect.Maps;
 import com.starrocks.connector.spark.exception.IllegalArgumentException;
 import com.starrocks.connector.spark.util.ErrorMessages;
 import com.starrocks.connector.spark.util.IOUtils;
@@ -100,5 +101,9 @@ public abstract class Settings implements Serializable {
     public String save() throws IllegalArgumentException {
         Properties copy = asProperties();
         return IOUtils.propsToString(copy);
+    }
+
+    public Map<String, String> getPropertyMap() {
+        return Maps.fromProperties(asProperties());
     }
 }

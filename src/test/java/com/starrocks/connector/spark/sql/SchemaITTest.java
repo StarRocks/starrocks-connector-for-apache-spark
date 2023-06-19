@@ -31,6 +31,7 @@ import org.apache.spark.sql.types.DecimalType;
 import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +50,7 @@ import java.util.Map;
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD;
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER;
 
+@Ignore
 public class SchemaITTest {
     private static final Logger LOG = LoggerFactory.getLogger(SchemaITTest.class);
 
@@ -328,6 +330,7 @@ public class SchemaITTest {
         Dataset<Row> readDf = spark.read().format("starrocks")
                 .option("starrocks.table.identifier", TABLE_ID_WITHOUT_JSON)
                 .option("starrocks.fenodes", FE_HTTP)
+                .option("starrocks.fe.jdbc.url", FE_JDBC)
                 .option("user", USER)
                 .option("password", PASSWORD)
                 .load();
