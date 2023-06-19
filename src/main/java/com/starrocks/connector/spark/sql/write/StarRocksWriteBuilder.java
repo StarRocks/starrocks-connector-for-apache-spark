@@ -76,6 +76,7 @@ public class StarRocksWriteBuilder implements WriteBuilder {
                 return Distributions.unspecified();
             }
 
+            // TODO is it possible to implement a distribution without shuffle like DataSet#coalesce
             String[] partitionColumns = config.getPartitionColumns();
             if (partitionColumns == null) {
                 partitionColumns = info.schema().names();
