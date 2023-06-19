@@ -99,6 +99,29 @@ public class WriteITTest extends ITTestBase {
     }
 
     @Test
+    public void testSql() {
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testSql")
+                .getOrCreate();
+
+        String ddl = String.format("CREATE TABLE sink \n" +
+                " USING starrocks\n" +
+                "OPTIONS(\n" +
+                "  \"starrocks.table.identifier\"=\"%s\",\n" +
+                "  \"starrocks.fenodes\"=\"%s\",\n" +
+                "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
+                "  \"user\"=\"%s\",\n" +
+                "  \"password\"=\"%s\"\n" +
+                ")", TABLE_ID, FE_HTTP, FE_JDBC, USER, PASSWORD);
+        spark.sql(ddl);
+        spark.sql("INSERT INTO sink VALUES (1, \"2\", 3), (2, \"3\", 4)");
+
+        spark.stop();
+    }
+
+    @Test
     public void testDefaultConfiguration() throws Exception {
         SparkSession spark = SparkSession
                 .builder()
