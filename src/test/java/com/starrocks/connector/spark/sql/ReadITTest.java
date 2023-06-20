@@ -27,7 +27,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 @Ignore
-public class ReadITTest {
+public class ReadITTest extends ITTestBase {
 
 // StarRocks table
 //    CREATE TABLE `score_board` (
@@ -42,11 +42,7 @@ public class ReadITTest {
 //        "replication_num" = "1"
 //    );
 
-    private static final String FE_HTTP = "127.0.0.1:11901";
-    private static final String FE_JDBC = "jdbc:mysql://127.0.0.1:11903";
     private static final String TABLE_ID = "starrocks.score_board";
-    private static final String USER = "root";
-    private static final String PASSWORD = "";
 
     @Test
     public void testDataFrame() throws Exception {
