@@ -21,6 +21,7 @@ package com.starrocks.connector.spark.sql
 
 import com.starrocks.connector.spark.cfg.ConfigurationOptions
 import com.starrocks.connector.spark.exception.StarrocksException
+import com.starrocks.connector.spark.sql.conf.StarRocksConfigBase.KEY_FE_HTTP
 import org.apache.spark.sql.jdbc.JdbcDialect
 import org.apache.spark.sql.sources._
 import org.slf4j.Logger
@@ -114,7 +115,14 @@ private[sql] object Utils {
 
     // keep the original parameters to be compatible. For example, STARROCKS_PASSWORD and
     // STARROCKS_REQUEST_AUTH_PASSWORD are both valid
-    val processedParams = replaceParams ++ prefixParams
+    var processedParams = replaceParams ++ prefixParams
+    // support both STARROCKS_FENODES and KEY_FE_HTTP
+    if (!dottedParams.contains(ConfigurationOptions.STARROCKS_FENODES) && dottedParams.contains(KEY_FE_HTTP)) {
+      processedParams = processedParams + (ConfigurationOptions.STARROCKS_FENODES -> dottedParams(KEY_FE_HTTP))
+    }
+    if (dottedParams.contains(ConfigurationOptions.STARROCKS_FENODES) && !dottedParams.contains(KEY_FE_HTTP)) {
+      processedParams = processedParams + (KEY_FE_HTTP -> dottedParams(ConfigurationOptions.STARROCKS_FENODES))
+    }
 
     // Set the preferred resource if it was specified originally
     val finalParams = preferredTableIdentifier match {

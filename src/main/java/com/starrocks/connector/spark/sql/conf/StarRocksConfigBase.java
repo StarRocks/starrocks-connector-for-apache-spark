@@ -41,7 +41,7 @@ public abstract class StarRocksConfigBase implements StarRocksConfig {
     private static final Logger LOG = LoggerFactory.getLogger(StarRocksConfigBase.class);
 
     // reuse some configurations in ConfigurationOptions
-    static final String KEY_FE_HTTP = STARROCKS_FENODES;
+    public static final String KEY_FE_HTTP = PREFIX + "fe.http.url";
     static final String KEY_FE_JDBC = PREFIX + "fe.jdbc.url";
     static final String KEY_TABLE_IDENTIFIER = STARROCKS_TABLE_IDENTIFIER;
     static final String KEY_USERNAME = STARROCKS_USER;
