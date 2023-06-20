@@ -21,10 +21,8 @@ package com.starrocks.connector.spark.sql
 
 import com.starrocks.connector.spark.cfg.ConfigurationOptions
 import com.starrocks.connector.spark.exception.StarrocksException
-
 import org.apache.spark.sql.jdbc.JdbcDialect
 import org.apache.spark.sql.sources._
-
 import org.slf4j.Logger
 
 private[sql] object Utils {
@@ -92,11 +90,13 @@ private[sql] object Utils {
     // Convert simple parameters into internal properties, and prefix other parameters
     // Convert password parameters from "password" into internal password properties
     // reuse credentials mask method in spark ExternalCatalogUtils#maskCredentials
-    val processedParams = dottedParams.map {
+    val prefixParams = dottedParams.map {
       case (k, v) =>
         if (k.startsWith("starrocks.")) (k, v)
         else ("starrocks." + k, v)
-    }.map{
+    }
+
+    val replaceParams = prefixParams.map{
       case (ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD, _) =>
         logger.error(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD} cannot use in StarRocks Datasource.")
         throw new StarrocksException(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD} cannot use in" +
@@ -111,6 +111,10 @@ private[sql] object Utils {
         (ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER, v)
       case (k, v) => (k, v)
     }
+
+    // keep the original parameters to be compatible. For example, STARROCKS_PASSWORD and
+    // STARROCKS_REQUEST_AUTH_PASSWORD are both valid
+    val processedParams = replaceParams ++ prefixParams
 
     // Set the preferred resource if it was specified originally
     val finalParams = preferredTableIdentifier match {

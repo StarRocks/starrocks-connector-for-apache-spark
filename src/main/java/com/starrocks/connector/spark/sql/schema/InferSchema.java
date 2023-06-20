@@ -11,65 +11,29 @@ import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static com.starrocks.connector.spark.sql.conf.StarRocksConfig.PREFIX;
-
 public final class InferSchema {
 
-    static String INFER_PREFIX = PREFIX + "infer.";
-
-    interface InferConf {
-        String KEY_COLUMNS = INFER_PREFIX + "columns";
-        String KEY_COLUMN_PREFIX = INFER_PREFIX + "column.";
-        String KEY_COLUMN_TYPE_SUFFIX = ".type";
-        String KEY_COLUMN_PRECISION_SUFFIX = ".precision";
-        String KEY_COLUMN_SCALE_SUFFIX = ".scale";
-    }
-
-    public static List<StarRocksField> inferFields(Map<String, String> options) {
-        String inferColumns = options.get(InferConf.KEY_COLUMNS);
-        if (inferColumns == null) {
-            return Collections.emptyList();
-        }
-
-        String[] columns = inferColumns.split(",");
-        List<StarRocksField> fields = new ArrayList<>(columns.length);
-        for (String column : columns) {
-            StarRocksField field = new StarRocksField();
-            field.setName(column);
-            field.setType(options.get(InferConf.KEY_COLUMN_PREFIX + column + InferConf.KEY_COLUMN_TYPE_SUFFIX));
-            field.setSize(options.get(InferConf.KEY_COLUMN_PREFIX + column + InferConf.KEY_COLUMN_PRECISION_SUFFIX));
-            field.setScale(options.get(InferConf.KEY_COLUMN_PREFIX + column + InferConf.KEY_COLUMN_SCALE_SUFFIX));
-            fields.add(field);
-        }
-        return fields;
-    }
-
-    public static StructType inferSchema(final CaseInsensitiveStringMap options) {
+    public static StructType inferSchema(final Map<String, String> options) {
         StarRocksConfig config = new SimpleStarRocksConfig(options);
-        List<StarRocksField> inferFields = inferFields(options);
-        if (!inferFields.isEmpty()) {
-            return inferSchema(inferFields);
-        }
-
         StarRocksSchema schema = StarRocksConnector.getSchema(config);
 
-        if (config.getColumns() != null && config.getColumns().length > 0) {
-            return inferSchema(schema.sortAndListField(config.getColumns()));
+        String[] inputColumns = config.getColumns();
+        List<StarRocksField> starRocksFields;
+        if (inputColumns == null || inputColumns.length == 0) {
+            starRocksFields = schema.getColumns();
+        } else {
+            starRocksFields = new ArrayList<>();
+            for (String column : inputColumns) {
+                starRocksFields.add(schema.getField(column));
+            }
         }
 
-        return inferSchema(schema.getFieldMap().values());
-    }
-
-    static StructType inferSchema(Collection<StarRocksField> srFields) {
-
-        List<StructField> fields = srFields.stream()
+        List<StructField> fields = starRocksFields.stream()
                 .map(InferSchema::inferStructField)
                 .collect(Collectors.toList());
 
@@ -81,20 +45,22 @@ public final class InferSchema {
 
         return new StructField(field.getName(), dataType, true, Metadata.empty());
     }
-
     static DataType inferDataType(StarRocksField field) {
         String type = field.getType().toLowerCase(Locale.ROOT);
-
         switch (type) {
-            case "largeint":
-            case "bigint":
-                return DataTypes.LongType;
             case "tinyint":
+                // mysql does not have boolean type, and starrocks `information_schema`.`COLUMNS` will return
+                // a "tinyint" data type for both StarRocks BOOLEAN and TINYINT type, We distinguish them by
+                // column size, and the size of BOOLEAN is null
+                return field.getSize() == null ? DataTypes.BooleanType : DataTypes.ByteType;
             case "smallint":
+                return DataTypes.ShortType;
             case "int":
                 return DataTypes.IntegerType;
-            case "boolean":
-                return DataTypes.BooleanType;
+            case "bigint":
+                return DataTypes.LongType;
+            case "bigint unsigned":
+                return DataTypes.StringType;
             case "float":
                 return DataTypes.FloatType;
             case "double":
@@ -104,14 +70,14 @@ public final class InferSchema {
             case "char":
             case "varchar":
             case "json":
-            case "string":
                 return DataTypes.StringType;
             case "date":
                 return DataTypes.DateType;
             case "datetime":
                 return DataTypes.TimestampType;
             default:
-                return DataTypes.NullType;
+                throw new UnsupportedOperationException(String.format(
+                        "Unsupported starrocks type, column name: %s, data type: %s", field.getName(), field.getType()));
         }
     }
 }

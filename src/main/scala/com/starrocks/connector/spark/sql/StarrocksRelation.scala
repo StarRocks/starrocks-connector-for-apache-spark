@@ -22,10 +22,9 @@ package com.starrocks.connector.spark.sql
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.math.min
-
 import com.starrocks.connector.spark.cfg.ConfigurationOptions._
 import com.starrocks.connector.spark.cfg.{ConfigurationOptions, SparkSettings}
-
+import com.starrocks.connector.spark.sql.schema.InferSchema
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.jdbc.JdbcDialects
 import org.apache.spark.sql.sources._
@@ -47,7 +46,7 @@ private[sql] class StarrocksRelation(
     min(cfg.getProperty(STARROCKS_FILTER_QUERY_IN_MAX_COUNT, "100").toInt,
       STARROCKS_FILTER_QUERY_IN_VALUE_UPPER_LIMIT)
 
-  private lazy val lazySchema = SchemaUtils.discoverSchema(cfg)
+  private lazy val lazySchema = InferSchema.inferSchema(cfg.getPropertyMap)
 
   private lazy val dialect = JdbcDialects.get("")
 

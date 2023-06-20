@@ -25,7 +25,6 @@ import com.starrocks.connector.spark.rest.models.Field;
 import com.starrocks.connector.spark.rest.models.Schema;
 import com.starrocks.connector.spark.util.DataTypeUtils;
 import com.starrocks.thrift.TScanBatchResult;
-
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -48,6 +47,9 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.sql.Date;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -76,6 +78,9 @@ public class RowBatch {
             cols.add(o);
         }
     }
+
+    private final SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd");
+    private final SimpleDateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     // offset for iterate the rowBatch
     private int offsetInRowBatch = 0;
@@ -150,7 +155,7 @@ public class RowBatch {
         rowBatch.get(readRowCount + rowIndex).put(obj);
     }
 
-    public void convertArrowToRowBatch() throws StarrocksException {
+    public void convertArrowToRowBatch() throws Exception {
         try {
             for (int col = 0; col < fieldVectors.size(); col++) {
                 FieldVector curFieldVector = fieldVectors.get(col);
@@ -282,7 +287,31 @@ public class RowBatch {
                         }
                         break;
                     case "DATE":
+                        Preconditions.checkArgument(mt.equals(Types.MinorType.VARCHAR),
+                                typeMismatchMessage(currentType, mt));
+                        VarCharVector varCharVectorForDate = (VarCharVector) curFieldVector;
+                        for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                            if (varCharVectorForDate.isNull(rowIndex)) {
+                                addValueToRow(rowIndex, null);
+                                continue;
+                            }
+                            String value = new String(varCharVectorForDate.get(rowIndex));
+                            addValueToRow(rowIndex, new Date(dateFormatter.parse(value).getTime()));
+                        }
+                        break;
                     case "DATETIME":
+                        Preconditions.checkArgument(mt.equals(Types.MinorType.VARCHAR),
+                                typeMismatchMessage(currentType, mt));
+                        VarCharVector varCharVectorForDateTime = (VarCharVector) curFieldVector;
+                        for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                            if (varCharVectorForDateTime.isNull(rowIndex)) {
+                                addValueToRow(rowIndex, null);
+                                continue;
+                            }
+                            String value = new String(varCharVectorForDateTime.get(rowIndex));
+                            addValueToRow(rowIndex, new Timestamp(dateTimeFormatter.parse(value).getTime()));
+                        }
+                        break;
                     case "LARGEINT":
                     case "CHAR":
                     case "VARCHAR":

@@ -49,7 +49,7 @@ public abstract class StarRocksConfigBase implements StarRocksConfig {
     static final String KEY_REQUEST_RETRIES = STARROCKS_REQUEST_RETRIES;
     static final String KEY_REQUEST_CONNECT_TIMEOUT = STARROCKS_REQUEST_CONNECT_TIMEOUT_MS;
     static final String KEY_REQUEST_SOCKET_TIMEOUT = STARROCKS_REQUEST_READ_TIMEOUT_MS;
-    static final String KEY_COLUMNS = PREFIX + "columns";
+    public static final String KEY_COLUMNS = PREFIX + "columns";
 
     protected final Map<String, String> originOptions;
 
