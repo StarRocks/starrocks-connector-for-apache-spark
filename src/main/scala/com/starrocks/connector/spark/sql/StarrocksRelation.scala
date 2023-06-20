@@ -19,9 +19,6 @@
 
 package com.starrocks.connector.spark.sql
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable
-import scala.math.min
 import com.starrocks.connector.spark.cfg.ConfigurationOptions._
 import com.starrocks.connector.spark.cfg.{ConfigurationOptions, SparkSettings}
 import com.starrocks.connector.spark.sql.schema.InferSchema
@@ -29,12 +26,16 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.jdbc.JdbcDialects
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{Row, SQLContext}
+import org.apache.spark.sql.{DataFrame, Row, SQLContext, SaveMode}
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+import scala.math.min
 
 
 private[sql] class StarrocksRelation(
     val sqlContext: SQLContext, parameters: Map[String, String])
-    extends BaseRelation with TableScan with PrunedScan with PrunedFilteredScan {
+    extends BaseRelation with TableScan with PrunedScan with PrunedFilteredScan with InsertableRelation {
 
   private lazy val cfg = {
     val conf = new SparkSettings(sqlContext.sparkContext.getConf)
@@ -86,5 +87,13 @@ private[sql] class StarrocksRelation(
     }
 
     new ScalaStarrocksRowRDD(sqlContext.sparkContext, paramWithScan.toMap, lazySchema)
+  }
+
+  override def insert(data: DataFrame, overwrite: Boolean): Unit = {
+    data.write
+      .format("starrocks")
+      .options(cfg.getPropertyMap)
+      .mode(SaveMode.Append)
+      .save()
   }
 }
