@@ -19,15 +19,12 @@
 
 package com.starrocks.connector.spark.serialization;
 
+import com.google.common.collect.ImmutableList;
 import com.starrocks.connector.spark.rest.RestService;
 import com.starrocks.connector.spark.rest.models.Schema;
 import com.starrocks.thrift.TScanBatchResult;
 import com.starrocks.thrift.TStatus;
 import com.starrocks.thrift.TStatusCode;
-
-import static org.hamcrest.core.StringStartsWith.startsWith;
-
-import com.google.common.collect.ImmutableList;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -57,9 +54,13 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
+import java.sql.Date;
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
+
+import static org.hamcrest.core.StringStartsWith.startsWith;
 
 public class TestRowBatch {
     private static Logger logger = LoggerFactory.getLogger(TestRowBatch.class);
@@ -256,8 +257,8 @@ public class TestRowBatch {
                 1L,
                 (float) 1.1,
                 (double) 1.1,
-                "2008-08-08",
-                "2008-08-08 00:00:00",
+                Date.valueOf("2008-08-08"),
+                Timestamp.valueOf("2008-08-08 00:00:00"),
                 Decimal.apply(1234L, 4, 2),
                 "char1"
         );
@@ -270,8 +271,8 @@ public class TestRowBatch {
                 2L,
                 (float) 2.2,
                 (double) 2.2,
-                "1900-08-08",
-                "1900-08-08 00:00:00",
+                Date.valueOf("1900-08-08"),
+                Timestamp.valueOf("1900-08-08 00:00:00"),
                 Decimal.apply(8888L, 4, 2),
                 "char2"
         );
@@ -284,8 +285,8 @@ public class TestRowBatch {
                 3L,
                 (float) 3.3,
                 (double) 3.3,
-                "2100-08-08",
-                "2100-08-08 00:00:00",
+                Date.valueOf("2100-08-08"),
+                Timestamp.valueOf("2100-08-08 00:00:00"),
                 Decimal.apply(10L, 2, 0),
                 "char3"
         );
