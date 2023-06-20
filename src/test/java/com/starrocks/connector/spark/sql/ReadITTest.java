@@ -88,7 +88,7 @@ public class ReadITTest extends ITTestBase {
     }
 
     @Test
-    public void testStarRocksUserAndPassword() {
+    public void testNewConfiguration() {
         SparkSession spark = SparkSession
                 .builder()
                 .master("local[1]")
@@ -96,9 +96,9 @@ public class ReadITTest extends ITTestBase {
                 .getOrCreate();
 
         Dataset<Row> df = spark.read().format("starrocks")
-                .option("starrocks.table.identifier", TABLE_ID)
-                .option("starrocks.fenodes", FE_HTTP)
+                .option("starrocks.fe.http.url", FE_HTTP)
                 .option("starrocks.fe.jdbc.url", FE_JDBC)
+                .option("starrocks.table.identifier", TABLE_ID)
                 .option("starrocks.user", USER)
                 .option("starrocks.password", PASSWORD)
                 .load();
