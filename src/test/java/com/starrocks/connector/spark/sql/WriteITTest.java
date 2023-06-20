@@ -84,7 +84,7 @@ public class WriteITTest extends ITTestBase {
         Dataset<Row> df = spark.createDataFrame(data, schema);
 
         Map<String, String> options = new HashMap<>();
-        options.put("starrocks.fenodes", FE_HTTP);
+        options.put("starrocks.fe.http.url", FE_HTTP);
         options.put("starrocks.fe.jdbc.url", FE_JDBC);
         options.put("starrocks.table.identifier", TABLE_ID);
         options.put("starrocks.user", USER);
@@ -110,7 +110,7 @@ public class WriteITTest extends ITTestBase {
                 " USING starrocks\n" +
                 "OPTIONS(\n" +
                 "  \"starrocks.table.identifier\"=\"%s\",\n" +
-                "  \"starrocks.fenodes\"=\"%s\",\n" +
+                "  \"starrocks.fe.http.url\"=\"%s\",\n" +
                 "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
                 "  \"user\"=\"%s\",\n" +
                 "  \"password\"=\"%s\"\n" +
@@ -143,7 +143,7 @@ public class WriteITTest extends ITTestBase {
         Dataset<Row> df = spark.createDataFrame(data, schema);
 
         Map<String, String> options = new HashMap<>();
-        options.put("starrocks.fenodes", FE_HTTP);
+        options.put("starrocks.fe.http.url", FE_HTTP);
         options.put("starrocks.fe.jdbc.url", FE_JDBC);
         options.put("starrocks.table.identifier", TABLE_ID);
         options.put("starrocks.user", USER);
@@ -201,7 +201,7 @@ public class WriteITTest extends ITTestBase {
         Dataset<Row> df = spark.createDataFrame(data, schema);
 
         Map<String, String> options = new HashMap<>();
-        options.put("starrocks.fenodes", FE_HTTP);
+        options.put("starrocks.fe.http.url", FE_HTTP);
         options.put("starrocks.fe.jdbc.url", FE_JDBC);
         options.put("starrocks.table.identifier", TABLE_ID);
         options.put("starrocks.user", USER);
@@ -301,7 +301,7 @@ public class WriteITTest extends ITTestBase {
         Dataset<Row> df = spark.createDataFrame(data, schema);
 
         Map<String, String> options = new HashMap<>();
-        options.put("starrocks.fenodes", FE_HTTP);
+        options.put("starrocks.fe.http.url", FE_HTTP);
         options.put("starrocks.fe.jdbc.url", FE_JDBC);
         options.put("starrocks.table.identifier", TABLE_ID);
         options.put("starrocks.user", USER);

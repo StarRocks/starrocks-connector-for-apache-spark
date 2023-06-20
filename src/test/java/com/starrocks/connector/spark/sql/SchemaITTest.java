@@ -242,7 +242,7 @@ public class SchemaITTest extends ITTestBase {
         Dataset<Row> df = spark.createDataFrame(data, schema);
 
         Map<String, String> options = new HashMap<>();
-        options.put("starrocks.fenodes", FE_HTTP);
+        options.put("starrocks.fe.http.url", FE_HTTP);
         options.put("starrocks.fe.jdbc.url", FE_JDBC);
         options.put("starrocks.table.identifier", TABLE_ID_WITH_JSON);
         options.put("starrocks.user", USER);
@@ -256,7 +256,7 @@ public class SchemaITTest extends ITTestBase {
 //        TODO read does not support json currently
 //        Dataset<Row> readDf = spark.read().format("starrocks")
 //                .option("starrocks.table.identifier", TABLE_ID_WITH_JSON)
-//                .option("starrocks.fenodes", FE_HTTP)
+//                .option("starrocks.fe.http.url", FE_HTTP)
 //                .option("user", USER)
 //                .option("password", PASSWORD)
 //                .load();
@@ -312,7 +312,7 @@ public class SchemaITTest extends ITTestBase {
         Dataset<Row> df = spark.createDataFrame(data, schema);
 
         Map<String, String> options = new HashMap<>();
-        options.put("starrocks.fenodes", FE_HTTP);
+        options.put("starrocks.fe.http.url", FE_HTTP);
         options.put("starrocks.fe.jdbc.url", FE_JDBC);
         options.put("starrocks.table.identifier", TABLE_ID_WITHOUT_JSON);
         options.put("starrocks.user", USER);
@@ -325,7 +325,7 @@ public class SchemaITTest extends ITTestBase {
 
         Dataset<Row> readDf = spark.read().format("starrocks")
                 .option("starrocks.table.identifier", TABLE_ID_WITHOUT_JSON)
-                .option("starrocks.fenodes", FE_HTTP)
+                .option("starrocks.fe.http.url", FE_HTTP)
                 .option("starrocks.fe.jdbc.url", FE_JDBC)
                 .option("user", USER)
                 .option("password", PASSWORD)
