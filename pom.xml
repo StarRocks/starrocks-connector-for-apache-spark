@@ -397,10 +397,6 @@
                             <shadedPattern>com.starrocks.shade.org.apache.http</shadedPattern>
                         </relocation>
                         <relocation>
-                            <pattern>org.apache.commons</pattern>
-                            <shadedPattern>com.starrocks.shade.org.apache.commons</shadedPattern>
-                        </relocation>
-                        <relocation>
                             <pattern>org.apache.arrow</pattern>
                             <shadedPattern>com.starrocks.shaded.org.apache.arrow</shadedPattern>
                         </relocation>
@@ -415,10 +411,6 @@
                         <relocation>
                             <pattern>org.apache.commons.codec</pattern>
                             <shadedPattern>com.starrocks.shaded.org.apache.commons.codec</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>com.google.common</pattern>
-                            <shadedPattern>com.starrocks.shade.com.google.common</shadedPattern>
                         </relocation>
                         <relocation>
                             <pattern>com.google.flatbuffers</pattern>
