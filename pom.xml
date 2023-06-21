@@ -397,10 +397,6 @@
                             <shadedPattern>com.starrocks.shade.org.apache.http</shadedPattern>
                         </relocation>
                         <relocation>
-                            <pattern>org.apache.commons</pattern>
-                            <shadedPattern>com.starrocks.shade.org.apache.commons</shadedPattern>
-                        </relocation>
-                        <relocation>
                             <pattern>org.apache.arrow</pattern>
                             <shadedPattern>com.starrocks.shaded.org.apache.arrow</shadedPattern>
                         </relocation>
