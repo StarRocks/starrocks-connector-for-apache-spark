@@ -417,10 +417,6 @@
                             <shadedPattern>com.starrocks.shaded.org.apache.commons.codec</shadedPattern>
                         </relocation>
                         <relocation>
-                            <pattern>com.google.common</pattern>
-                            <shadedPattern>com.starrocks.shade.com.google.common</shadedPattern>
-                        </relocation>
-                        <relocation>
                             <pattern>com.google.flatbuffers</pattern>
                             <shadedPattern>com.starrocks.shaded.com.google.flatbuffers</shadedPattern>
                         </relocation>
