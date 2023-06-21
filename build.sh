@@ -38,34 +38,30 @@ if ! ${MVN_CMD} --version; then
 fi
 export MVN_CMD
 
+supported_spark_version=("3.2" "3.3" "3.4")
+version_msg=$(IFS=, ; echo "${supported_spark_version[*]}")
 if [ ! $1 ]
 then
     echo "Usage:"
     echo "   sh build.sh <spark_version>"
-    echo "   spark version options: 2 or 3"
+    echo "   supported spark version: ${version_msg}"
     exit 1
 fi
 
-if [ $1 == 2 ]; then
-    export STARROCKS_SPARK_BASE_VERSION=2
-    export STARROCKS_SPARK_VERSION=2.3.4
-    export STARROCKS_SCALA_VERSION=2.11
-elif [ $1 == 3 ]; then
-    export STARROCKS_SPARK_BASE_VERSION=3
-    export STARROCKS_SPARK_VERSION=3.1.2
-    export STARROCKS_SCALA_VERSION=2.12
+spark_version=$1
+if [[ " ${supported_spark_version[*]} " == *" $spark_version "* ]];
+then
+    echo "Compiling connector for spark version $spark_version"
 else
-    echo "Error: spark version options: 2 or 3"
+    echo "Error: only support spark version: ${version_msg}"
     exit 1
 fi
 
-${MVN_CMD} clean package
+${MVN_CMD} clean package -DskipTests -Pspark-${spark_version}
 
-mkdir -p output/
-cp target/starrocks-spark*.jar ./output/
-
-echo "********************************************"
-echo "Successfully build Spark StarRocks Connector"
-echo "********************************************"
+echo "*********************************************************************"
+echo "Successfully build Spark StarRocks Connector for Spark $spark_version"
+echo "You can find the connector jar under the \"target\" directory"
+echo "*********************************************************************"
 
 exit 0
