@@ -440,37 +440,6 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.jacoco</groupId>
-                <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.7.8</version>
-                <configuration>
-                    <excludes>
-                        <exclude>**/thrift/**</exclude>
-                    </excludes>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>prepare-agent</id>
-                        <goals>
-                            <goal>prepare-agent</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>check</id>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>report</id>
-                        <phase>test</phase>
-                        <goals>
-                            <goal>report</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.1</version>
@@ -495,4 +464,26 @@
         </repository>
     </repositories>
 
+    <distributionManagement>
+         <snapshotRepository>
+             <id>ossrh</id>
+             <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+         </snapshotRepository>
+         <repository>
+             <id>ossrh</id>
+             <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+         </repository>
+     </distributionManagement>
+     <reporting>
+         <plugins>
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-checkstyle-plugin</artifactId>
+                 <version>3.1.0</version>
+                 <configuration>
+                     <configLocation>checkstyle.xml</configLocation>
+                 </configuration>
+             </plugin>
+         </plugins>
+     </reporting>
 </project>
