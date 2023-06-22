@@ -4,6 +4,7 @@ import com.starrocks.data.load.stream.StreamLoadDataFormat;
 import com.starrocks.data.load.stream.StreamLoadUtils;
 import com.starrocks.data.load.stream.properties.StreamLoadProperties;
 import com.starrocks.data.load.stream.properties.StreamLoadTableProperties;
+import org.apache.spark.util.Utils;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -66,10 +67,10 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
     private void load() {
         labelPrefix = get(KEY_LABEL_PREFIX);
         waitForContinueTimeoutMs = getInt(KEY_WAIT_FOR_CONTINUE_TIMEOUT, 30000);
-        chunkLimit = getLong(KEY_CHUNK_LIMIT, 3221225472L);
+        chunkLimit = Utils.byteStringAsBytes(get(KEY_CHUNK_LIMIT, "3g"));
         scanFrequencyInMs = getInt(KEY_SCAN_FREQUENCY, 50);
         enableTransactionStreamLoad = getBoolean(KEY_ENABLE_TRANSACTION, true);
-        bufferSize = getLong(KEY_BUFFER_SIZE, 104857600);
+        bufferSize = Utils.byteStringAsBytes(get(KEY_BUFFER_SIZE, "100m"));
         flushInterval = getInt(KEY_FLUSH_INTERVAL, 300000);
 
         properties = originOptions.entrySet().stream()
