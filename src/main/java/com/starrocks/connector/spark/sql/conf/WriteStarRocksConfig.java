@@ -92,6 +92,11 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
                 properties.put("ignore_json_size", "true");
             }
         }
+        if (!properties.containsKey("timeout")) {
+            int timeout = Math.max(600, flushInterval / 1000 + 600);
+            properties.put("timeout", String.valueOf(timeout));
+        }
+
         numPartitions = getInt(KEY_NUM_PARTITIONS, 0);
         partitionColumns = getArray(KEY_PARTITION_COLUMNS, null);
         supportTransactionStreamLoad = StreamLoadUtils.isStarRocksSupportTransactionLoad(
