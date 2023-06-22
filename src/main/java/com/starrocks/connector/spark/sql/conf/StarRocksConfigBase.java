@@ -147,7 +147,12 @@ public abstract class StarRocksConfigBase implements StarRocksConfig {
     }
 
     protected String get(final String key) {
-        return getOriginOptions().get(key);
+        return get(key, null);
+    }
+
+    protected String get(final String key, String defaultValue) {
+        String value = getOriginOptions().get(key);
+        return value != null ? value : defaultValue;
     }
 
     protected boolean getBoolean(final String key, final boolean defaultValue) {

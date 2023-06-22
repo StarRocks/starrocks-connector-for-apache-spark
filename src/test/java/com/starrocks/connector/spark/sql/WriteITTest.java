@@ -212,10 +212,10 @@ public class WriteITTest extends ITTestBase {
         options.put("starrocks.columns", "id,name,score");
         options.put("starrocks.write.label.prefix", "spark-connector-");
         options.put("starrocks.write.wait-for-continue.timeout.ms", "10000");
-        options.put("starrocks.write.chunk.limit", "102400");
+        options.put("starrocks.write.chunk.limit", "100k");
         options.put("starrocks.write.scan-frequency.ms", "100");
         options.put("starrocks.write.enable.transaction-stream-load", "true");
-        options.put("starrocks.write.buffer.size", "12000");
+        options.put("starrocks.write.buffer.size", "12k");
         options.put("starrocks.write.flush.interval.ms", "3000");
         options.put("starrocks.write.properties.format", "csv");
         options.put("starrocks.write.properties.row_delimiter", "\n");
