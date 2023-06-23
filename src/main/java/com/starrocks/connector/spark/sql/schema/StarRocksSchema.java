@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.starrocks.connector.spark.sql.schema.StarRocksField.__OP;
+
 public class StarRocksSchema {
     private final List<StarRocksField> columns;
     private final List<StarRocksField> pks;
@@ -27,6 +29,10 @@ public class StarRocksSchema {
     }
 
     public StarRocksField getField(String columnName) {
+        if (__OP.getName().equalsIgnoreCase(columnName)) {
+            return __OP;
+        }
+
         return columnMap.get(columnName);
     }
 }
