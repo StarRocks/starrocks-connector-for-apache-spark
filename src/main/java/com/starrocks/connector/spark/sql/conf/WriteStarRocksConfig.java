@@ -14,7 +14,7 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
 
     private static final long serialVersionUID = 1L;
 
-    private static final String WRITE_PREFIX = PREFIX + "write.";
+    public static final String WRITE_PREFIX = PREFIX + "write.";
     // The prefix of the stream load label. Available values are within [-_A-Za-z0-9]
     private static final String KEY_LABEL_PREFIX = WRITE_PREFIX + "label.prefix";
     // Timeout in millisecond to wait for 100-continue response from FE

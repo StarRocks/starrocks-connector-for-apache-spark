@@ -22,6 +22,7 @@ package com.starrocks.connector.spark.sql
 import com.starrocks.connector.spark.cfg.ConfigurationOptions
 import com.starrocks.connector.spark.exception.StarrocksException
 import com.starrocks.connector.spark.sql.conf.StarRocksConfigBase.KEY_FE_HTTP
+import com.starrocks.connector.spark.sql.conf.WriteStarRocksConfig
 import org.apache.spark.sql.jdbc.JdbcDialect
 import org.apache.spark.sql.sources._
 import org.slf4j.Logger
@@ -82,7 +83,14 @@ private[sql] object Utils {
    */
   def params(parameters: Map[String, String], logger: Logger) = {
     // '.' seems to be problematic when specifying the options
-    val dottedParams = parameters.map { case (k, v) => (k.replace('_', '.'), v)}
+    // FIXME I don't know why to replace "_" with ".", but it will lead to unexpected result
+    // if "_" is legal such as "starrocks.write.properties.partial_update". just skip to
+    // replace parameters for write
+    val dottedParams = parameters.map {
+      case (k, v) =>
+        if (k.startsWith(WriteStarRocksConfig.WRITE_PREFIX)) (k,v)
+        else (k.replace('_', '.'), v)
+    }
 
     val preferredTableIdentifier = dottedParams.get(ConfigurationOptions.STARROCKS_TABLE_IDENTIFIER)
       .orElse(dottedParams.get(ConfigurationOptions.TABLE_IDENTIFIER))

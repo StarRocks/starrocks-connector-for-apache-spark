@@ -2,7 +2,7 @@ package com.starrocks.connector.spark.sql.schema;
 
 public class StarRocksField {
 
-    public static final StarRocksField __OP = new StarRocksField("__op", "tinyint", Integer.MAX_VALUE, null, null);
+    public static final StarRocksField __OP = new StarRocksField("__op", "tinyint", Integer.MAX_VALUE, "3", null);
 
     private String name;
     private String type;
