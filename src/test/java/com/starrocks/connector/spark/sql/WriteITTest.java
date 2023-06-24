@@ -19,13 +19,13 @@
 
 package com.starrocks.connector.spark.sql;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.execution.streaming.MemoryStream;
+import org.apache.spark.sql.streaming.OutputMode;
 import org.apache.spark.sql.streaming.StreamingQuery;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Metadata;
@@ -33,9 +33,8 @@ import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.junit.Ignore;
 import org.junit.Test;
-import scala.Option;
-import scala.collection.JavaConverters;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -230,7 +229,6 @@ public class WriteITTest extends ITTestBase {
         spark.stop();
     }
 
-    @Ignore
     @Test
     public void testStructuredStreaming() throws Exception {
         SparkSession spark = SparkSession
@@ -239,34 +237,34 @@ public class WriteITTest extends ITTestBase {
                 .appName("testStructuredStreaming")
                 .getOrCreate();
 
-        List<Row> data = Arrays.asList(
-                RowFactory.create(1, "70"),
-                RowFactory.create(2, "80")
-        );
-        StructType schema = new StructType(new StructField[]{
-                new StructField("c0", DataTypes.IntegerType, false, Metadata.empty()),
-                new StructField("c1", DataTypes.StringType, false, Metadata.empty())
+        StructType schema = new StructType(new StructField[] {
+                new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
+                new StructField("name", DataTypes.StringType, false, Metadata.empty()),
+                new StructField("score", DataTypes.IntegerType, false, Metadata.empty())
         });
-        spark.createDataFrame(data, schema);
-
-        MemoryStream<Row> memoryStream = new MemoryStream<>(0, spark.sqlContext(), Option.empty(), Encoders.javaSerialization(Row.class));
-        Dataset<Row> df = memoryStream.toDF();
-        memoryStream.addData(JavaConverters.asScalaIteratorConverter(data.iterator()).asScala().toSeq());
+        Dataset<Row> df = spark.readStream()
+                .option("sep", ",")
+                .schema(schema)
+                .format("csv")
+                .load("src/test/resources/simple_write_csv/");
 
         Map<String, String> options = new HashMap<>();
-        options.put("spark.starrocks.fe.urls.http", "127.0.0.1:11901");
-        options.put("spark.starrocks.fe.urls.jdbc", "jdbc:mysql://127.0.0.1:11903");
-        options.put("spark.starrocks.database", "starrocks");
-        options.put("spark.starrocks.table", "test");
-        options.put("spark.starrocks.username", "root");
-        options.put("spark.starrocks.password", "");
-        options.put("checkpointLocation", "/Users/lpf/Downloads/spark-cpt");
+        options.put("starrocks.fe.http.url", FE_HTTP);
+        options.put("starrocks.fe.jdbc.url", FE_JDBC);
+        options.put("starrocks.table.identifier", TABLE_ID);
+        options.put("starrocks.user", USER);
+        options.put("starrocks.password", PASSWORD);
 
-        StreamingQuery query = df.writeStream().format("starrocks")
+        FileUtils.deleteDirectory(new File("checkpoint"));
+        StreamingQuery query = df.writeStream()
+                .format("starrocks")
+                .outputMode(OutputMode.Append())
                 .options(options)
+                .option("checkpointLocation", "checkpoint")
                 .start();
 
         query.awaitTermination();
+
         spark.stop();
     }
 
