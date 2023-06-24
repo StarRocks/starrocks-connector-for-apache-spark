@@ -1,5 +1,6 @@
 package com.starrocks.connector.spark.sql.connect;
 
+import com.starrocks.connector.spark.exception.StarrocksException;
 import com.starrocks.connector.spark.sql.conf.StarRocksConfig;
 import com.starrocks.connector.spark.sql.schema.StarRocksField;
 import com.starrocks.connector.spark.sql.schema.StarRocksSchema;
@@ -12,8 +13,6 @@ import java.sql.ResultSetMetaData;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -71,6 +70,10 @@ public class StarRocksConnector {
                 columnValues.add(row);
             }
             rs.close();
+            if (columnValues.isEmpty()) {
+                throw new StarrocksException(String.format("Can't find schema for %s.%s, and " +
+                        "please check whether the table exists", database, table));
+            }
             return columnValues;
         } catch (Exception e) {
             throw new RuntimeException(e);
