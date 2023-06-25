@@ -2,6 +2,7 @@ package com.starrocks.connector.spark.sql.write;
 
 import com.starrocks.connector.spark.sql.conf.WriteStarRocksConfig;
 import com.starrocks.connector.spark.sql.schema.RowStringConverter;
+import com.starrocks.connector.spark.util.EnvUtils;
 import com.starrocks.data.load.stream.StreamLoadManager;
 import com.starrocks.data.load.stream.StreamLoadSnapshot;
 import com.starrocks.data.load.stream.v2.StreamLoadManagerV2;
@@ -13,7 +14,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class StarRocksDataWriter implements DataWriter<InternalRow>, Serializable {
     private static final Logger log = LoggerFactory.getLogger(StarRocksDataWriter.class);
@@ -25,7 +25,6 @@ public class StarRocksDataWriter implements DataWriter<InternalRow>, Serializabl
     private final long epochId;
 
     private final StreamLoadManager manager;
-    private final AtomicBoolean managerInit = new AtomicBoolean(false);
 
     public StarRocksDataWriter(WriteStarRocksConfig config,
                                RowStringConverter converter,
@@ -40,12 +39,14 @@ public class StarRocksDataWriter implements DataWriter<InternalRow>, Serializabl
         this.manager = new StreamLoadManagerV2(config.toStreamLoadProperties(), true);
     }
 
+    public void open() {
+        manager.init();
+        log.info("Open data writer for partition: {}, task: {}, epoch: {}, {}",
+                partitionId, taskId, epochId, EnvUtils.getGitInformation());
+    }
+
     @Override
     public void write(InternalRow internalRow) throws IOException {
-        if (managerInit.compareAndSet(false, true)) {
-            manager.init();
-        }
-
         String data = converter.fromRow(internalRow);
         manager.write(null, config.getDatabase(), config.getTable(), data);
 
@@ -90,8 +91,6 @@ public class StarRocksDataWriter implements DataWriter<InternalRow>, Serializabl
     @Override
     public void close() throws IOException {
         log.info("partitionId: {}, taskId: {}, epochId: {} close", partitionId, taskId, epochId);
-        if (managerInit.compareAndSet(true, false)) {
-            manager.close();
-        }
+        manager.close();
     }
 }
