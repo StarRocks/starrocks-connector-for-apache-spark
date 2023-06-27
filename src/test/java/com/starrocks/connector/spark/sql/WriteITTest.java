@@ -216,6 +216,8 @@ public class WriteITTest extends ITTestBase {
         options.put("starrocks.write.enable.transaction-stream-load", "true");
         options.put("starrocks.write.buffer.size", "12k");
         options.put("starrocks.write.flush.interval.ms", "3000");
+        options.put("starrocks.write.max.retries", "2");
+        options.put("starrocks.write.retry.interval.ms", "1000");
         options.put("starrocks.write.properties.format", "csv");
         options.put("starrocks.write.properties.row_delimiter", "\n");
         options.put("starrocks.write.properties.column_separator", "\t");
