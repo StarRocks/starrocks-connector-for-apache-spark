@@ -238,29 +238,34 @@
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-vector</artifactId>
             <version>${arrow.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-memory-netty</artifactId>
             <version>${arrow.version}</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${fasterxml.version}</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
             <version>${fasterxml.version}</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
             <version>${fasterxml.version}</version>
+            <scope>provided</scope>
         </dependency>
 
         <!--Test-->
@@ -401,10 +406,6 @@
                             <exclude>com.google.code.findbugs:*</exclude>
                             <exclude>org.slf4j:*</exclude>
                             <exclude>org.scala-lang:*</exclude>
-                            <exclude>org.apache.arrow:*</exclude>
-                            <exclude>com.fasterxml.jackson.core:*</exclude>
-                            <exclude>com.google.flatbuffers:*</exclude>
-                            <exclude>commons-codec:*</exclude>
                         </excludes>
                     </artifactSet>
                     <filters>
