@@ -401,27 +401,12 @@
                             <exclude>com.google.code.findbugs:*</exclude>
                             <exclude>org.slf4j:*</exclude>
                             <exclude>org.scala-lang:*</exclude>
+                            <exclude>org.apache.arrow:*</exclude>
                             <exclude>com.fasterxml.jackson.core:*</exclude>
+                            <exclude>com.google.flatbuffers:*</exclude>
+                            <exclude>commons-codec:*</exclude>
                         </excludes>
                     </artifactSet>
-                    <relocations>
-                        <relocation>
-                            <pattern>org.apache.arrow</pattern>
-                            <shadedPattern>com.starrocks.shaded.org.apache.arrow</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>io.netty</pattern>
-                            <shadedPattern>com.starrocks.shaded.io.netty</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>org.apache.commons.codec</pattern>
-                            <shadedPattern>com.starrocks.shaded.org.apache.commons.codec</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>com.google.flatbuffers</pattern>
-                            <shadedPattern>com.starrocks.shaded.com.google.flatbuffers</shadedPattern>
-                        </relocation>
-                    </relocations>
                     <filters>
                         <filter>
                             <artifact>*:*</artifact>
