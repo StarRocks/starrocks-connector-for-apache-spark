@@ -19,20 +19,6 @@
 
 package com.starrocks.connector.spark.rest;
 
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_FENODES;
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_FILTER_QUERY;
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_READ_FIELD;
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD;
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER;
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLET_SIZE;
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLET_SIZE_DEFAULT;
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLET_SIZE_MIN;
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLE_IDENTIFIER;
-import static com.starrocks.connector.spark.util.ErrorMessages.CONNECT_FAILED_MESSAGE;
-import static com.starrocks.connector.spark.util.ErrorMessages.ILLEGAL_ARGUMENT_MESSAGE;
-import static com.starrocks.connector.spark.util.ErrorMessages.PARSE_NUMBER_FAILED_MESSAGE;
-import static com.starrocks.connector.spark.util.ErrorMessages.SHOULD_NOT_HAPPEN_MESSAGE;
-
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,27 +26,27 @@ import com.google.common.annotations.VisibleForTesting;
 import com.starrocks.connector.spark.cfg.ConfigurationOptions;
 import com.starrocks.connector.spark.cfg.Settings;
 import com.starrocks.connector.spark.exception.ConnectedFailedException;
-import com.starrocks.connector.spark.exception.StarrocksException;
 import com.starrocks.connector.spark.exception.IllegalArgumentException;
 import com.starrocks.connector.spark.exception.ShouldNeverHappenException;
+import com.starrocks.connector.spark.exception.StarrocksException;
 import com.starrocks.connector.spark.rest.models.QueryPlan;
 import com.starrocks.connector.spark.rest.models.Schema;
 import com.starrocks.connector.spark.rest.models.Tablet;
+import com.starrocks.streamload.shade.org.apache.http.HttpStatus;
+import com.starrocks.streamload.shade.org.apache.http.auth.AuthenticationException;
+import com.starrocks.streamload.shade.org.apache.http.auth.UsernamePasswordCredentials;
+import com.starrocks.streamload.shade.org.apache.http.client.config.RequestConfig;
+import com.starrocks.streamload.shade.org.apache.http.client.methods.CloseableHttpResponse;
+import com.starrocks.streamload.shade.org.apache.http.client.methods.HttpGet;
+import com.starrocks.streamload.shade.org.apache.http.client.methods.HttpPost;
+import com.starrocks.streamload.shade.org.apache.http.client.methods.HttpRequestBase;
+import com.starrocks.streamload.shade.org.apache.http.client.protocol.HttpClientContext;
+import com.starrocks.streamload.shade.org.apache.http.entity.StringEntity;
+import com.starrocks.streamload.shade.org.apache.http.impl.auth.BasicScheme;
+import com.starrocks.streamload.shade.org.apache.http.impl.client.CloseableHttpClient;
+import com.starrocks.streamload.shade.org.apache.http.impl.client.HttpClients;
+import com.starrocks.streamload.shade.org.apache.http.util.EntityUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.HttpStatus;
-import org.apache.http.auth.AuthenticationException;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpRequestBase;
-import org.apache.http.client.protocol.HttpClientContext;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.auth.BasicScheme;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -74,6 +60,20 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_FENODES;
+import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_FILTER_QUERY;
+import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_READ_FIELD;
+import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD;
+import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER;
+import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLET_SIZE;
+import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLET_SIZE_DEFAULT;
+import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLET_SIZE_MIN;
+import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLE_IDENTIFIER;
+import static com.starrocks.connector.spark.util.ErrorMessages.CONNECT_FAILED_MESSAGE;
+import static com.starrocks.connector.spark.util.ErrorMessages.ILLEGAL_ARGUMENT_MESSAGE;
+import static com.starrocks.connector.spark.util.ErrorMessages.PARSE_NUMBER_FAILED_MESSAGE;
+import static com.starrocks.connector.spark.util.ErrorMessages.SHOULD_NOT_HAPPEN_MESSAGE;
 
 /**
  * Service for communicate with StarRocks FE.
