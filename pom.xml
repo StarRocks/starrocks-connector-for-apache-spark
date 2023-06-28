@@ -210,6 +210,7 @@
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
             <version>${scala-lang.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.starrocks</groupId>
