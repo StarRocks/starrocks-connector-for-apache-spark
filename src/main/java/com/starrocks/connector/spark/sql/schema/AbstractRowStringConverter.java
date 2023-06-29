@@ -1,6 +1,6 @@
 package com.starrocks.connector.spark.sql.schema;
 
-import com.starrocks.streamload.shade.com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.JSONObject;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
