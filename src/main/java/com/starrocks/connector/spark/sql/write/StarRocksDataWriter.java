@@ -1,6 +1,8 @@
 package com.starrocks.connector.spark.sql.write;
 
 import com.starrocks.connector.spark.sql.conf.WriteStarRocksConfig;
+import com.starrocks.connector.spark.sql.schema.CsvRowStringConverter;
+import com.starrocks.connector.spark.sql.schema.JSONRowStringConverter;
 import com.starrocks.connector.spark.sql.schema.RowStringConverter;
 import com.starrocks.connector.spark.util.EnvUtils;
 import com.starrocks.data.load.stream.StreamLoadManager;
@@ -9,6 +11,7 @@ import com.starrocks.data.load.stream.v2.StreamLoadManagerV2;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.write.DataWriter;
 import org.apache.spark.sql.connector.write.WriterCommitMessage;
+import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,23 +22,28 @@ public class StarRocksDataWriter implements DataWriter<InternalRow>, Serializabl
     private static final Logger log = LoggerFactory.getLogger(StarRocksDataWriter.class);
 
     private final WriteStarRocksConfig config;
-    private final RowStringConverter converter;
     private final int partitionId;
     private final long taskId;
     private final long epochId;
-
+    private final RowStringConverter converter;
     private final StreamLoadManager manager;
 
     public StarRocksDataWriter(WriteStarRocksConfig config,
-                               RowStringConverter converter,
+                               StructType schema,
                                int partitionId,
                                long taskId,
                                long epochId) {
         this.config = config;
-        this.converter = converter;
         this.partitionId = partitionId;
         this.taskId = taskId;
         this.epochId = epochId;
+        if ("csv".equalsIgnoreCase(config.getFormat())) {
+            this.converter = new CsvRowStringConverter(schema, config.getColumnSeparator());
+        }  else if ("json".equalsIgnoreCase(config.getFormat())) {
+            this.converter = new JSONRowStringConverter(schema);
+        } else {
+            throw new RuntimeException("Unsupported format " + config.getFormat());
+        }
         this.manager = new StreamLoadManagerV2(config.toStreamLoadProperties(), true);
     }
 

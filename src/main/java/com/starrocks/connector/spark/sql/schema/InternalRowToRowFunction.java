@@ -12,7 +12,13 @@ import scala.collection.Seq;
 import java.io.Serializable;
 import java.util.function.Function;
 
+/**
+ * Refer to mongo-spark
+ * https://github.com/mongodb/mongo-spark/blob/main/src/main/java/com/mongodb/spark/sql/connector/schema/InternalRowToRowFunction.java.
+ */
 public class InternalRowToRowFunction implements Function<InternalRow, Row>, Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final ExpressionEncoder.Deserializer<Row> deserializer;
 
