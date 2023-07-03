@@ -1,11 +1,9 @@
 package com.starrocks.connector.spark.sql
 
-import com.alibaba.fastjson2.{JSON, JSONObject}
-import com.starrocks.data.load.stream.StreamLoadManager
-import com.starrocks.data.load.stream.DefaultStreamLoadManager
+import com.starrocks.data.load.stream.{DefaultStreamLoadManager, StreamLoadManager}
 import com.starrocks.data.load.stream.properties.StreamLoadProperties
-import org.apache.spark.sql.{DataFrame, SQLContext}
 import org.apache.spark.sql.execution.streaming.Sink
+import org.apache.spark.sql.{DataFrame, SQLContext}
 import org.slf4j.{Logger, LoggerFactory}
 
 
