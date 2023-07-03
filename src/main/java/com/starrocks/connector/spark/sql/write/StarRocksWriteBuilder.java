@@ -1,9 +1,6 @@
 package com.starrocks.connector.spark.sql.write;
 
 import com.starrocks.connector.spark.sql.conf.WriteStarRocksConfig;
-import com.starrocks.connector.spark.sql.schema.CsvRowStringConverter;
-import com.starrocks.connector.spark.sql.schema.JSONRowStringConverter;
-import com.starrocks.connector.spark.sql.schema.RowStringConverter;
 import org.apache.spark.sql.connector.distributions.Distribution;
 import org.apache.spark.sql.connector.distributions.Distributions;
 import org.apache.spark.sql.connector.expressions.Expression;
@@ -27,27 +24,17 @@ public class StarRocksWriteBuilder implements WriteBuilder {
 
     @Override
     public Write build() {
-        RowStringConverter converter;
-        if ("csv".equalsIgnoreCase(config.getFormat())) {
-            converter = new CsvRowStringConverter(info.schema(), config.getColumnSeparator());
-        }  else if ("json".equalsIgnoreCase(config.getFormat())) {
-            converter = new JSONRowStringConverter(info.schema());
-        } else {
-            throw new RuntimeException("UnSupport format " + config.getFormat());
-        }
-        return new StarRocksWriteImpl(info, config, converter);
+        return new StarRocksWriteImpl(info, config);
     }
 
     private static class StarRocksWriteImpl implements Write, RequiresDistributionAndOrdering {
 
         private final LogicalWriteInfo info;
         private final WriteStarRocksConfig config;
-        private final RowStringConverter converter;
 
-        public StarRocksWriteImpl(LogicalWriteInfo info, WriteStarRocksConfig config, RowStringConverter converter) {
+        public StarRocksWriteImpl(LogicalWriteInfo info, WriteStarRocksConfig config) {
             this.info = info;
             this.config = config;
-            this.converter = converter;
         }
 
         @Override
@@ -57,12 +44,12 @@ public class StarRocksWriteBuilder implements WriteBuilder {
 
         @Override
         public BatchWrite toBatch() {
-            return new StarRocksWrite(info, config, converter);
+            return new StarRocksWrite(info, config);
         }
 
         @Override
         public StreamingWrite toStreaming() {
-            return new StarRocksWrite(info, config, converter);
+            return new StarRocksWrite(info, config);
         }
 
         @Override

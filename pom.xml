@@ -265,12 +265,6 @@
         </dependency>
 
         <dependency>
-            <groupId>com.alibaba</groupId>
-            <artifactId>fastjson</artifactId>
-            <version>${fastjson.version}</version>
-        </dependency>
-
-        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${fasterxml.version}</version>
@@ -424,12 +418,6 @@
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>3.2.1</version>
                 <configuration>
-                    <relocations>
-                        <relocation>
-                            <pattern>com.alibaba.fastjson</pattern>
-                            <shadedPattern>com.starrocks.shade.com.alibaba.fastjson</shadedPattern>
-                        </relocation>
-                    </relocations>
                     <artifactSet>
                         <excludes>
                             <exclude>com.google.code.findbugs:*</exclude>

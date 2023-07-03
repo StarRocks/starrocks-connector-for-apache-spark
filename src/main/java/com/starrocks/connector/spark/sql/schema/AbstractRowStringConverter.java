@@ -1,13 +1,11 @@
 package com.starrocks.connector.spark.sql.schema;
 
-import com.alibaba.fastjson.JSONObject;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.types.DecimalType;
-import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 
 import java.io.Serializable;
@@ -45,8 +43,7 @@ public abstract class AbstractRowStringConverter implements RowStringConverter, 
                     || DataTypes.ByteType.acceptsType(dataType)
                     || DataTypes.IntegerType.acceptsType(dataType)
                     || DataTypes.LongType.acceptsType(dataType)
-                    || DataTypes.ShortType.acceptsType(dataType)
-                    || DataTypes.NullType.acceptsType(dataType)) {
+                    || DataTypes.ShortType.acceptsType(dataType)) {
                 return data;
             } else if (DataTypes.DateType.acceptsType(dataType)) {
                 return dateFormatter.format((Date) data);
@@ -56,16 +53,6 @@ public abstract class AbstractRowStringConverter implements RowStringConverter, 
                 return data instanceof BigDecimal
                         ? (BigDecimal) data
                         : ((Decimal) data).toBigDecimal().bigDecimal();
-            } else if (dataType instanceof StructType) {
-                Row row = (Row) data;
-                JSONObject jsonObject = new JSONObject();
-                for (StructField field : row.schema().fields()) {
-                    int idx = row.fieldIndex(field.name());
-                    if (!(field.nullable() && row.isNullAt(idx))) {
-                        jsonObject.put(field.name(), convert(field.dataType(), row.get(idx)));
-                    }
-                }
-                return jsonObject;
             }
         } catch (Exception e) {
             throw new RuntimeException(e);

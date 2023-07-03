@@ -194,7 +194,17 @@ public class SchemaITTest extends ITTestBase {
     }
 
     @Test
-    public void testReadWriteWithJson() {
+    public void testWriteInCsvFormatContainJsonColumn() {
+        testWriteContainJsonColumnBase(true);
+    }
+
+    @Test
+    public void testWriteInJsonFormatContainJsonColumn() {
+        testWriteContainJsonColumnBase(false);
+    }
+
+    // TODO read does not support json currently
+    private void testWriteContainJsonColumnBase(boolean csvFormat) {
         SparkSession spark = SparkSession
                 .builder()
                 .master("local[1]")
@@ -215,8 +225,8 @@ public class SchemaITTest extends ITTestBase {
                 "9",
                 "10",
                 "11",
-                Date.valueOf("0000-01-01"),
-                Timestamp.valueOf("0000-01-01 00:00:00"),
+                Date.valueOf("2022-01-01"),
+                Timestamp.valueOf("2023-01-01 00:00:00"),
                 "{\"key\": 1, \"value\": 2}"
         );
         data.add(row);
@@ -247,26 +257,27 @@ public class SchemaITTest extends ITTestBase {
         options.put("starrocks.table.identifier", TABLE_ID_WITH_JSON);
         options.put("starrocks.user", USER);
         options.put("starrocks.password", PASSWORD);
+        options.put("starrocks.write.properties.format", csvFormat ? "csv" : "json");
 
         df.write().format("starrocks")
                 .mode(SaveMode.Append)
                 .options(options)
                 .save();
 
-//        TODO read does not support json currently
-//        Dataset<Row> readDf = spark.read().format("starrocks")
-//                .option("starrocks.table.identifier", TABLE_ID_WITH_JSON)
-//                .option("starrocks.fe.http.url", FE_HTTP)
-//                .option("user", USER)
-//                .option("password", PASSWORD)
-//                .load();
-//        readDf.show(5);
-
         spark.stop();
     }
 
     @Test
-    public void testReadWriteWithoutJson() throws Exception {
+    public void testReadWriteInCsvFormatNotContainsJsonColumnBase() throws Exception {
+        testReadWriteNotContainsJsonColumnBase(true);
+    }
+
+    @Test
+    public void testReadWriteInJsonFormatNotContainsJsonColumnBase() throws Exception {
+        testReadWriteNotContainsJsonColumnBase(false);
+    }
+
+    private void testReadWriteNotContainsJsonColumnBase(boolean csvFormat) throws Exception {
         SparkSession spark = SparkSession
                 .builder()
                 .master("local[1]")
@@ -287,8 +298,8 @@ public class SchemaITTest extends ITTestBase {
                 "9",
                 "10",
                 "11",
-                Date.valueOf("0000-01-01"),
-                Timestamp.valueOf("0000-01-01 00:00:00")
+                Date.valueOf("2022-01-01"),
+                Timestamp.valueOf("2023-01-01 00:00:00")
         );
         data.add(row);
 
@@ -317,6 +328,7 @@ public class SchemaITTest extends ITTestBase {
         options.put("starrocks.table.identifier", TABLE_ID_WITHOUT_JSON);
         options.put("starrocks.user", USER);
         options.put("starrocks.password", PASSWORD);
+        options.put("starrocks.write.properties.format", csvFormat ? "csv" : "json");
 
         df.write().format("starrocks")
                 .mode(SaveMode.Append)

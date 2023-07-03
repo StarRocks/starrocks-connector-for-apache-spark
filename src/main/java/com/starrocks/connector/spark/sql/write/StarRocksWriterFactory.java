@@ -1,11 +1,11 @@
 package com.starrocks.connector.spark.sql.write;
 
 import com.starrocks.connector.spark.sql.conf.WriteStarRocksConfig;
-import com.starrocks.connector.spark.sql.schema.RowStringConverter;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.write.DataWriter;
 import org.apache.spark.sql.connector.write.DataWriterFactory;
 import org.apache.spark.sql.connector.write.streaming.StreamingDataWriterFactory;
+import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,11 +13,11 @@ public class StarRocksWriterFactory implements DataWriterFactory, StreamingDataW
 
     private static final Logger LOG = LoggerFactory.getLogger(StarRocksWriterFactory.class);
 
-    private final RowStringConverter converter;
+    private final StructType schema;
     private final WriteStarRocksConfig config;
 
-    public StarRocksWriterFactory(RowStringConverter converter, WriteStarRocksConfig config) {
-        this.converter = converter;
+    public StarRocksWriterFactory(StructType schema, WriteStarRocksConfig config) {
+        this.schema = schema;
         this.config = config;
     }
 
@@ -32,7 +32,7 @@ public class StarRocksWriterFactory implements DataWriterFactory, StreamingDataW
     }
 
     private StarRocksDataWriter createAndOpenWriter(int partitionId, long taskId, long epochId) {
-        StarRocksDataWriter writer = new StarRocksDataWriter(config, converter, partitionId, taskId, epochId);
+        StarRocksDataWriter writer = new StarRocksDataWriter(config, schema, partitionId, taskId, epochId);
         try {
             writer.open();
         } catch (Exception e) {
