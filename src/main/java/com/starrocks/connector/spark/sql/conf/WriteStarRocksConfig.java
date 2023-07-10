@@ -49,6 +49,8 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
     private static final String KEY_BUFFER_SIZE = WRITE_PREFIX + "buffer.size";
     // Flush interval of the row batch in millisecond
     private static final String KEY_FLUSH_INTERVAL = WRITE_PREFIX + "flush.interval.ms";
+    private static final String KEY_MAX_RETIES = WRITE_PREFIX + "max.retries";
+    private static final String KEY_RETRY_INTERVAL_MS = WRITE_PREFIX + "retry.interval.ms";
     private static final String PROPS_PREFIX = WRITE_PREFIX + "properties.";
     private static final String KEY_PROPS_FORMAT = PROPS_PREFIX + "format";
     private static final String KEY_PROPS_ROW_DELIMITER = PROPS_PREFIX + "row_delimiter";
@@ -66,6 +68,8 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
     private boolean enableTransactionStreamLoad = true;
     private long bufferSize = 104857600;
     private int flushInterval = 300000;
+    private int maxRetries = 0;
+    private int retryIntervalInMs = 10000;
     private Map<String, String> properties;
     private String format = "CSV";
     private String rowDelimiter = "\n";
@@ -91,6 +95,8 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
         enableTransactionStreamLoad = getBoolean(KEY_ENABLE_TRANSACTION, true);
         bufferSize = Utils.byteStringAsBytes(get(KEY_BUFFER_SIZE, "100m"));
         flushInterval = getInt(KEY_FLUSH_INTERVAL, 300000);
+        maxRetries = getInt(KEY_MAX_RETIES, 3);
+        retryIntervalInMs = getInt(KEY_RETRY_INTERVAL_MS, 10000);
 
         properties = originOptions.entrySet().stream()
                 .filter(entry -> entry.getKey().startsWith(PROPS_PREFIX))
@@ -170,6 +176,8 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
                 .cacheMaxBytes(bufferSize)
                 .expectDelayTime(flushInterval)
                 .labelPrefix(labelPrefix)
+                .maxRetries(maxRetries)
+                .retryIntervalInMs(retryIntervalInMs)
                 .addHeaders(properties);
 
         if (enableTransactionStreamLoad && supportTransactionStreamLoad) {
