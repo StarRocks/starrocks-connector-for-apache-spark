@@ -219,12 +219,6 @@
             <artifactId>starrocks-thrift-sdk</artifactId>
             <version>1.0.1</version>
         </dependency>
-
-        <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
-            <version>5.1.49</version>
-        </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_${sr_scala.version}</artifactId>
@@ -286,6 +280,12 @@
         </dependency>
 
         <!--Test-->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>5.1.49</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-streaming_${sr_scala.version}</artifactId>
