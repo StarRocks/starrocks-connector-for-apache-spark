@@ -90,11 +90,11 @@ public class StarRocksConnector {
         try {
             Class.forName(MYSQL_80_DRIVER_NAME);
         } catch (ClassNotFoundException e) {
-            LOG.warn("Failed to find mysql driver {}", MYSQL_80_DRIVER_NAME, e);
+            LOG.warn("Failed to find mysql jdbc driver {}", MYSQL_80_DRIVER_NAME, e);
             try {
                 Class.forName(MYSQL_51_DRIVER_NAME);
             } catch (ClassNotFoundException ie) {
-                LOG.warn("Failed to find mysql driver {}", MYSQL_51_DRIVER_NAME, e);
+                LOG.warn("Failed to find mysql jdbc driver {}", MYSQL_51_DRIVER_NAME, e);
                 String msg = String.format("Can't find mysql jdbc driver, please download it and " +
                         "put it in your classpath manually. Note that the connector does not include " +
                         "the mysql driver since version 1.1.1 because of the limitation of GPL license " +
