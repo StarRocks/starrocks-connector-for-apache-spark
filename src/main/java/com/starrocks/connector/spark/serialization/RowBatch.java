@@ -50,10 +50,12 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.TimeZone;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -80,7 +82,7 @@ public class RowBatch {
     }
 
     private final SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd");
-    private final SimpleDateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    private final SimpleDateFormat dateTimeFormatter;
 
     // offset for iterate the rowBatch
     private int offsetInRowBatch = 0;
@@ -95,7 +97,13 @@ public class RowBatch {
     private final Map<String, Field> fieldMap;
 
     public RowBatch(TScanBatchResult nextResult, Schema schema) throws StarrocksException {
+        this(nextResult, schema, ZoneId.systemDefault());
+    }
+
+    public RowBatch(TScanBatchResult nextResult, Schema schema, ZoneId timeZone) throws StarrocksException {
         this.schema = schema;
+        this.dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        dateTimeFormatter.setTimeZone(TimeZone.getTimeZone(timeZone));
         this.fieldMap = schema.getProperties().stream()
                 .collect(
                         Collectors.toMap(

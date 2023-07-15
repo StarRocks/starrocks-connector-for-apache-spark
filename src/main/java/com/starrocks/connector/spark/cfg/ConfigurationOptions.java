@@ -25,6 +25,8 @@ public interface ConfigurationOptions {
 
     String STARROCKS_DEFAULT_CLUSTER = "default_cluster";
 
+    String STARROCKS_TIMEZONE = "starrocks.timezone";
+
     String TABLE_IDENTIFIER = "table.identifier";
     String STARROCKS_TABLE_IDENTIFIER = "starrocks.table.identifier";
     String STARROCKS_READ_FIELD = "starrocks.read.field";

@@ -57,9 +57,9 @@ public class StarRocksDataWriter implements DataWriter<InternalRow>, Serializabl
         this.taskId = taskId;
         this.epochId = epochId;
         if ("csv".equalsIgnoreCase(config.getFormat())) {
-            this.converter = new CsvRowStringConverter(schema, config.getColumnSeparator());
+            this.converter = new CsvRowStringConverter(schema, config.getColumnSeparator(), config.getTimeZone());
         }  else if ("json".equalsIgnoreCase(config.getFormat())) {
-            this.converter = new JSONRowStringConverter(schema);
+            this.converter = new JSONRowStringConverter(schema, config.getTimeZone());
         } else {
             throw new RuntimeException("Unsupported format " + config.getFormat());
         }
