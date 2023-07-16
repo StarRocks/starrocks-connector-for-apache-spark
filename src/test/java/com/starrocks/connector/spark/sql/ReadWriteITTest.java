@@ -36,6 +36,7 @@ import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -415,6 +416,102 @@ public class ReadWriteITTest extends ITTestBase {
                 .load();
         List<Row> readRows = readDf.collectAsList();
         verifyRows(expectedData, readRows);
+
+        spark.stop();
+    }
+
+    @Test
+    public void testDateTimeJava8API() throws Exception {
+        String tableName = "testDateTimeJava8API" + genRandomUuid();
+        String createStarRocksTable =
+                String.format("CREATE TABLE `%s`.`%s` (" +
+                                "id INT," +
+                                "dt DATE," +
+                                "dtt DATETIME" +
+                                ") ENGINE=OLAP " +
+                                "PRIMARY KEY(`id`) " +
+                                "DISTRIBUTED BY HASH(`id`) BUCKETS 2 " +
+                                "PROPERTIES (" +
+                                "\"replication_num\" = \"1\"" +
+                                ")",
+                        DB_NAME, tableName);
+        executeSRDDLSQL(createStarRocksTable);
+
+        SparkSession spark = SparkSession
+                .builder()
+                .config("spark.sql.datetime.java8API.enabled", "true")
+                .master("local[1]")
+                .appName("testReadWriteNotContainsJsonColumnBase")
+                .getOrCreate();
+
+        List<List<Object>> expectedData = new ArrayList<>();
+        expectedData.add(Arrays.asList(1, "2023-07-16", "2023-07-16 12:00:00"));
+
+        String ddl = String.format("CREATE TABLE sr_table \n" +
+                " USING starrocks\n" +
+                "OPTIONS(\n" +
+                "  \"starrocks.table.identifier\"=\"%s\",\n" +
+                "  \"starrocks.fe.http.url\"=\"%s\",\n" +
+                "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
+                "  \"starrocks.user\"=\"%s\",\n" +
+                "  \"starrocks.password\"=\"%s\"\n" +
+                ")", String.join(".", DB_NAME, tableName), FE_HTTP, FE_JDBC, USER, PASSWORD);
+        spark.sql(ddl);
+        spark.sql("INSERT INTO sr_table VALUES (1, CAST(\"2023-07-16\" as DATE), " +
+                "CAST(\"2023-07-16 12:00:00\" AS TIMESTAMP))");
+
+        List<List<Object>> actualWriteData = scanTable(DB_CONNECTION, DB_NAME, tableName);
+        verifyResult(expectedData, actualWriteData);
+
+        spark.stop();
+    }
+
+    @Test
+    public void testTimeZone() throws Exception {
+        String tableName = "testTimeZone" + genRandomUuid();
+        String createStarRocksTable =
+                String.format("CREATE TABLE `%s`.`%s` (" +
+                                "id INT," +
+                                "dt DATE," +
+                                "dtt DATETIME" +
+                                ") ENGINE=OLAP " +
+                                "PRIMARY KEY(`id`) " +
+                                "DISTRIBUTED BY HASH(`id`) BUCKETS 2 " +
+                                "PROPERTIES (" +
+                                "\"replication_num\" = \"1\"" +
+                                ")",
+                        DB_NAME, tableName);
+        executeSRDDLSQL(createStarRocksTable);
+
+        String sparkTimeZone = "+08:00";
+        String starrocksTimeZone = "+00:00";
+        SparkSession spark = SparkSession
+                .builder()
+                .config("spark.sql.session.timeZone", sparkTimeZone)
+                .master("local[1]")
+                .appName("testReadWriteNotContainsJsonColumnBase")
+                .getOrCreate();
+
+        String timeZone = "+00:00";
+        String ddl = String.format("CREATE TABLE sr_table \n" +
+                " USING starrocks\n" +
+                "OPTIONS(\n" +
+                "  \"starrocks.table.identifier\"=\"%s\",\n" +
+                "  \"starrocks.fe.http.url\"=\"%s\",\n" +
+                "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
+                "  \"starrocks.user\"=\"%s\",\n" +
+                "  \"starrocks.password\"=\"%s\",\n" +
+                "  \"starrocks.timezone\"=\"%s\"\n" +
+                ")", String.join(".", DB_NAME, tableName), FE_HTTP, FE_JDBC, USER, PASSWORD, starrocksTimeZone);
+        spark.sql(ddl);
+        spark.sql("INSERT INTO sr_table VALUES (1, CAST(\"2023-07-16\" as DATE), " +
+                "CAST(\"2023-07-16 06:00:00\" AS TIMESTAMP))");
+
+        List<List<Object>> actualWriteData = scanTable(DB_CONNECTION, DB_NAME, tableName);
+        verifyResult(Collections.singletonList(Arrays.asList(1, "2023-07-16", "2023-07-15 22:00:00")), actualWriteData);
+
+        List<Row> readRows = spark.sql("SELECT * FROM sr_table").collectAsList();
+        verifyRows(Collections.singletonList(Arrays.asList(1, "2023-07-16", "2023-07-16 06:00:00")), readRows);
 
         spark.stop();
     }

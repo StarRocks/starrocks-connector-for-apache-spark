@@ -30,6 +30,8 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
@@ -117,6 +119,8 @@ public abstract class ITTestBase {
         }
     }
 
+    private static final SimpleDateFormat DATETIME_FORMATTER = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
     protected static void verifyRows(List<List<Object>> expected, List<Row> actualRows) {
         List<List<Object>> actual = new ArrayList<>();
         for (Row row : actualRows) {
@@ -144,7 +148,11 @@ public abstract class ITTestBase {
         for (List<Object> row : actual) {
             StringJoiner joiner = new StringJoiner(",");
             for (Object col : row) {
-                joiner.add(col == null ? "null" : col.toString());
+                if (col instanceof Timestamp) {
+                    joiner.add(DATETIME_FORMATTER.format((Timestamp) col));
+                } else {
+                    joiner.add(col == null ? "null" : col.toString());
+                }
             }
             actualRows.add(joiner.toString());
         }
