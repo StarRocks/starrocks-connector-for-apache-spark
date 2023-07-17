@@ -20,6 +20,7 @@
 package com.starrocks.connector.spark.sql.conf;
 
 import java.io.Serializable;
+import java.time.ZoneId;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -38,6 +39,8 @@ public interface StarRocksConfig extends Serializable {
     int getHttpRequestRetries();
     int getHttpRequestConnectTimeoutMs();
     int getHttpRequestSocketTimeoutMs();
+    ZoneId getTimeZone();
+
     @Nullable
     String[] getColumns();
 }

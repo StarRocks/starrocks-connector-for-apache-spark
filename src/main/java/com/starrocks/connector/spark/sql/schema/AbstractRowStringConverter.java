@@ -30,22 +30,19 @@ import org.apache.spark.sql.types.StructType;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.function.Function;
 
 public abstract class AbstractRowStringConverter implements RowStringConverter, Serializable {
 
-    private final SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd");
-
     private final Function<InternalRow, Row> internalRowConverter;
+    private final DateTimeFormatter instantFormatter;
 
-    public AbstractRowStringConverter(StructType schema) {
-        this(new InternalRowToRowFunction(schema));
-    }
-
-    public AbstractRowStringConverter(Function<InternalRow, Row> internalRowConverter) {
-        this.internalRowConverter = internalRowConverter;
+    public AbstractRowStringConverter(StructType schema, ZoneId timeZone) {
+        this.internalRowConverter = new InternalRowToRowFunction(schema);
+        this.instantFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(timeZone);
     }
 
     @Override
@@ -65,9 +62,18 @@ public abstract class AbstractRowStringConverter implements RowStringConverter, 
                     || DataTypes.ShortType.acceptsType(dataType)) {
                 return data;
             } else if (DataTypes.DateType.acceptsType(dataType)) {
-                return dateFormatter.format((Date) data);
+                // if spark.sql.datetime.java8API.enabled is false, data will be a java.sql.Date,
+                // otherwise a java.time.LocalDate. The toString methods for both class will return
+                // the date in the same format, that's  uuuu-MM-dd or yyyy-mm-dd, such as 2013-07-15
+                return data.toString();
             } else if (DataTypes.TimestampType.acceptsType(dataType)) {
-                return ((Timestamp) data).toLocalDateTime().toString();
+                // if spark.sql.datetime.java8API.enabled is false, data will be a java.sql.Timestamp,
+                // otherwise a java.time.Instant
+                if (data instanceof Timestamp) {
+                    return instantFormatter.format(((Timestamp) data).toInstant());
+                } else {
+                    return instantFormatter.format((Instant) data);
+                }
             } else if (dataType instanceof DecimalType) {
                 return data instanceof BigDecimal
                         ? (BigDecimal) data

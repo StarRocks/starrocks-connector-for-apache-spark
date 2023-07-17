@@ -25,12 +25,14 @@ import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.ZoneId;
+
 public class CsvRowStringConverter extends AbstractRowStringConverter {
 
     private final String separator;
 
-    public CsvRowStringConverter(StructType schema, String separator) {
-        super(schema);
+    public CsvRowStringConverter(StructType schema, String separator, ZoneId timeZone) {
+        super(schema, timeZone);
         this.separator = separator;
     }
 

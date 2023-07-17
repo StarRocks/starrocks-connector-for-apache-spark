@@ -19,11 +19,6 @@
 
 package com.starrocks.connector.spark.rdd
 
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent._
-
-import scala.collection.JavaConversions._
-import scala.util.Try
 import com.starrocks.connector.spark.backend.BackendClient
 import com.starrocks.connector.spark.cfg.ConfigurationOptions._
 import com.starrocks.connector.spark.cfg.Settings
@@ -37,6 +32,11 @@ import com.starrocks.connector.spark.util.ErrorMessages.SHOULD_NOT_HAPPEN_MESSAG
 import com.starrocks.thrift.{TScanCloseParams, TScanNextBatchParams, TScanOpenParams, TScanOpenResult}
 import org.apache.log4j.Logger
 
+import java.time.ZoneId
+import java.util.concurrent._
+import java.util.concurrent.atomic.AtomicBoolean
+import scala.collection.JavaConversions._
+import scala.util.Try
 import scala.util.control.Breaks
 
 /**
@@ -47,6 +47,7 @@ import scala.util.control.Breaks
 class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
   protected val logger = Logger.getLogger(classOf[ScalaValueReader])
 
+  protected val timeZone = ZoneId.of(settings.getProperty(STARROCKS_TIMEZONE, ZoneId.systemDefault.toString))
   protected val client = new BackendClient(new Routing(partition.getBeAddress), settings)
   protected var offset = 0
   protected var eos: AtomicBoolean = new AtomicBoolean(false)
@@ -139,7 +140,7 @@ class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
         val nextResult = client.getNext(nextBatchParams)
         eos.set(nextResult.isEos)
         if (!eos.get) {
-          val rowBatch = new RowBatch(nextResult, schema)
+          val rowBatch = new RowBatch(nextResult, schema, timeZone)
           offset += rowBatch.getReadRowCount
           rowBatch.close
           rowBatchBlockingQueue.put(rowBatch)
@@ -197,7 +198,7 @@ class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
         val nextResult = client.getNext(nextBatchParams)
         eos.set(nextResult.isEos)
         if (!eos.get) {
-          rowBatch = new RowBatch(nextResult, schema)
+          rowBatch = new RowBatch(nextResult, schema, timeZone)
         }
       }
       hasNext = !eos.get

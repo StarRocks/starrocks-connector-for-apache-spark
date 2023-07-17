@@ -26,6 +26,7 @@ import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -35,8 +36,8 @@ public class JSONRowStringConverter extends AbstractRowStringConverter {
 
     private final ObjectMapper mapper;
 
-    public JSONRowStringConverter(StructType schema) {
-        super(schema);
+    public JSONRowStringConverter(StructType schema, ZoneId timeZone) {
+        super(schema, timeZone);
         this.mapper = new ObjectMapper();
     }
 

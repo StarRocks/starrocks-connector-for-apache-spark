@@ -22,17 +22,18 @@ package com.starrocks.connector.spark.sql.conf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_FENODES;
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_PASSWORD;
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_REQUEST_CONNECT_TIMEOUT_MS;
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_REQUEST_READ_TIMEOUT_MS;
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_REQUEST_RETRIES;
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLE_IDENTIFIER;
+import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TIMEZONE;
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_USER;
 import static com.starrocks.connector.spark.rest.RestService.parseIdentifier;
 
@@ -64,6 +65,7 @@ public abstract class StarRocksConfigBase implements StarRocksConfig {
     private int httpRequestRetries;
     private int httpRequestConnectTimeoutMs;
     private int httpRequestSocketTimeoutMs;
+    private ZoneId timeZone;
 
     public StarRocksConfigBase(Map<String, String> options) {
         this.originOptions = new HashMap<>(options);
@@ -88,6 +90,9 @@ public abstract class StarRocksConfigBase implements StarRocksConfig {
         this.httpRequestRetries = getInt(KEY_REQUEST_RETRIES, 3);
         this.httpRequestConnectTimeoutMs = getInt(KEY_REQUEST_CONNECT_TIMEOUT, 30000);
         this.httpRequestSocketTimeoutMs = getInt(KEY_REQUEST_SOCKET_TIMEOUT, 30000);
+
+        String tz = get(STARROCKS_TIMEZONE);
+        this.timeZone = tz == null ? ZoneId.systemDefault() : ZoneId.of(get(STARROCKS_TIMEZONE));
     }
 
     @Override
@@ -138,6 +143,11 @@ public abstract class StarRocksConfigBase implements StarRocksConfig {
     @Override
     public int getHttpRequestSocketTimeoutMs() {
         return httpRequestSocketTimeoutMs;
+    }
+
+    @Override
+    public ZoneId getTimeZone() {
+        return timeZone;
     }
 
     @Override
