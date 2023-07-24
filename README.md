@@ -1,4 +1,6 @@
-This Connector can support reading data stored in StarRocks through Apache Spark™.
+# StarRocks Connector for Apache Spark™
+
+The connector supports to read from and write to StarRocks through Apache Spark™.
 
 ## Upstream
 
@@ -6,18 +8,19 @@ This Connector can support reading data stored in StarRocks through Apache Spark
 
 We will continue to contribute to Apache Doris(incubating) and help to build the open source ecosystem in the future. 
 
-## Install and Use
+## Documents
 
-Please refer to [here](docs/spark-starrocks-connector.md).
+For the released version of connector, please refer to the StarRocks official site for a user manual and more information
+* [Read data from StarRocks using Spark connector](https://docs.starrocks.io/en-us/latest/loading/Spark-connector-starrocks)
+* [Load data using Spark connector](https://docs.starrocks.io/en-us/latest/unloading/Spark_connector) 
 
-## Links
-
-* [StarRocks official website](https://www.starrocks.com)
-* [StarRocks documentation](https://docs.starrocks.com)
+For the snapshot version of connector, you can see the following documents which may include the newest features to release
+* [Read from StarRocks](docs/connector-read.md)
+* [Write to StarRocks](docs/connector-write.md)
 
 ## LICENSE
 
-[Apache License 2.0](LICENSE.txt)
+The connector is under the [Apache License 2.0](LICENSE.txt)
 
 ## Contributing to StarRocks
 
