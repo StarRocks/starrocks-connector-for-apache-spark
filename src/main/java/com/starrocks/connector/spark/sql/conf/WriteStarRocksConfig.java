@@ -25,6 +25,7 @@ import com.starrocks.data.load.stream.StreamLoadDataFormat;
 import com.starrocks.data.load.stream.StreamLoadUtils;
 import com.starrocks.data.load.stream.properties.StreamLoadProperties;
 import com.starrocks.data.load.stream.properties.StreamLoadTableProperties;
+import org.apache.spark.sql.types.ArrayType;
 import org.apache.spark.sql.types.ByteType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.IntegerType;
@@ -98,11 +99,11 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
 
     public WriteStarRocksConfig(Map<String, String> originOptions, StructType sparkSchema, StarRocksSchema starRocksSchema) {
         super(originOptions);
-        load();
+        load(sparkSchema);
         genStreamLoadColumns(sparkSchema, starRocksSchema);
     }
 
-    private void load() {
+    private void load(StructType sparkSchema) {
         labelPrefix = get(KEY_LABEL_PREFIX);
         waitForContinueTimeoutMs = getInt(KEY_WAIT_FOR_CONTINUE_TIMEOUT, 30000);
         chunkLimit = Utils.byteStringAsBytes(get(KEY_CHUNK_LIMIT, "3g"));
@@ -124,6 +125,11 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
         format = originOptions.getOrDefault(KEY_PROPS_FORMAT, "CSV");
         rowDelimiter = originOptions.getOrDefault(KEY_PROPS_ROW_DELIMITER, "\n");
         columnSeparator = originOptions.getOrDefault(KEY_PROPS_COLUMN_SEPARATOR, "\t");
+        String inferedFormat = inferFormatFromSchema(sparkSchema);
+        if (inferedFormat != null) {
+            format = inferedFormat;
+            properties.put("format", format);
+        }
         if ("json".equalsIgnoreCase(format)) {
             if (!properties.containsKey("strip_outer_array")) {
                 properties.put("strip_outer_array", "true");
@@ -171,6 +177,19 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
             String joinedExps = String.join(",", expressions);
             streamLoadColumnProperty = joinedExps.isEmpty() ? joinedCols : joinedCols + "," + joinedExps;
         }
+    }
+
+    // Infer the format used by stream load from the spark schema.
+    // Returns null if can't infer the format
+    private String inferFormatFromSchema(StructType sparkSchema) {
+        for (StructField field : sparkSchema.fields()) {
+            // TODO there is no standard about how to represent array type in csv format,
+            //  so force to use json format if there is array type
+            if (field.dataType() instanceof ArrayType) {
+                return "json";
+            }
+        }
+        return null;
     }
 
     private String getBitmapFunction(StructField field) {
