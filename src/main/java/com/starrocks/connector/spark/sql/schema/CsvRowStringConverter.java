@@ -20,10 +20,7 @@
 package com.starrocks.connector.spark.sql.schema;
 
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.time.ZoneId;
 
@@ -44,8 +41,7 @@ public class CsvRowStringConverter extends AbstractRowStringConverter {
         String[] data = new String[row.length()];
         for (int i = 0; i < row.length(); i++) {
             if (!row.isNullAt(i)) {
-                StructField field = row.schema().fields()[i];
-                data[i] = convert(field.dataType(), row.get(i)).toString();
+                data[i] = valueConverters[i].apply(row.get(i)).toString();
             }
         }
 

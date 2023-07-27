@@ -39,10 +39,16 @@ public abstract class AbstractRowStringConverter implements RowStringConverter, 
 
     private final Function<InternalRow, Row> internalRowConverter;
     private final DateTimeFormatter instantFormatter;
+    protected final Function<Object, Object>[] valueConverters;
 
+    @SuppressWarnings("unchecked")
     public AbstractRowStringConverter(StructType schema, ZoneId timeZone) {
         this.internalRowConverter = new InternalRowToRowFunction(schema);
         this.instantFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(timeZone);
+        this.valueConverters = (Function<Object, Object>[])new Function[schema.length()];
+        for(int i = 0; i < schema.size(); i ++) {
+            valueConverters[i] = convert(schema.fields()[i].dataType());
+        }
     }
 
     @Override
@@ -50,7 +56,7 @@ public abstract class AbstractRowStringConverter implements RowStringConverter, 
         return fromRow(internalRowConverter.apply(row));
     }
 
-    protected Object convert(DataType dataType, Object data) {
+    protected Function<Object, Object> convert(DataType dataType) {
         try {
             if (DataTypes.StringType.acceptsType(dataType)
                     || DataTypes.BooleanType.acceptsType(dataType)
@@ -60,29 +66,31 @@ public abstract class AbstractRowStringConverter implements RowStringConverter, 
                     || DataTypes.IntegerType.acceptsType(dataType)
                     || DataTypes.LongType.acceptsType(dataType)
                     || DataTypes.ShortType.acceptsType(dataType)) {
-                return data;
+                return arg -> arg;
             } else if (DataTypes.DateType.acceptsType(dataType)) {
                 // if spark.sql.datetime.java8API.enabled is false, data will be a java.sql.Date,
                 // otherwise a java.time.LocalDate. The toString methods for both class will return
                 // the date in the same format, that's  uuuu-MM-dd or yyyy-mm-dd, such as 2013-07-15
-                return data.toString();
+                return Object::toString;
             } else if (DataTypes.TimestampType.acceptsType(dataType)) {
                 // if spark.sql.datetime.java8API.enabled is false, data will be a java.sql.Timestamp,
                 // otherwise a java.time.Instant
-                if (data instanceof Timestamp) {
-                    return instantFormatter.format(((Timestamp) data).toInstant());
-                } else {
-                    return instantFormatter.format((Instant) data);
-                }
+                return arg -> {
+                    if (arg instanceof Timestamp) {
+                        return (instantFormatter.format(((Timestamp) arg).toInstant()));
+                    } else {
+                        return (instantFormatter.format((Instant) arg));
+                    }
+                };
             } else if (dataType instanceof DecimalType) {
-                return data instanceof BigDecimal
-                        ? (BigDecimal) data
-                        : ((Decimal) data).toBigDecimal().bigDecimal();
+                return (arg -> arg instanceof BigDecimal
+                        ? (BigDecimal) arg
+                        : ((Decimal) arg).toBigDecimal().bigDecimal());
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
-        throw new RuntimeException(String.format("Can't cast %s, Invalid type %s", data, dataType));
+        throw new RuntimeException(String.format("Invalid type %s", dataType));
     }
 }
