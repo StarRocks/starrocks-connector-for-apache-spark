@@ -24,6 +24,7 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.types.ArrayType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.DecimalType;
 import org.apache.spark.sql.types.Metadata;
@@ -702,5 +703,160 @@ public class ReadWriteITTest extends ITTestBase {
                                 ")",
                         DB_NAME, tableName);
         executeSRDDLSQL(createStarRocksTable);
+    }
+
+    @Test
+    public void testArrayWithCsv() throws Exception {
+        testArrayBase(false);
+    }
+
+    @Test
+    public void testArrayWithJson() throws Exception {
+        testArrayBase(true);
+    }
+
+    private void testArrayBase(boolean useJson) throws Exception {
+        String tableName = prepareArrayTable("testArray");
+
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testArray")
+                .getOrCreate();
+
+        List<List<Object>> expectedData = new ArrayList<>();
+        // TODO not support null nested array, and " in string
+//        expectedData.add(Arrays.asList(
+//                1,
+//                Arrays.asList(true, false, null),
+//                Arrays.asList(1, 2, null),
+//                Arrays.asList(1.1, 2.2, null),
+//                Arrays.asList(BigDecimal.valueOf(1.1), BigDecimal.valueOf(2.2), null),
+//                Arrays.asList("1[]',\"", "2[]',\"", null),
+//                Arrays.asList(Date.valueOf("2022-01-01"), Date.valueOf("2022-02-02"), null),
+//                Arrays.asList(Timestamp.valueOf("2023-01-01 00:00:00"), Timestamp.valueOf("2023-02-02 00:00:00"), null),
+//                Arrays.asList(Arrays.asList(true, false, null), Arrays.asList(true, false, null), null),
+//                Arrays.asList(Arrays.asList(1, 2, null), Arrays.asList(1, 2, null), null),
+//                Arrays.asList(Arrays.asList(1.1, 2.2, null), Arrays.asList(1.1, 2.2, null), null),
+//                Arrays.asList(Arrays.asList(BigDecimal.valueOf(1.1), BigDecimal.valueOf(2.2), null),
+//                        Arrays.asList(BigDecimal.valueOf(1.1), BigDecimal.valueOf(2.2), null), null),
+//                Arrays.asList(Arrays.asList("1[]',\"", "2[]',\"", null), Arrays.asList("1[]',\"", "2[]',\"", null),
+//                Arrays.asList(Arrays.asList(Date.valueOf("2022-01-01"), Date.valueOf("2022-02-02"), null),
+//                        Arrays.asList(Date.valueOf("2022-01-01"), Date.valueOf("2022-02-02"), null), null),
+//                Arrays.asList(Arrays.asList(Timestamp.valueOf("2023-01-01 00:00:00"), Timestamp.valueOf("2023-02-02 00:00:00"), null),
+//                        Arrays.asList(Timestamp.valueOf("2023-01-01 00:00:00"), Timestamp.valueOf("2023-02-02 00:00:00"), null), null)
+//        ));
+
+        expectedData.add(Arrays.asList(
+                1,
+                Arrays.asList(true, false, null),
+                Arrays.asList(1, 2, null),
+                Arrays.asList(1.1, 2.2, null),
+                Arrays.asList(BigDecimal.valueOf(1.1), BigDecimal.valueOf(2.2), null),
+                Arrays.asList("1[]',", "2[]',", null),
+                Arrays.asList(Date.valueOf("2022-01-01"), Date.valueOf("2022-02-02"), null),
+                Arrays.asList(Timestamp.valueOf("2023-01-01 00:00:00"), Timestamp.valueOf("2023-02-02 00:00:00"), null),
+                Arrays.asList(Arrays.asList(true, false, null), Arrays.asList(true, false, null)),
+                Arrays.asList(Arrays.asList(1, 2, null), Arrays.asList(1, 2, null)),
+                Arrays.asList(Arrays.asList(1.1, 2.2, null), Arrays.asList(1.1, 2.2, null)),
+                Arrays.asList(Arrays.asList(BigDecimal.valueOf(1.1), BigDecimal.valueOf(2.2), null),
+                        Arrays.asList(BigDecimal.valueOf(1.1), BigDecimal.valueOf(2.2), null)),
+                Arrays.asList(Arrays.asList("1", "2", null), Arrays.asList("1", "2", null)),
+                Arrays.asList(Arrays.asList(Date.valueOf("2022-01-01"), Date.valueOf("2022-02-02"), null),
+                        Arrays.asList(Date.valueOf("2022-01-01"), Date.valueOf("2022-02-02"), null)),
+                Arrays.asList(Arrays.asList(Timestamp.valueOf("2023-01-01 00:00:00"), Timestamp.valueOf("2023-02-02 00:00:00"), null),
+                        Arrays.asList(Timestamp.valueOf("2023-01-01 00:00:00"), Timestamp.valueOf("2023-02-02 00:00:00"), null))
+        ));
+
+        List<Row> data = expectedData.stream().map(list -> list.toArray(new Object[0]))
+                .map(RowFactory::create).collect(Collectors.toList());
+
+        StructType schema = new StructType(new StructField[]{
+                new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
+                new StructField("a0_bool", new ArrayType(DataTypes.BooleanType, true), false, Metadata.empty()),
+                new StructField("a0_int", new ArrayType(DataTypes.IntegerType, true), false, Metadata.empty()),
+                new StructField("a0_double", new ArrayType(DataTypes.DoubleType, true), false, Metadata.empty()),
+                new StructField("a0_decimal", new ArrayType(new DecimalType(20, 1), true), false, Metadata.empty()),
+                new StructField("a0_string", new ArrayType(DataTypes.StringType, true), false, Metadata.empty()),
+                new StructField("a0_date", new ArrayType(DataTypes.DateType, true), false, Metadata.empty()),
+                new StructField("a0_datetime", new ArrayType(DataTypes.TimestampType, true), false, Metadata.empty()),
+                new StructField("a1_bool", new ArrayType(new ArrayType(DataTypes.BooleanType, true), true), false, Metadata.empty()),
+                new StructField("a1_int", new ArrayType(new ArrayType(DataTypes.IntegerType, true), true), false, Metadata.empty()),
+                new StructField("a1_double", new ArrayType(new ArrayType(DataTypes.DoubleType, true), true), false, Metadata.empty()),
+                new StructField("a1_decimal", new ArrayType(new ArrayType(new DecimalType(20, 1), true), true), false, Metadata.empty()),
+                new StructField("a1_string", new ArrayType(new ArrayType(DataTypes.StringType, true), true), false, Metadata.empty()),
+                new StructField("a1_date", new ArrayType(new ArrayType(DataTypes.DateType, true), true), false, Metadata.empty()),
+                new StructField("a1_datetime", new ArrayType(new ArrayType(DataTypes.TimestampType, true), true), false, Metadata.empty())
+        });
+
+        Dataset<Row> df = spark.createDataFrame(data, schema);
+
+        String columnTypes = "a0_bool ARRAY<BOOLEAN>," +
+                "a0_int ARRAY<INT>," +
+                "a0_double ARRAY<DOUBLE>," +
+                "a0_decimal ARRAY<DECIMAL(10, 1)>," +
+                "a0_string ARRAY<STRING>," +
+                "a0_date ARRAY<DATE>," +
+                "a0_datetime ARRAY<TIMESTAMP>," +
+                "a1_bool ARRAY<ARRAY<BOOLEAN>>," +
+                "a1_int ARRAY<ARRAY<INT>>," +
+                "a1_double ARRAY<ARRAY<DOUBLE>>," +
+                "a1_decimal ARRAY<ARRAY<DECIMAL(10, 1)>>," +
+                "a1_string ARRAY<ARRAY<STRING>>," +
+                "a1_date ARRAY<ARRAY<DATE>>," +
+                "a1_datetime ARRAY<ARRAY<TIMESTAMP>>";
+
+        Map<String, String> options = new HashMap<>();
+        options.put("starrocks.fe.http.url", FE_HTTP);
+        options.put("starrocks.fe.jdbc.url", FE_JDBC);
+        options.put("starrocks.table.identifier", String.join(".", DB_NAME, tableName));
+        options.put("starrocks.user", USER);
+        options.put("starrocks.password", PASSWORD);
+        options.put("starrocks.column.types", columnTypes);
+        options.put("starrocks.write.properties.format", useJson ? "json" : "csv");
+        options.put("starrocks.write.properties.strict_mode", "true");
+
+        df.write().format("starrocks")
+                .mode(SaveMode.Append)
+                .options(options)
+                .save();
+
+        // replace the boolean with int because starrocks return true as 1, and false as 0
+        expectedData.get(0).set(1, Arrays.asList(1, 0, null));
+        expectedData.get(0).set(8, Arrays.asList(Arrays.asList(1, 0, null), Arrays.asList(1, 0, null)));
+        List<List<Object>> actualWriteData = scanTable(DB_CONNECTION, DB_NAME, tableName);
+        verifyResult(expectedData, actualWriteData);
+
+        spark.stop();
+    }
+
+    private String prepareArrayTable(String tableNamePrefix) throws Exception {
+        String tableName = tableNamePrefix + "_" + genRandomUuid();
+        String createStarRocksTable =
+                String.format("CREATE TABLE `%s`.`%s` (" +
+                                "id INT," +
+                                "a0_bool ARRAY<BOOLEAN>," +
+                                "a0_int ARRAY<INT>," +
+                                "a0_double ARRAY<DOUBLE>," +
+                                "a0_decimal ARRAY<DECIMAL(10, 1)>," +
+                                "a0_string ARRAY<STRING>," +
+                                "a0_date ARRAY<DATE>," +
+                                "a0_datetime ARRAY<DATETIME>," +
+                                "a1_bool ARRAY<ARRAY<BOOLEAN>>," +
+                                "a1_int ARRAY<ARRAY<INT>>," +
+                                "a1_double ARRAY<ARRAY<DOUBLE>>," +
+                                "a1_decimal ARRAY<ARRAY<DECIMAL(10, 1)>>," +
+                                "a1_string ARRAY<ARRAY<STRING>>," +
+                                "a1_date ARRAY<ARRAY<DATE>>," +
+                                "a1_datetime ARRAY<ARRAY<DATETIME>>" +
+                                ") ENGINE=OLAP " +
+                                "PRIMARY KEY(`id`) " +
+                                "DISTRIBUTED BY HASH(`id`) BUCKETS 2 " +
+                                "PROPERTIES (" +
+                                "\"replication_num\" = \"1\"" +
+                                ")",
+                        DB_NAME, tableName);
+        executeSRDDLSQL(createStarRocksTable);
+        return tableName;
     }
 }

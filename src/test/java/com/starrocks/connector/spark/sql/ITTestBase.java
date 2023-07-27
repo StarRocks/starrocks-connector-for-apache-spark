@@ -34,6 +34,7 @@ import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.StringJoiner;
 import java.util.UUID;
@@ -151,11 +152,7 @@ public abstract class ITTestBase {
         for (List<Object> row : expected) {
             StringJoiner joiner = new StringJoiner(",");
             for (Object col : row) {
-                if (col instanceof Timestamp) {
-                    joiner.add(DATETIME_FORMATTER.format((Timestamp) col));
-                } else {
-                    joiner.add(col == null ? "null" : col.toString());
-                }
+                joiner.add(convertToStr(col, false));
             }
             expectedRows.add(joiner.toString());
         }
@@ -164,15 +161,31 @@ public abstract class ITTestBase {
         for (List<Object> row : actual) {
             StringJoiner joiner = new StringJoiner(",");
             for (Object col : row) {
-                if (col instanceof Timestamp) {
-                    joiner.add(DATETIME_FORMATTER.format((Timestamp) col));
-                } else {
-                    joiner.add(col == null ? "null" : col.toString());
-                }
+                joiner.add(convertToStr(col, false));
             }
             actualRows.add(joiner.toString());
         }
         actualRows.sort(String::compareTo);
         assertArrayEquals(expectedRows.toArray(), actualRows.toArray());
+    }
+
+    private static String convertToStr(Object object, boolean quoted) {
+        String result;
+        if (object instanceof List) {
+            // for array type
+            StringJoiner joiner = new StringJoiner(",", "[", "]");
+            ((List<?>) object).forEach(obj -> joiner.add(convertToStr(obj, true)));
+            result = joiner.toString();
+        } else if (object instanceof Timestamp) {
+            result = DATETIME_FORMATTER.format((Timestamp) object);
+        } else {
+            result = object == null ? "null" : object.toString();
+        }
+
+        if (quoted && (object instanceof String || object instanceof Date)) {
+            return String.format("\"%s\"", result);
+        } else {
+            return result;
+        }
     }
 }

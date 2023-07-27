@@ -130,7 +130,6 @@ public abstract class AbstractRowStringConverter implements RowStringConverter, 
         @SuppressWarnings("unchecked")
         @Override
         public Object apply(Object data) {
-            List<Object> result = new ArrayList<>();
             List<?> input;
             // array type is scala.collection.Seq or java.util.List
             if (data instanceof List) {
@@ -138,6 +137,7 @@ public abstract class AbstractRowStringConverter implements RowStringConverter, 
             } else {
                 input = JavaConverters.seqAsJavaList((scala.collection.Seq<Object>) data);
             }
+            List<Object> result = new ArrayList<>(input.size());
             input.forEach(element -> result.add(elementConverter.apply(element)));
             return result;
         }
