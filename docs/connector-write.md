@@ -112,9 +112,13 @@ Directly download the corresponding version of the Spark connector JAR from the 
 	| StringType      | STRING              |
 	| DateType        | DATE                |
 	| TimestampType   | DATETIME            |
+    | ArrayType       | ARRAY               |
+    
+    * **`ARRAY` is supported since version 1.1.1**. See [Load data into columns of ARRAY type](#load-data-into-columns-of-array-type) for an example.
+
 - You can also customize the data type mapping.
 
-  For example, a StarRocks table consist s of the BITMAP and HLL data types, but Spark does not support the two data types. You need to customize the corresponding data types in Spark. For detailed steps, see load data into columns of [BITMAP](#load-data-into-columns-of-bitmap-type) and [HLL](#load-data-into-columns-of-HLL-type) types.
+  For example, a StarRocks table consist s of the BITMAP and HLL data types, but Spark does not support the two data types. You need to customize the corresponding data types in Spark. For detailed steps, see load data into columns of [BITMAP](#load-data-into-columns-of-bitmap-type) and [HLL](#load-data-into-columns-of-HLL-type) types. **BITMAP and HLL are supported since version 1.1.1**.
 
 ## Examples
 
@@ -481,3 +485,63 @@ DISTRIBUTED BY HASH(`page_id`);
     +---------+-----------------------------+
     2 rows in set (0.01 sec)
     ```
+
+### Load data into columns of ARRAY type
+
+This example will explain how to load [`ARRAY`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-statements/data-types/Array) data to StarRocks.
+
+1. Create a StarRocks table
+
+Create a database `test`, and create a primary key table `array_tbl` with two `ARRAY` fields.
+
+```SQL
+CREATE TABLE `array_tbl` (
+  `id` INT NOT NULL,
+  `a0` ARRAY<STRING>,
+  `a1` ARRAY<ARRAY<INT>>
+) ENGINE=OLAP
+PRIMARY KEY(`id`)
+DISTRIBUTED BY HASH(`id`)
+PROPERTIES (
+  "replication_num" = "1"
+);
+```
+
+2. Write data to StarRocks
+
+In some versions of StarRocks, the meta of `ARRAY` column is not available from StarRocks, so the connector can't infer
+the Spark type of the column, and you need tell the connector explicitly via option `starrocks.column.types`. In this
+example, it's `a0 ARRAY<STRING>,a1 ARRAY<ARRAY<INT>>`.
+
+Run the following codes in `spark-shell`
+
+```scala
+val data = Seq(
+   |  (1, Seq("hello", "starrocks"), Seq(Seq(1, 2), Seq(3, 4))),
+   |  (2, Seq("hello", "spark"), Seq(Seq(5, 6, 7), Seq(8, 9, 10)))
+   | )
+val df = data.toDF("id", "a0", "a1")
+df.write
+     .format("starrocks")
+     .option("starrocks.fe.http.url", "127.0.0.1:8038")
+     .option("starrocks.fe.jdbc.url", "jdbc:mysql://127.0.0.1:9038")
+     .option("starrocks.table.identifier", "test.array_tbl")
+     .option("starrocks.user", "root")
+     .option("starrocks.password", "")
+     .option("starrocks.column.types", "a0 ARRAY<STRING>,a1 ARRAY<ARRAY<INT>>")
+     .mode("append")
+     .save()
+```
+
+3. Query data in the StarRocks table
+
+```SQL
+MySQL [test]> SELECT * FROM `array_tbl`;
++------+-----------------------+--------------------+
+| id   | a0                    | a1                 |
++------+-----------------------+--------------------+
+|    1 | ["hello","starrocks"] | [[1,2],[3,4]]      |
+|    2 | ["hello","spark"]     | [[5,6,7],[8,9,10]] |
++------+-----------------------+--------------------+
+2 rows in set (0.01 sec)
+```
