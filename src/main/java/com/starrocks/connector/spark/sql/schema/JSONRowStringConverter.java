@@ -51,7 +51,7 @@ public class JSONRowStringConverter extends AbstractRowStringConverter {
         for (StructField field : row.schema().fields()) {
             int idx = row.fieldIndex(field.name());
             if (!(field.nullable() && row.isNullAt(idx))) {
-                data.put(field.name(), convert(field.dataType(), row.get(idx)));
+                data.put(field.name(), valueConverters[idx].apply(row.get(idx)));
             }
         }
 
