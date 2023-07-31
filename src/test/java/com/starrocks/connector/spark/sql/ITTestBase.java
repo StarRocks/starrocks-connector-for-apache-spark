@@ -103,7 +103,12 @@ public abstract class ITTestBase {
     }
 
     protected static List<List<Object>> scanTable(Connection dbConnector, String db, String table) throws SQLException {
-        try (PreparedStatement statement = dbConnector.prepareStatement(String.format("SELECT * FROM `%s`.`%s`", db, table))) {
+        String query = String.format("SELECT * FROM `%s`.`%s`", db, table);
+        return queryTable(dbConnector, query);
+    }
+
+    protected static List<List<Object>> queryTable(Connection dbConnector, String query) throws SQLException {
+        try (PreparedStatement statement = dbConnector.prepareStatement(query)) {
             try (ResultSet resultSet = statement.executeQuery()) {
                 List<List<Object>> results = new ArrayList<>();
                 int numColumns = resultSet.getMetaData().getColumnCount();
@@ -139,7 +144,11 @@ public abstract class ITTestBase {
         for (List<Object> row : expected) {
             StringJoiner joiner = new StringJoiner(",");
             for (Object col : row) {
-                joiner.add(col == null ? "null" : col.toString());
+                if (col instanceof Timestamp) {
+                    joiner.add(DATETIME_FORMATTER.format((Timestamp) col));
+                } else {
+                    joiner.add(col == null ? "null" : col.toString());
+                }
             }
             expectedRows.add(joiner.toString());
         }

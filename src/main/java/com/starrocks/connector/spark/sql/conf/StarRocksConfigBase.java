@@ -51,6 +51,14 @@ public abstract class StarRocksConfigBase implements StarRocksConfig {
     static final String KEY_REQUEST_CONNECT_TIMEOUT = STARROCKS_REQUEST_CONNECT_TIMEOUT_MS;
     static final String KEY_REQUEST_SOCKET_TIMEOUT = STARROCKS_REQUEST_READ_TIMEOUT_MS;
     public static final String KEY_COLUMNS = PREFIX + "columns";
+    // Specify the spark type of the column in starrocks if you want to customize the data type
+    // mapping between spark and starrocks. For example, there are two columns `c0`(DATE) and
+    // `c1`(DATETIME) in starrocks, you can set KEY_COLUMN_TYPES to "c0 STRING, c1 STRING" to
+    // map them to spark's STRING type, rather than the default DATE and TIMESTAMP. We use spark's
+    // StructType#fromDDL to parse the schema, so the format should follow the format of the output
+    // of StructType#toDDL. You only need to specify the columns that not follow the default
+    // data type mapping instead of all columns
+    public static final String KEY_COLUMN_TYPES = PREFIX + "column.types";
 
     protected final Map<String, String> originOptions;
 
@@ -62,6 +70,8 @@ public abstract class StarRocksConfigBase implements StarRocksConfig {
     private String table;
     @Nullable
     private String[] columns;
+    @Nullable
+    private String columnTypes;
     private int httpRequestRetries;
     private int httpRequestConnectTimeoutMs;
     private int httpRequestSocketTimeoutMs;
@@ -87,6 +97,7 @@ public abstract class StarRocksConfigBase implements StarRocksConfig {
             throw new RuntimeException(e);
         }
         this.columns = getArray(KEY_COLUMNS, null);
+        this.columnTypes = get(KEY_COLUMN_TYPES);
         this.httpRequestRetries = getInt(KEY_REQUEST_RETRIES, 3);
         this.httpRequestConnectTimeoutMs = getInt(KEY_REQUEST_CONNECT_TIMEOUT, 30000);
         this.httpRequestSocketTimeoutMs = getInt(KEY_REQUEST_SOCKET_TIMEOUT, 30000);
@@ -154,6 +165,12 @@ public abstract class StarRocksConfigBase implements StarRocksConfig {
     @Nullable
     public String[] getColumns() {
         return columns;
+    }
+
+    @Override
+    @Nullable
+    public String getColumnTypes() {
+        return columnTypes;
     }
 
     protected String get(final String key) {

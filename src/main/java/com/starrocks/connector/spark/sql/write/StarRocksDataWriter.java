@@ -59,7 +59,7 @@ public class StarRocksDataWriter implements DataWriter<InternalRow>, Serializabl
         if ("csv".equalsIgnoreCase(config.getFormat())) {
             this.converter = new CsvRowStringConverter(schema, config.getColumnSeparator(), config.getTimeZone());
         }  else if ("json".equalsIgnoreCase(config.getFormat())) {
-            this.converter = new JSONRowStringConverter(schema, config.getTimeZone());
+            this.converter = new JSONRowStringConverter(schema, config.getStreamLoadColumnNames(), config.getTimeZone());
         } else {
             throw new RuntimeException("Unsupported format " + config.getFormat());
         }

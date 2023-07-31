@@ -56,4 +56,12 @@ public class StarRocksField {
     public String getScale() {
         return scale;
     }
+
+    public boolean isBitmap() {
+        return "bitmap".equalsIgnoreCase(type);
+    }
+
+    public boolean isHll() {
+        return "hll".equalsIgnoreCase(type);
+    }
 }

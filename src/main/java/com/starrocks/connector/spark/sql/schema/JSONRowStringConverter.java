@@ -34,10 +34,12 @@ public class JSONRowStringConverter extends AbstractRowStringConverter {
 
     private static final Logger LOG = LoggerFactory.getLogger(JSONRowStringConverter.class);
 
+    private final String[] streamLoadColumnNames;
     private final ObjectMapper mapper;
 
-    public JSONRowStringConverter(StructType schema, ZoneId timeZone) {
+    public JSONRowStringConverter(StructType schema, String[] streamLoadColumnNames, ZoneId timeZone) {
         super(schema, timeZone);
+        this.streamLoadColumnNames = streamLoadColumnNames;
         this.mapper = new ObjectMapper();
     }
 
@@ -48,10 +50,10 @@ public class JSONRowStringConverter extends AbstractRowStringConverter {
         }
 
         Map<String, Object> data = new HashMap<>();
-        for (StructField field : row.schema().fields()) {
-            int idx = row.fieldIndex(field.name());
-            if (!(field.nullable() && row.isNullAt(idx))) {
-                data.put(field.name(), valueConverters[idx].apply(row.get(idx)));
+        for (int i = 0; i < row.length(); i++) {
+            StructField field = row.schema().apply(i);
+            if (!(field.nullable() && row.isNullAt(i))) {
+                data.put(streamLoadColumnNames[i], valueConverters[i].apply(row.get(i)));
             }
         }
 

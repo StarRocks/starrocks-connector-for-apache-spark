@@ -21,6 +21,7 @@ package com.starrocks.connector.spark.sql;
 
 import com.starrocks.connector.spark.sql.conf.StarRocksConfig;
 import com.starrocks.connector.spark.sql.conf.WriteStarRocksConfig;
+import com.starrocks.connector.spark.sql.schema.StarRocksSchema;
 import com.starrocks.connector.spark.sql.write.StarRocksWriteBuilder;
 import org.apache.spark.sql.connector.catalog.SupportsWrite;
 import org.apache.spark.sql.connector.catalog.Table;
@@ -47,16 +48,18 @@ public class StarRocksTable implements Table, SupportsWrite {
     );
 
     private final StructType schema;
+    private final StarRocksSchema starRocksSchema;
     private final StarRocksConfig config;
 
-    public StarRocksTable(StructType schema, Transform[] partitioning, StarRocksConfig config) {
+    public StarRocksTable(StructType schema, StarRocksSchema starRocksSchema, StarRocksConfig config) {
         this.schema = schema;
+        this.starRocksSchema = starRocksSchema;
         this.config = config;
     }
 
     @Override
     public WriteBuilder newWriteBuilder(LogicalWriteInfo info) {
-        WriteStarRocksConfig writeConfig = new WriteStarRocksConfig(config.getOriginOptions());
+        WriteStarRocksConfig writeConfig = new WriteStarRocksConfig(config.getOriginOptions(), schema, starRocksSchema);
         return new StarRocksWriteBuilder(info, writeConfig);
     }
 
