@@ -42,6 +42,8 @@ public class ConfigurationITTest extends ITTestBase {
     private String tableName;
     private String tableId;
 
+    private StructType schema;
+
     @Before
     public void prepare() throws Exception {
         this.tableName = "testConfig_" + genRandomUuid();
@@ -59,6 +61,12 @@ public class ConfigurationITTest extends ITTestBase {
                                 ")",
                         DB_NAME, tableName);
         executeSRDDLSQL(createStarRocksTable);
+
+        schema = new StructType(new StructField[]{
+                new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
+                new StructField("name", DataTypes.StringType, false, Metadata.empty()),
+                new StructField("score", DataTypes.IntegerType, false, Metadata.empty())
+        });
     }
 
     @Test
@@ -86,38 +94,13 @@ public class ConfigurationITTest extends ITTestBase {
 
     @Test
     public void testDefaultConfiguration() throws Exception {
-        SparkSession spark = SparkSession
-                .builder()
-                .master("local[1]")
-                .appName("testDataFrame")
-                .getOrCreate();
-
-        List<Row> data = Arrays.asList(
-                RowFactory.create(1, "2", 3),
-                RowFactory.create(2, "3", 4)
-        );
-
-        StructType schema = new StructType(new StructField[]{
-                new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
-                new StructField("name", DataTypes.StringType, false, Metadata.empty()),
-                new StructField("score", DataTypes.IntegerType, false, Metadata.empty())
-        });
-
-        Dataset<Row> df = spark.createDataFrame(data, schema);
-
         Map<String, String> options = new HashMap<>();
         options.put("starrocks.fe.http.url", FE_HTTP);
         options.put("starrocks.fe.jdbc.url", FE_JDBC);
         options.put("starrocks.table.identifier", tableId);
         options.put("starrocks.user", USER);
         options.put("starrocks.password", PASSWORD);
-
-        df.write().format("starrocks")
-                .mode(SaveMode.Append)
-                .options(options)
-                .save();
-
-        spark.stop();
+        testDataFrameBase(options);
     }
 
     @Test
@@ -144,25 +127,6 @@ public class ConfigurationITTest extends ITTestBase {
     }
 
     private void testWriteConfigurationBase(Map<String, String> customOptions) throws Exception {
-        SparkSession spark = SparkSession
-                .builder()
-                .master("local[1]")
-                .appName("testDataFrame")
-                .getOrCreate();
-
-        List<Row> data = Arrays.asList(
-                RowFactory.create(1, "2", 3),
-                RowFactory.create(2, "3", 4)
-        );
-
-        StructType schema = new StructType(new StructField[]{
-                new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
-                new StructField("name", DataTypes.StringType, false, Metadata.empty()),
-                new StructField("score", DataTypes.IntegerType, false, Metadata.empty())
-        });
-
-        Dataset<Row> df = spark.createDataFrame(data, schema);
-
         Map<String, String> options = new HashMap<>();
         options.put("starrocks.fe.http.url", FE_HTTP);
         options.put("starrocks.fe.jdbc.url", FE_JDBC);
@@ -187,10 +151,31 @@ public class ConfigurationITTest extends ITTestBase {
         options.put("starrocks.write.properties.column_separator", "\t");
         options.putAll(customOptions);
 
+        testDataFrameBase(options);
+    }
+    
+    private void testDataFrameBase(Map<String, String> options) {
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testDataFrame")
+                .getOrCreate();
+
+        List<Row> data = Arrays.asList(
+                RowFactory.create(1, "2", 3),
+                RowFactory.create(2, "3", 4)
+        );
+
+        Dataset<Row> df = spark.createDataFrame(data, schema);
         df.write().format("starrocks")
                 .mode(SaveMode.Append)
                 .options(options)
                 .save();
+
+        Dataset<Row> readDf = spark.read().format("starrocks")
+                .options(options)
+                .load();
+        readDf.collectAsList();
 
         spark.stop();
     }
