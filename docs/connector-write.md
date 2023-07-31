@@ -85,6 +85,7 @@ Directly download the corresponding version of the Spark connector JAR from the 
 | starrocks.write.buffer.size                    | NO       | 104857600     | The maximum size of data that can be accumulated in memory before being sent to StarRocks at a time. Setting this parameter to a larger value can improve loading performance but may increase loading latency. |
 | starrocks.write.flush.interval.ms              | NO       | 300000        | The interval at which data is sent to StarRocks. This parameter is used to control the loading latency. |
 | starrocks.columns                              | NO       | None          | The StarRocks table column into which you want to load data. You can specify multiple columns, which must be separated by commas (,), for example, `"c0,c1,c2"`. |
+| starrocks.column.types                         | NO       | None          | Supported since version 1.1.1. Customize the spark data type used for the column of StarRocks table if it does not follow the default [data type mapping](#Data type mapping between Spark and StarRocks). It's in DDL format same as the output of Spark [StructType#toDDL](https://github.com/apache/spark/blob/master/sql/api/src/main/scala/org/apache/spark/sql/types/StructType.scala#L449) , such as `c0 INT, c1 STRING, c2 BIGINT`. Only add columns that need customization to the DDL. One use case is to [Load `BITMAP` data](#load-bitmap-data). |
 | starrocks.write.properties.*                   | NO       | None          | The parameters that are used to control Stream Load behavior.  For example, the parameter `starrocks.write.properties.format` specifies the format of the data to be loaded, such as CSV or JSON. For a list of supported parameters and their descriptions, see [STREAM LOAD](https://docs.starrocks.io/en-us/latest/sql-reference/sql-statements/data-manipulation/STREAM%20LOAD). |
 | starrocks.write.properties.format              | NO       | CSV           | The file format based on which the Spark connector transforms each batch of data before the data is sent to StarRocks. Valid values: CSV and JSON. |
 | starrocks.write.properties.row_delimiter       | NO       | \n            | The row delimiter for CSV-formatted data.                    |
@@ -110,6 +111,8 @@ Directly download the corresponding version of the Spark connector JAR from the 
 | StringType      | STRING              |
 | DateType        | DATE                |
 | TimestampType   | DATETIME            |
+
+* Please see [Load `BITMAP` data](#load-bitmap-data) and [Load `HLL` data](#load-hll-data) for `BITMAP` and `HLL` type
 
 ## Examples
 
@@ -345,3 +348,155 @@ The following example explains how to load data with Spark SQL by using the `INS
     +------+-----------+-------+
     2 rows in set (0.00 sec)
     ```
+
+## Best Practices
+
+### Load `BITMAP` data
+
+`BITMAP` is often used to accelerate count distinct, such as counting UV, see [Use Bitmap for exact Count Distinct](https://docs.starrocks.io/en-us/latest/using_starrocks/Using_bitmap).
+Here we take the counting of UV as an example to show how to load `BITMAP` data. 
+
+1. Create a StarRocks Aggregate table
+
+Create a database `test`, and create an Aggregate table `page_uv` with a `BITMAP` column `visit_users`, which uses the aggregate function `BITMAP_UNION`.
+
+```SQL
+CREATE TABLE `test`.`page_uv` (
+  `page_id` INT NOT NULL COMMENT 'page ID',
+  `visit_date` datetime NOT NULL COMMENT 'access time',
+  `visit_users` BITMAP BITMAP_UNION NOT NULL COMMENT 'user ID'
+) ENGINE=OLAP
+AGGREGATE KEY(`page_id`, `visit_date`)
+DISTRIBUTED BY HASH(`page_id`)
+PROPERTIES (
+  "replication_num" = "1"
+);
+```
+
+2. Create a Spark table 
+
+User id is a `BIGNIT` in Spark, and need to load into the `BITMAP` column `visit_users` of StarRocks table.
+The schema of the Spark table is inferred from the StarRocks table, but Spark does not have `BITMAP` type,
+so specify the type of `visit_users` in Spark through the option `starrocks.column.types`, and set it as `visit_users BIGINT`,
+which indicates that `visit_users` will be used as `BIGINT` type in Spark. When using stream load to ingest data,
+the connector will use the [`to_bitmap`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-functions/bitmap-functions/to_bitmap)
+function to convert it into StarRocks' `BITMAP` type.
+
+Run the following DDL in `spark-sql`
+
+```SQL
+CREATE TABLE `page_uv`
+USING starrocks
+OPTIONS(
+   "starrocks.fe.http.url"="127.0.0.1:8038",
+   "starrocks.fe.jdbc.url"="jdbc:mysql://127.0.0.1:9038",
+   "starrocks.table.identifier"="test.page_uv",
+   "starrocks.user"="root",
+   "starrocks.password"="",
+   "starrocks.column.types"="visit_users BIGINT"
+);
+```
+
+3. Load data into StarRocks table
+
+Run the following DML in `spark-sql`
+
+```SQL
+INSERT INTO `page_uv` VALUES
+   (1, CAST('2020-06-23 01:30:30' AS TIMESTAMP), 13),
+   (1, CAST('2020-06-23 01:30:30' AS TIMESTAMP), 23),
+   (1, CAST('2020-06-23 01:30:30' AS TIMESTAMP), 33),
+   (1, CAST('2020-06-23 02:30:30' AS TIMESTAMP), 13),
+   (2, CAST('2020-06-23 01:30:30' AS TIMESTAMP), 23);
+```
+
+4. Query data in the StarRocks table
+
+Calculate page UVs.
+
+```SQL
+MySQL [test]> SELECT `page_id`, COUNT(DISTINCT `visit_users`) FROM `page_uv` GROUP BY `page_id`;
++---------+-----------------------------+
+| page_id | count(DISTINCT visit_users) |
++---------+-----------------------------+
+|       2 |                           1 |
+|       1 |                           3 |
++---------+-----------------------------+
+2 rows in set (0.01 sec)
+```
+> **NOTICE：**
+> The connector uses [`to_bitmap`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-functions/bitmap-functions/to_bitmap)
+> function to convert `TINYINT`、`SMALLINT`、`INTEGER`、`BIGINT` in Spark to StarRocks `BITMAP` type, and uses
+> [`bitmap_hash`](https://docs.starrocks.io/zh-cn/latest/sql-reference/sql-functions/bitmap-functions/bitmap_hash) function for other Spark types.
+
+### Load `HLL` data
+
+`HLL` can be used for approximate count distinct, see [Use HLL for approximate count distinct](https://docs.starrocks.io/en-us/latest/using_starrocks/Using_HLL).
+Here we take the counting of UV as an example to show how to load `HLL` data.
+
+1. Create a StarRocks Aggregate table
+
+Create a database `test`, and create an Aggregate table `hll_uv` with a `HLL` column `visit_users`, which uses the aggregate function `HLL_UNION`.
+
+```SQL
+CREATE TABLE `hll_uv` (
+  `page_id` INT NOT NULL COMMENT '页面id',
+  `visit_date` datetime NOT NULL COMMENT '访问时间',
+  `visit_users` HLL HLL_UNION NOT NULL COMMENT '访问用户id'
+) ENGINE=OLAP
+AGGREGATE KEY(`page_id`, `visit_date`)
+DISTRIBUTED BY HASH(`page_id`)
+PROPERTIES (
+  "replication_num" = "1"
+);
+```
+
+2. Create a Spark table
+
+User id is a `BIGNIT` in Spark, and need to load into the `HLL` column `visit_users` of StarRocks table.
+The schema of the Spark table is inferred from the StarRocks table, but Spark does not have `HLL` type,
+so specify the type of `visit_users` in Spark through the option `starrocks.column.types`, and set it as `visit_users BIGINT`,
+which indicates that `visit_users` will be used as `BIGINT` type in Spark. When using stream load to ingest data,
+the connector will use the [`hll_hash`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-functions/aggregate-functions/hll_hash)
+function to convert it into StarRocks' `HLL` type.
+
+Run the following DDL in `spark-sql`
+
+```SQL
+CREATE TABLE `hll_uv`
+USING starrocks
+OPTIONS(
+   "starrocks.fe.http.url"="127.0.0.1:8038",
+   "starrocks.fe.jdbc.url"="jdbc:mysql://127.0.0.1:9038",
+   "starrocks.table.identifier"="test.hll_uv",
+   "starrocks.user"="root",
+   "starrocks.password"="",
+   "starrocks.column.types"="visit_users BIGINT"
+);
+```
+
+3. Load data into StarRocks table
+
+Run the following DML in `spark-sql`
+
+```SQL
+INSERT INTO `hll_uv` VALUES
+   (3, CAST('2023-07-24 12:00:00' AS TIMESTAMP), 78),
+   (4, CAST('2023-07-24 13:20:10' AS TIMESTAMP), 2),
+   (3, CAST('2023-07-24 12:30:00' AS TIMESTAMP), 674);
+```
+
+4. Query data in the StarRocks table
+
+Calculate page UVs.
+
+```SQL
+MySQL [test]> SELECT `page_id`, COUNT(DISTINCT `visit_users`) FROM `hll_uv` GROUP BY `page_id`;
++---------+-----------------------------+
+| page_id | count(DISTINCT visit_users) |
++---------+-----------------------------+
+|       4 |                           1 |
+|       3 |                           2 |
++---------+-----------------------------+
+2 rows in set (0.01 sec)
+```
