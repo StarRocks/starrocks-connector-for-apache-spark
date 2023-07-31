@@ -4,11 +4,11 @@ The connector supports to read from and write to StarRocks through Apache Sparkâ
 
 ## Documents
 
-For the released version of connector, please refer to the StarRocks official site for a user manual and more information
+For the user manual of the released version of the Spark connector, please visit the StarRocks official documentation.
 * [Read data from StarRocks using Spark connector](https://docs.starrocks.io/en-us/latest/loading/Spark-connector-starrocks)
 * [Load data using Spark connector](https://docs.starrocks.io/en-us/latest/unloading/Spark_connector) 
 
-For the snapshot version of connector, you can see the following documents which may include the newest features to release
+For the new features in the snapshot version of the Spark connector, please see the docs in this repo.
 * [Read from StarRocks](docs/connector-read.md)
 * [Write to StarRocks](docs/connector-write.md)
 
@@ -18,8 +18,7 @@ The connector is under the [Apache License 2.0](LICENSE.txt)
 
 ## Contributing to StarRocks
 
-A big thanks for your attention to StarRocks! 
-In order to accept your pull request, please follow the [CONTRIBUTING.md](CONTRIBUTING.md).
+We appreciate your interest in contributing to the Spark Connector. If you plan to make your first contribution, you can start with the [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Acknowledgments
 
