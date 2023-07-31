@@ -36,6 +36,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.StringJoiner;
 
 public class ConfigurationITTest extends ITTestBase {
     
@@ -70,26 +71,16 @@ public class ConfigurationITTest extends ITTestBase {
     }
 
     @Test
-    public void testReadOldConfig() throws Exception {
-        SparkSession spark = SparkSession
-                .builder()
-                .config(new SparkConf())
-                .master("local[1]")
-                .appName("testSql")
-                .getOrCreate();
+    public void testOldConfig() throws Exception {
+        Map<String, String> options = new HashMap<>();
+        options.put("starrocks.fenodes", FE_HTTP);
+        options.put("starrocks.fe.jdbc.url", FE_JDBC);
+        options.put("starrocks.table.identifier", tableId);
+        options.put("starrocks.user", USER);
+        options.put("starrocks.password", PASSWORD);
 
-        String ddl = String.format("CREATE TABLE src \n" +
-                " USING starrocks\n" +
-                "OPTIONS(\n" +
-                "  \"starrocks.table.identifier\"=\"%s\",\n" +
-                "  \"starrocks.fenodes\"=\"%s\",\n" +
-                "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
-                "  \"user\"=\"%s\",\n" +
-                "  \"password\"=\"%s\"\n" +
-                ")", tableId, FE_HTTP, FE_JDBC, USER, PASSWORD);
-        spark.sql(ddl).collect();
-
-        spark.stop();
+        testDataFrameBase(options);
+        testSqlBase(options);
     }
 
     @Test
@@ -153,7 +144,20 @@ public class ConfigurationITTest extends ITTestBase {
 
         testDataFrameBase(options);
     }
-    
+
+    @Test
+    public void testHttpUrlWithSchema() throws Exception {
+        Map<String, String> options = new HashMap<>();
+        options.put("starrocks.fe.http.url", addHttpSchemaPrefix(FE_HTTP, "http://"));
+        options.put("starrocks.fe.jdbc.url", FE_JDBC);
+        options.put("starrocks.table.identifier", tableId);
+        options.put("starrocks.user", USER);
+        options.put("starrocks.password", PASSWORD);
+
+        testDataFrameBase(options);
+        testSqlBase(options);
+    }
+
     private void testDataFrameBase(Map<String, String> options) {
         SparkSession spark = SparkSession
                 .builder()
@@ -176,6 +180,27 @@ public class ConfigurationITTest extends ITTestBase {
                 .options(options)
                 .load();
         readDf.collectAsList();
+
+        spark.stop();
+    }
+
+    private void testSqlBase(Map<String, String> options) {
+        SparkSession spark = SparkSession
+                .builder()
+                .config(new SparkConf())
+                .master("local[1]")
+                .appName("testSql")
+                .getOrCreate();
+
+        StringJoiner joiner = new StringJoiner(",\n");
+        for (Map.Entry<String, String> entry : options.entrySet()) {
+            joiner.add(String.format("'%s'='%s'", entry.getKey(), entry.getValue()));
+        }
+
+        String ddl = String.format("CREATE TABLE src\nUSING starrocks\nOPTIONS(\n%s)", joiner);
+        spark.sql(ddl);
+        spark.sql("INSERT INTO src VALUES (1, '1', 1)");
+        spark.sql("SELECT * FROM src").collectAsList();
 
         spark.stop();
     }
