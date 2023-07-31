@@ -20,7 +20,10 @@
 package com.starrocks.connector.spark.sql;
 
 import com.starrocks.connector.spark.sql.conf.SimpleStarRocksConfig;
+import com.starrocks.connector.spark.sql.conf.StarRocksConfig;
+import com.starrocks.connector.spark.sql.connect.StarRocksConnector;
 import com.starrocks.connector.spark.sql.schema.InferSchema;
+import com.starrocks.connector.spark.sql.schema.StarRocksSchema;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableProvider;
@@ -35,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_FENODES;
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_PASSWORD;
@@ -45,6 +49,9 @@ public class StarRocksTableProvider implements RelationProvider, TableProvider, 
 
     private static final Logger LOG = LoggerFactory.getLogger(StarRocksTableProvider.class);
 
+    @Nullable
+    private StarRocksSchema starocksSchema;
+
     @Override
     public BaseRelation createRelation(SQLContext sqlContext,
                                        scala.collection.immutable.Map<String, String> parameters) {
@@ -53,17 +60,29 @@ public class StarRocksTableProvider implements RelationProvider, TableProvider, 
 
     @Override
     public StructType inferSchema(CaseInsensitiveStringMap options) {
-        return InferSchema.inferSchema(makeWriteCompatibleWithRead(options));
+        SimpleStarRocksConfig config = new SimpleStarRocksConfig(makeWriteCompatibleWithRead(options));
+        starocksSchema = getStarRocksSchema(config);
+        return InferSchema.inferSchema(starocksSchema, config);
     }
 
     @Override
     public Table getTable(StructType schema, Transform[] partitioning, Map<String, String> properties) {
-        return new StarRocksTable(schema, partitioning, new SimpleStarRocksConfig(makeWriteCompatibleWithRead(properties)));
+        SimpleStarRocksConfig config = new SimpleStarRocksConfig(makeWriteCompatibleWithRead(properties));
+        StarRocksSchema starRocksSchema = getStarRocksSchema(config);
+        return new StarRocksTable(schema, starRocksSchema, config);
     }
 
     @Override
     public String shortName() {
         return "starrocks";
+    }
+
+    private StarRocksSchema getStarRocksSchema(StarRocksConfig config) {
+        if (starocksSchema == null)  {
+            starocksSchema = StarRocksConnector.getSchema(config);
+        }
+
+        return starocksSchema;
     }
 
     private static Map<String, String> makeWriteCompatibleWithRead(Map<String, String> options) {

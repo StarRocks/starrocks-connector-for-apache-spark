@@ -43,4 +43,6 @@ public interface StarRocksConfig extends Serializable {
 
     @Nullable
     String[] getColumns();
+    @Nullable
+    String getColumnTypes();
 }

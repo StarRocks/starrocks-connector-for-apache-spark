@@ -27,36 +27,57 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
-import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public final class InferSchema {
 
-    public static StructType inferSchema(final Map<String, String> options) {
-        StarRocksConfig config = new SimpleStarRocksConfig(options);
-        StarRocksSchema schema = StarRocksConnector.getSchema(config);
+    public static StructType inferSchema(Map<String, String> options) {
+        SimpleStarRocksConfig config = new SimpleStarRocksConfig(options);
+        StarRocksSchema starocksSchema = StarRocksConnector.getSchema(config);
+        return inferSchema(starocksSchema, config);
+    }
 
+    public static StructType inferSchema(StarRocksSchema starRocksSchema, StarRocksConfig config) {
         String[] inputColumns = config.getColumns();
         List<StarRocksField> starRocksFields;
         if (inputColumns == null || inputColumns.length == 0) {
-            starRocksFields = schema.getColumns();
+            starRocksFields = starRocksSchema.getColumns();
         } else {
             starRocksFields = new ArrayList<>();
             for (String column : inputColumns) {
-                starRocksFields.add(schema.getField(column));
+                starRocksFields.add(starRocksSchema.getField(column));
             }
         }
 
-        List<StructField> fields = starRocksFields.stream()
-                .map(InferSchema::inferStructField)
-                .collect(Collectors.toList());
+        Map<String, StructField> customTypes = parseCustomTypes(config.getColumnTypes());
+        List<StructField> fields = new ArrayList<>();
+        for (StarRocksField field : starRocksFields) {
+            if (customTypes.containsKey(field.getName())) {
+                fields.add(customTypes.get(field.getName()));
+            } else {
+                fields.add(inferStructField(field));
+            }
+        }
 
         return DataTypes.createStructType(fields);
+    }
+
+    static Map<String, StructField> parseCustomTypes(String columnTypes) {
+        if (columnTypes == null) {
+            return new HashMap<>();
+        }
+
+        Map<String, StructField> customTypes = new HashMap<>();
+        StructType customSchema = StructType.fromDDL(columnTypes);
+        for (StructField field : customSchema.fields()) {
+            customTypes.put(field.name(), field);
+        }
+        return customTypes;
     }
 
     static StructField inferStructField(StarRocksField field) {

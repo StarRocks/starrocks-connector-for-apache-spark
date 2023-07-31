@@ -492,7 +492,6 @@ public class ReadWriteITTest extends ITTestBase {
                 .appName("testReadWriteNotContainsJsonColumnBase")
                 .getOrCreate();
 
-        String timeZone = "+00:00";
         String ddl = String.format("CREATE TABLE sr_table \n" +
                 " USING starrocks\n" +
                 "OPTIONS(\n" +
@@ -514,5 +513,194 @@ public class ReadWriteITTest extends ITTestBase {
         verifyRows(Collections.singletonList(Arrays.asList(1, "2023-07-16", "2023-07-16 06:00:00")), readRows);
 
         spark.stop();
+    }
+
+    @Test
+    public void testWritePkBitmapWitCsv() throws Exception {
+        testWritePkBitmapBase(false);
+    }
+
+    @Test
+    public void testWritePkBitmapWitJson() throws Exception {
+        testWritePkBitmapBase(true);
+    }
+
+    private void testWritePkBitmapBase(boolean useJson) throws Exception {
+        String tableName = "testWritePkBitmap_" + genRandomUuid();
+        prepareBitmapTable(tableName, true);
+
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testWritePkBitmap")
+                .getOrCreate();
+
+        String columnTypes = "userid BIGINT";
+        String ddl = String.format("CREATE TABLE sr_table \n" +
+                " USING starrocks\n" +
+                "OPTIONS(\n" +
+                "  \"starrocks.table.identifier\"=\"%s\",\n" +
+                "  \"starrocks.fe.http.url\"=\"%s\",\n" +
+                "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
+                "  \"starrocks.user\"=\"%s\",\n" +
+                "  \"starrocks.password\"=\"%s\",\n" +
+                "  \"starrocks.column.types\"=\"%s\",\n" +
+                "  \"starrocks.write.properties.format\"=\"%s\"\n" +
+                ")", String.join(".", DB_NAME, tableName), FE_HTTP, FE_JDBC, USER,
+                    PASSWORD, columnTypes, (useJson ? "json" : "csv"));
+        spark.sql(ddl);
+        spark.sql("INSERT INTO sr_table VALUES ('age', '18', 3), ('gender', 'male', 5)");
+
+        List<List<Object>> expectedData = new ArrayList<>();
+        expectedData.add(Arrays.asList("age", "18", "3"));
+        expectedData.add(Arrays.asList("gender", "male", "5"));
+
+        String query = String.format("SELECT tagname, tagvalue, bitmap_to_string(userid) FROM `%s`.`%s`", DB_NAME, tableName);;
+        List<List<Object>> actualWriteData = queryTable(DB_CONNECTION, query);
+        verifyResult(expectedData, actualWriteData);
+
+        spark.stop();
+    }
+
+    @Test
+    public void testWriteAggBitmapWithCsv() throws Exception {
+        testWriteAggBitmapBase(false);
+    }
+
+    @Test
+    public void testWriteAggBitmapWithJson() throws Exception {
+        testWriteAggBitmapBase(true);
+    }
+
+    private void testWriteAggBitmapBase(boolean useJson) throws Exception {
+        String tableName = "testWriteAggBitmap_" + genRandomUuid();
+        prepareBitmapTable(tableName, false);
+
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testWriteAggBitmap")
+                .getOrCreate();
+
+        String columnTypes = "userid BIGINT";
+        String ddl = String.format("CREATE TABLE sr_table \n" +
+                        " USING starrocks\n" +
+                        "OPTIONS(\n" +
+                        "  \"starrocks.table.identifier\"=\"%s\",\n" +
+                        "  \"starrocks.fe.http.url\"=\"%s\",\n" +
+                        "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
+                        "  \"starrocks.user\"=\"%s\",\n" +
+                        "  \"starrocks.password\"=\"%s\",\n" +
+                        "  \"starrocks.column.types\"=\"%s\",\n" +
+                        "  \"starrocks.write.properties.format\"=\"%s\"\n" +
+                    ")", String.join(".", DB_NAME, tableName), FE_HTTP, FE_JDBC, USER,
+                            PASSWORD, columnTypes, (useJson ? "json" : "csv"));
+        spark.sql(ddl);
+        spark.sql("INSERT INTO sr_table VALUES ('age', '18', 3), ('gender', 'male', 3)");
+        spark.sql("INSERT INTO sr_table VALUES ('age', '18', 5), ('gender', 'female', 5)");
+
+        List<List<Object>> expectedData = new ArrayList<>();
+        expectedData.add(Arrays.asList("age", "18", "3,5"));
+        expectedData.add(Arrays.asList("gender", "female", "5"));
+        expectedData.add(Arrays.asList("gender", "male", "3"));
+
+        String query = String.format("SELECT tagname, tagvalue, bitmap_to_string(userid) FROM `%s`.`%s`", DB_NAME, tableName);;
+        List<List<Object>> actualWriteData = queryTable(DB_CONNECTION, query);
+        verifyResult(expectedData, actualWriteData);
+
+        spark.stop();
+    }
+
+    private void prepareBitmapTable(String tableName, boolean isPk) throws Exception {
+        String pkTable =
+                String.format("CREATE TABLE `%s`.`%s` (" +
+                                "tagname STRING," +
+                                "tagvalue STRING," +
+                                "userid BITMAP" +
+                                ") ENGINE=OLAP " +
+                                "PRIMARY KEY(`tagname`, `tagvalue`) " +
+                                "DISTRIBUTED BY HASH(`tagname`) BUCKETS 2 " +
+                                "PROPERTIES (" +
+                                "\"replication_num\" = \"1\"" +
+                                ")",
+                        DB_NAME, tableName);
+        String aggTable =
+                String.format("CREATE TABLE `%s`.`%s` (" +
+                                "tagname STRING," +
+                                "tagvalue STRING," +
+                                "userid BITMAP BITMAP_UNION" +
+                                ") ENGINE=OLAP " +
+                                "AGGREGATE KEY(`tagname`, `tagvalue`) " +
+                                "DISTRIBUTED BY HASH(`tagname`) BUCKETS 2 " +
+                                "PROPERTIES (" +
+                                "\"replication_num\" = \"1\"" +
+                                ")",
+                        DB_NAME, tableName);
+        executeSRDDLSQL(isPk ? pkTable : aggTable);
+    }
+
+    @Test
+    public void testWriteHllWithCsv() throws Exception {
+        testWriteHllBase(false);
+    }
+
+    @Test
+    public void testWriteHllWithJson() throws Exception {
+        testWriteHllBase(true);
+    }
+
+    private void testWriteHllBase(boolean useJson) throws Exception {
+        String tableName = "testWriteHll_" + genRandomUuid();
+        prepareHllTable(tableName);
+
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testWriteHll")
+                .getOrCreate();
+
+        String columnTypes = "userid BIGINT";
+        String ddl = String.format("CREATE TABLE sr_table \n" +
+                        " USING starrocks\n" +
+                        "OPTIONS(\n" +
+                        "  \"starrocks.table.identifier\"=\"%s\",\n" +
+                        "  \"starrocks.fe.http.url\"=\"%s\",\n" +
+                        "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
+                        "  \"starrocks.user\"=\"%s\",\n" +
+                        "  \"starrocks.password\"=\"%s\",\n" +
+                        "  \"starrocks.column.types\"=\"%s\",\n" +
+                        "  \"starrocks.write.properties.format\"=\"%s\"\n" +
+                    ")", String.join(".", DB_NAME, tableName), FE_HTTP, FE_JDBC, USER,
+                        PASSWORD, columnTypes, (useJson ? "json" : "csv"));
+        spark.sql(ddl);
+        spark.sql("INSERT INTO sr_table VALUES ('age', '18', 3), ('gender', 'male', 3)");
+        spark.sql("INSERT INTO sr_table VALUES ('age', '18', 5), ('gender', 'female', 5)");
+
+        List<List<Object>> expectedData = new ArrayList<>();
+        expectedData.add(Arrays.asList("age", "18", "2"));
+        expectedData.add(Arrays.asList("gender", "female", "1"));
+        expectedData.add(Arrays.asList("gender", "male", "1"));
+
+        String query = String.format("SELECT tagname, tagvalue, HLL_CARDINALITY(userid) FROM `%s`.`%s`", DB_NAME, tableName);;
+        List<List<Object>> actualWriteData = queryTable(DB_CONNECTION, query);
+        verifyResult(expectedData, actualWriteData);
+
+        spark.stop();
+    }
+
+    private void prepareHllTable(String tableName) throws Exception {
+        String createStarRocksTable =
+                String.format("CREATE TABLE `%s`.`%s` (" +
+                                "tagname STRING," +
+                                "tagvalue STRING," +
+                                "userid HLL HLL_UNION" +
+                                ") ENGINE=OLAP " +
+                                "AGGREGATE KEY(`tagname`, `tagvalue`) " +
+                                "DISTRIBUTED BY HASH(`tagname`) BUCKETS 2 " +
+                                "PROPERTIES (" +
+                                "\"replication_num\" = \"1\"" +
+                                ")",
+                        DB_NAME, tableName);
+        executeSRDDLSQL(createStarRocksTable);
     }
 }

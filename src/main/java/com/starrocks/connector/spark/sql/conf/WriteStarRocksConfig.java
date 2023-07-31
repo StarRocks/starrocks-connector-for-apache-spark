@@ -19,13 +19,24 @@
 
 package com.starrocks.connector.spark.sql.conf;
 
+import com.starrocks.connector.spark.sql.schema.StarRocksField;
+import com.starrocks.connector.spark.sql.schema.StarRocksSchema;
 import com.starrocks.data.load.stream.StreamLoadDataFormat;
 import com.starrocks.data.load.stream.StreamLoadUtils;
 import com.starrocks.data.load.stream.properties.StreamLoadProperties;
 import com.starrocks.data.load.stream.properties.StreamLoadTableProperties;
+import org.apache.spark.sql.types.ByteType;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.IntegerType;
+import org.apache.spark.sql.types.LongType;
+import org.apache.spark.sql.types.ShortType;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
 import org.apache.spark.util.Utils;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -82,9 +93,13 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
     // columns used for partition. will use all columns if not set
     private String[] partitionColumns;
 
-    public WriteStarRocksConfig(Map<String, String> originOptions) {
+    private String streamLoadColumnProperty;
+    private String[] streamLoadColumnNames;
+
+    public WriteStarRocksConfig(Map<String, String> originOptions, StructType sparkSchema, StarRocksSchema starRocksSchema) {
         super(originOptions);
         load();
+        genStreamLoadColumns(sparkSchema, starRocksSchema);
     }
 
     private void load() {
@@ -129,6 +144,47 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
                 Arrays.asList(getFeHttpUrls()), getHttpRequestConnectTimeoutMs(), getUsername(), getPassword());
     }
 
+    private void genStreamLoadColumns(StructType sparkSchema, StarRocksSchema starRocksSchema) {
+        streamLoadColumnNames = new String[sparkSchema.length()];
+        List<String> expressions = new ArrayList<>();
+        for (int i = 0; i < sparkSchema.length(); i++) {
+            StructField field = sparkSchema.apply(i);
+            StarRocksField starRocksField = starRocksSchema.getField(field.name());
+            if (starRocksField.isBitmap()) {
+                streamLoadColumnNames[i] = "__tmp" + field.name();
+                expressions.add(String.format("`%s`=%s(`%s`)",
+                        field.name(), getBitmapFunction(field), streamLoadColumnNames[i]));
+            } else if (starRocksField.isHll()) {
+                streamLoadColumnNames[i] = "__tmp" + field.name();
+                expressions.add(String.format("`%s`=hll_hash(`%s`)", field.name(), streamLoadColumnNames[i]));
+            } else {
+                streamLoadColumnNames[i] = field.name();
+            }
+        }
+
+        if (properties.containsKey("columns")) {
+            streamLoadColumnProperty = properties.get("columns");
+        } else if (getColumns() != null || !expressions.isEmpty()) {
+            String joinedCols = Arrays.stream(streamLoadColumnNames)
+                    .map(f -> String.format("`%s`", f.trim().replace("`", "")))
+                    .collect(Collectors.joining(","));
+            String joinedExps = String.join(",", expressions);
+            streamLoadColumnProperty = joinedExps.isEmpty() ? joinedCols : joinedCols + "," + joinedExps;
+        }
+    }
+
+    private String getBitmapFunction(StructField field) {
+        DataType dataType = field.dataType();
+        if (dataType instanceof ByteType
+            || dataType instanceof ShortType
+            || dataType instanceof IntegerType
+            || dataType instanceof LongType) {
+            return "to_bitmap";
+        } else {
+            return "bitmap_hash";
+        }
+    }
+
     public String getFormat() {
         return format;
     }
@@ -145,22 +201,20 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
         return partitionColumns;
     }
 
+    public String[] getStreamLoadColumnNames() {
+        return streamLoadColumnNames;
+    }
+
     public StreamLoadProperties toStreamLoadProperties() {
         StreamLoadDataFormat dataFormat = "json".equalsIgnoreCase(format) ?
                 StreamLoadDataFormat.JSON : new StreamLoadDataFormat.CSVFormat(rowDelimiter);
-        String columns = null;
-        if (!properties.containsKey("columns") && getColumns() != null) {
-            columns = Arrays.stream(getColumns())
-                    .map(f -> String.format("`%s`", f.trim().replace("`", "")))
-                    .collect(Collectors.joining(","));
-        }
+
         StreamLoadTableProperties tableProperties = StreamLoadTableProperties.builder()
                 .database(getDatabase())
                 .table(getTable())
-                .columns(columns)
+                .columns(streamLoadColumnProperty)
                 .streamLoadDataFormat(dataFormat)
                 .chunkLimit(chunkLimit)
-                .columns(columns)
                 .build();
 
         StreamLoadProperties.Builder builder = StreamLoadProperties.builder()
