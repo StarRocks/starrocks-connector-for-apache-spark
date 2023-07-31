@@ -206,11 +206,11 @@ public class RestService implements Serializable {
     @VisibleForTesting
     static String getUriStr(Settings cfg, Logger logger) throws IllegalArgumentException {
         String[] identifier = parseIdentifier(cfg.getProperty(STARROCKS_TABLE_IDENTIFIER), logger);
-        return "http://" +
-                randomEndpoint(cfg.getProperty(STARROCKS_FENODES), logger) + API_PREFIX +
-                "/" + identifier[0] +
-                "/" + identifier[1] +
-                "/";
+        String endPoint = randomEndpoint(cfg.getProperty(STARROCKS_FENODES), logger);
+        if (!endPoint.startsWith("http")) {
+            endPoint = "http://" + endPoint;
+        }
+        return endPoint + API_PREFIX + "/" + identifier[0] + "/" + identifier[1] + "/";
     }
 
     /**

@@ -33,9 +33,11 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.StringJoiner;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assume.assumeTrue;
@@ -100,6 +102,11 @@ public abstract class ITTestBase {
         try (PreparedStatement statement = DB_CONNECTION.prepareStatement(sql)) {
             statement.execute();
         }
+    }
+
+    protected static String addHttpSchemaPrefix(String feHosts, String prefix) {
+        String[] hosts = feHosts.split(",");
+        return Arrays.stream(hosts).map(h -> prefix + h).collect(Collectors.joining(","));
     }
 
     protected static List<List<Object>> scanTable(Connection dbConnector, String db, String table) throws SQLException {

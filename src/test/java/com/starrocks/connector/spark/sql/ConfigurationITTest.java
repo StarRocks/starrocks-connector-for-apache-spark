@@ -36,11 +36,14 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.StringJoiner;
 
 public class ConfigurationITTest extends ITTestBase {
     
     private String tableName;
     private String tableId;
+
+    private StructType schema;
 
     @Before
     public void prepare() throws Exception {
@@ -59,65 +62,36 @@ public class ConfigurationITTest extends ITTestBase {
                                 ")",
                         DB_NAME, tableName);
         executeSRDDLSQL(createStarRocksTable);
-    }
 
-    @Test
-    public void testReadOldConfig() throws Exception {
-        SparkSession spark = SparkSession
-                .builder()
-                .config(new SparkConf())
-                .master("local[1]")
-                .appName("testSql")
-                .getOrCreate();
-
-        String ddl = String.format("CREATE TABLE src \n" +
-                " USING starrocks\n" +
-                "OPTIONS(\n" +
-                "  \"starrocks.table.identifier\"=\"%s\",\n" +
-                "  \"starrocks.fenodes\"=\"%s\",\n" +
-                "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
-                "  \"user\"=\"%s\",\n" +
-                "  \"password\"=\"%s\"\n" +
-                ")", tableId, FE_HTTP, FE_JDBC, USER, PASSWORD);
-        spark.sql(ddl).collect();
-
-        spark.stop();
-    }
-
-    @Test
-    public void testDefaultConfiguration() throws Exception {
-        SparkSession spark = SparkSession
-                .builder()
-                .master("local[1]")
-                .appName("testDataFrame")
-                .getOrCreate();
-
-        List<Row> data = Arrays.asList(
-                RowFactory.create(1, "2", 3),
-                RowFactory.create(2, "3", 4)
-        );
-
-        StructType schema = new StructType(new StructField[]{
+        schema = new StructType(new StructField[]{
                 new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
                 new StructField("name", DataTypes.StringType, false, Metadata.empty()),
                 new StructField("score", DataTypes.IntegerType, false, Metadata.empty())
         });
+    }
 
-        Dataset<Row> df = spark.createDataFrame(data, schema);
+    @Test
+    public void testOldConfig() throws Exception {
+        Map<String, String> options = new HashMap<>();
+        options.put("starrocks.fenodes", FE_HTTP);
+        options.put("starrocks.fe.jdbc.url", FE_JDBC);
+        options.put("starrocks.table.identifier", tableId);
+        options.put("starrocks.user", USER);
+        options.put("starrocks.password", PASSWORD);
 
+        testDataFrameBase(options);
+        testSqlBase(options);
+    }
+
+    @Test
+    public void testDefaultConfiguration() throws Exception {
         Map<String, String> options = new HashMap<>();
         options.put("starrocks.fe.http.url", FE_HTTP);
         options.put("starrocks.fe.jdbc.url", FE_JDBC);
         options.put("starrocks.table.identifier", tableId);
         options.put("starrocks.user", USER);
         options.put("starrocks.password", PASSWORD);
-
-        df.write().format("starrocks")
-                .mode(SaveMode.Append)
-                .options(options)
-                .save();
-
-        spark.stop();
+        testDataFrameBase(options);
     }
 
     @Test
@@ -144,25 +118,6 @@ public class ConfigurationITTest extends ITTestBase {
     }
 
     private void testWriteConfigurationBase(Map<String, String> customOptions) throws Exception {
-        SparkSession spark = SparkSession
-                .builder()
-                .master("local[1]")
-                .appName("testDataFrame")
-                .getOrCreate();
-
-        List<Row> data = Arrays.asList(
-                RowFactory.create(1, "2", 3),
-                RowFactory.create(2, "3", 4)
-        );
-
-        StructType schema = new StructType(new StructField[]{
-                new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
-                new StructField("name", DataTypes.StringType, false, Metadata.empty()),
-                new StructField("score", DataTypes.IntegerType, false, Metadata.empty())
-        });
-
-        Dataset<Row> df = spark.createDataFrame(data, schema);
-
         Map<String, String> options = new HashMap<>();
         options.put("starrocks.fe.http.url", FE_HTTP);
         options.put("starrocks.fe.jdbc.url", FE_JDBC);
@@ -187,10 +142,65 @@ public class ConfigurationITTest extends ITTestBase {
         options.put("starrocks.write.properties.column_separator", "\t");
         options.putAll(customOptions);
 
+        testDataFrameBase(options);
+    }
+
+    @Test
+    public void testHttpUrlWithSchema() throws Exception {
+        Map<String, String> options = new HashMap<>();
+        options.put("starrocks.fe.http.url", addHttpSchemaPrefix(FE_HTTP, "http://"));
+        options.put("starrocks.fe.jdbc.url", FE_JDBC);
+        options.put("starrocks.table.identifier", tableId);
+        options.put("starrocks.user", USER);
+        options.put("starrocks.password", PASSWORD);
+
+        testDataFrameBase(options);
+        testSqlBase(options);
+    }
+
+    private void testDataFrameBase(Map<String, String> options) {
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testDataFrame")
+                .getOrCreate();
+
+        List<Row> data = Arrays.asList(
+                RowFactory.create(1, "2", 3),
+                RowFactory.create(2, "3", 4)
+        );
+
+        Dataset<Row> df = spark.createDataFrame(data, schema);
         df.write().format("starrocks")
                 .mode(SaveMode.Append)
                 .options(options)
                 .save();
+
+        Dataset<Row> readDf = spark.read().format("starrocks")
+                .options(options)
+                .load();
+        readDf.collectAsList();
+
+        spark.stop();
+    }
+
+    private void testSqlBase(Map<String, String> options) {
+        SparkSession spark = SparkSession
+                .builder()
+                .config(new SparkConf())
+                .master("local[1]")
+                .appName("testSql")
+                .getOrCreate();
+
+        StringJoiner joiner = new StringJoiner(",\n");
+        for (Map.Entry<String, String> entry : options.entrySet()) {
+            joiner.add(String.format("'%s'='%s'", entry.getKey(), entry.getValue()));
+        }
+
+        String ddl = String.format("CREATE TABLE src\nUSING starrocks\nOPTIONS(\n%s)", joiner);
+        spark.sql(ddl);
+        spark.sql("INSERT INTO src VALUES (1, '1', 1)");
+        spark.sql("SELECT * FROM src").collectAsList();
 
         spark.stop();
     }
