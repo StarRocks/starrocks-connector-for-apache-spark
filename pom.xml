@@ -448,9 +448,10 @@
                     <excludes>
                         <exclude>src/test/resources/data/**</exclude>
                         <exclude>**/target/**</exclude>
-                        <exclude>README.md</exclude>
-                        <exclude>CODE_OF_CONDUCT.md</exclude>
-                        <exclude>CONTRIBUTING.md</exclude>
+                        <exclude>**/*.md</exclude>
+<!--                        <exclude>README.md</exclude>-->
+<!--                        <exclude>CODE_OF_CONDUCT.md</exclude>-->
+<!--                        <exclude>CONTRIBUTING.md</exclude>-->
                         <exclude>.github/**</exclude>
                     </excludes>
                 </configuration>

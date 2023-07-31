@@ -1,25 +1,25 @@
-This Connector can support reading data stored in StarRocks through Apache Spark™.
+# StarRocks Connector for Apache Spark™
 
-## Upstream
+The connector supports to read from and write to StarRocks through Apache Spark™.
 
-[Apache doris-spark-connector(incubating)](https://github.com/apache/incubator-doris-spark-connector) is the upstream of this Connector. We are very grateful to Apache Doris(incubating) community for contributing such an excellent connector.
+## Documentation
 
-We will continue to contribute to Apache Doris(incubating) and help to build the open source ecosystem in the future. 
+For the user manual of the released version of the Spark connector, please visit the StarRocks official documentation.
+* [Read data from StarRocks using Spark connector](https://docs.starrocks.io/en-us/latest/loading/Spark-connector-starrocks)
+* [Load data using Spark connector](https://docs.starrocks.io/en-us/latest/unloading/Spark_connector) 
 
-## Install and Use
-
-Please refer to [here](docs/spark-starrocks-connector.md).
-
-## Links
-
-* [StarRocks official website](https://www.starrocks.com)
-* [StarRocks documentation](https://docs.starrocks.com)
+For the new features in the snapshot version of the Spark connector, please see the docs in this repo.
+* [Read from StarRocks](docs/connector-read.md)
+* [Write to StarRocks](docs/connector-write.md)
 
 ## LICENSE
 
-[Apache License 2.0](LICENSE.txt)
+The connector is under the [Apache License 2.0](LICENSE.txt).
 
 ## Contributing to StarRocks
 
-A big thanks for your attention to StarRocks! 
-In order to accept your pull request, please follow the [CONTRIBUTING.md](CONTRIBUTING.md).
+We appreciate your interest in contributing to the Spark Connector. If you plan to make your first contribution, you can start with the [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Acknowledgments
+
+[Apache doris-spark-connector](https://github.com/apache/incubator-doris-spark-connector) is the upstream of this connector for reading from StarRocks. We are very grateful to Apache Doris community for contributing such an excellent connector.
