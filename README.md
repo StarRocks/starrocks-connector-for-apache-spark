@@ -14,7 +14,7 @@ For the new features in the snapshot version of the Spark connector, please see 
 
 ## LICENSE
 
-The connector is under the [Apache License 2.0](LICENSE.txt)
+The connector is under the [Apache License 2.0](LICENSE.txt).
 
 ## Contributing to StarRocks
 
