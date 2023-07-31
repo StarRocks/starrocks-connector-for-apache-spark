@@ -37,6 +37,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.StringJoiner;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assume.assumeTrue;
@@ -105,9 +106,7 @@ public abstract class ITTestBase {
 
     protected static String addHttpSchemaPrefix(String feHosts, String prefix) {
         String[] hosts = feHosts.split(",");
-        StringJoiner joiner = new StringJoiner(",");
-        Arrays.stream(hosts).map(h -> prefix + h).forEach(joiner::add);
-        return joiner.toString();
+        return Arrays.stream(hosts).map(h -> prefix + h).collect(Collectors.joining(","));
     }
 
     protected static List<List<Object>> scanTable(Connection dbConnector, String db, String table) throws SQLException {
