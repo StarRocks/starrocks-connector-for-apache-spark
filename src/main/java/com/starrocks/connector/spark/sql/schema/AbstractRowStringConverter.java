@@ -21,11 +21,13 @@ package com.starrocks.connector.spark.sql.schema;
 
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.types.ArrayType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.types.DecimalType;
 import org.apache.spark.sql.types.StructType;
+import scala.collection.JavaConverters;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -33,6 +35,8 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Function;
 
 public abstract class AbstractRowStringConverter implements RowStringConverter, Serializable {
@@ -71,26 +75,71 @@ public abstract class AbstractRowStringConverter implements RowStringConverter, 
                 // if spark.sql.datetime.java8API.enabled is false, data will be a java.sql.Date,
                 // otherwise a java.time.LocalDate. The toString methods for both class will return
                 // the date in the same format, that's  uuuu-MM-dd or yyyy-mm-dd, such as 2013-07-15
-                return Object::toString;
+                return new NullableWrapper(Object::toString);
             } else if (DataTypes.TimestampType.acceptsType(dataType)) {
                 // if spark.sql.datetime.java8API.enabled is false, data will be a java.sql.Timestamp,
                 // otherwise a java.time.Instant
-                return arg -> {
-                    if (arg instanceof Timestamp) {
-                        return (instantFormatter.format(((Timestamp) arg).toInstant()));
-                    } else {
-                        return (instantFormatter.format((Instant) arg));
-                    }
-                };
+                return new NullableWrapper(
+                        arg -> {
+                                if (arg instanceof Timestamp) {
+                                    return (instantFormatter.format(((Timestamp) arg).toInstant()));
+                                } else {
+                                    return (instantFormatter.format((Instant) arg));
+                                }
+                            }
+                        );
             } else if (dataType instanceof DecimalType) {
-                return (arg -> arg instanceof BigDecimal
-                        ? (BigDecimal) arg
-                        : ((Decimal) arg).toBigDecimal().bigDecimal());
+                return new NullableWrapper(
+                            arg -> arg instanceof BigDecimal
+                                    ? arg
+                                    : ((Decimal) arg).toBigDecimal().bigDecimal()
+                        );
+            } else if (dataType instanceof ArrayType) {
+                DataType elementType = ((ArrayType) dataType).elementType();
+                return new NullableWrapper(new ListDataConverter(convert(elementType)));
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
         throw new RuntimeException(String.format("Invalid type %s", dataType));
+    }
+
+    private static class NullableWrapper implements Function<Object, Object> {
+
+        private final Function<Object, Object> function;
+
+        public NullableWrapper(Function<Object, Object> function) {
+            this.function = function;
+        }
+
+        @Override
+        public Object apply(Object data) {
+            return data == null ? null : function.apply(data);
+        }
+    }
+
+    private static class ListDataConverter implements Function<Object, Object> {
+
+        private final Function<Object, Object> elementConverter;
+
+        public ListDataConverter(Function<Object, Object> elementConverter) {
+            this.elementConverter = elementConverter;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public Object apply(Object data) {
+            List<?> input;
+            // array type is scala.collection.Seq or java.util.List
+            if (data instanceof List) {
+                input = (List<?>) data;
+            } else {
+                input = JavaConverters.seqAsJavaList((scala.collection.Seq<Object>) data);
+            }
+            List<Object> result = new ArrayList<>(input.size());
+            input.forEach(element -> result.add(elementConverter.apply(element)));
+            return result;
+        }
     }
 }
