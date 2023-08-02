@@ -85,7 +85,7 @@ Directly download the corresponding version of the Spark connector JAR from the 
 | starrocks.write.buffer.size                    | NO       | 104857600     | The maximum size of data that can be accumulated in memory before being sent to StarRocks at a time. Setting this parameter to a larger value can improve loading performance but may increase loading latency. |
 | starrocks.write.flush.interval.ms              | NO       | 300000        | The interval at which data is sent to StarRocks. This parameter is used to control the loading latency. |
 | starrocks.columns                              | NO       | None          | The StarRocks table column into which you want to load data. You can specify multiple columns, which must be separated by commas (,), for example, `"col0,col1,col2"`. |
-| starrocks.column.types                         | NO       | None          | Supported since version 1.1.1. Customize the column data types for Spark instead of using the defaults inferred from the StarRocks table and the [default mapping](#data20%type20%mapping20%between20%spark20%and20%starrocks). The parameter value is a schema in DDL format same as the output of Spark [StructType#toDDL](https://github.com/apache/spark/blob/master/sql/api/src/main/scala/org/apache/spark/sql/types/StructType.scala#L449) , such as `col0 INT, col1 STRING, col2 BIGINT`. Note that you only need to specify columns that need customization. One use case is to load data into columns of [BITMAP](#load20%data20%into20%columns20%of20%BITMAP20%type) or [HLL](#load20%data20%into20%columns20%of20%HLL20%type) type.|
+| starrocks.column.types                         | NO       | None          | Supported since version 1.1.1. Customize the column data types for Spark instead of using the defaults inferred from the StarRocks table and the [default mapping](#data-type-mapping-between-park-and-starrocks). The parameter value is a schema in DDL format same as the output of Spark [StructType#toDDL](https://github.com/apache/spark/blob/master/sql/api/src/main/scala/org/apache/spark/sql/types/StructType.scala#L449) , such as `col0 INT, col1 STRING, col2 BIGINT`. Note that you only need to specify columns that need customization. One use case is to load data into columns of [BITMAP](#load-data-into-columns-of-bitmap-type) or [HLL](#load-data-into-columns-of-HLL-type) type.|
 | starrocks.write.properties.*                   | NO       | None          | The parameters that are used to control Stream Load behavior.  For example, the parameter `starrocks.write.properties.format` specifies the format of the data to be loaded, such as CSV or JSON. For a list of supported parameters and their descriptions, see [STREAM LOAD](https://docs.starrocks.io/en-us/latest/sql-reference/sql-statements/data-manipulation/STREAM%20LOAD). |
 | starrocks.write.properties.format              | NO       | CSV           | The file format based on which the Spark connector transforms each batch of data before the data is sent to StarRocks. Valid values: CSV and JSON. |
 | starrocks.write.properties.row_delimiter       | NO       | \n            | The row delimiter for CSV-formatted data.                    |
@@ -112,7 +112,7 @@ Directly download the corresponding version of the Spark connector JAR from the 
 | DateType        | DATE                |
 | TimestampType   | DATETIME            |
 
-For columns of BITMAP and HLL data types in StarRocks tables, you can customize the corresponding Spark data types. For detailed steps, see load data into columns of [BITMAP](#load20%data20%into20%columns20%of20%BITMAP20%type) or [HLL](#load20%data20%into20%columns20%of20%HLL20%type) type.
+For columns of BITMAP and HLL data types in StarRocks tables, you can customize the corresponding Spark data types. For detailed steps, see load data into columns of [BITMAP](#load-data-into-columns-of-bitmap-type) or [HLL](#load-data-into-columns-of-HLL-type) type.
 
 ## Examples
 
@@ -433,10 +433,7 @@ CREATE TABLE `hll_uv` (
   `visit_users` HLL HLL_UNION NOT NULL COMMENT '访问用户id'
 ) ENGINE=OLAP
 AGGREGATE KEY(`page_id`, `visit_date`)
-DISTRIBUTED BY HASH(`page_id`)
-PROPERTIES (
-  "replication_num" = "1"
-);
+DISTRIBUTED BY HASH(`page_id`);
 ```
 
 2. Create a Spark table
