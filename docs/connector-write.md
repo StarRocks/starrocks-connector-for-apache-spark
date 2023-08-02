@@ -113,7 +113,8 @@ Directly download the corresponding version of the Spark connector JAR from the 
 	| DateType        | DATE                |
 	| TimestampType   | DATETIME            |
 - You can also customize the data type mapping.
-For example, StarRocks tables are created with columns of BITMAP and HLL data types, but spark does not support the two data types. You need to customize the corresponding data types in Spark. For detailed steps, see load data into columns of [BITMAP](#load-data-into-columns-of-bitmap-type) and [HLL](#load-data-into-columns-of-HLL-type) types.
+
+  For example, a StarRocks table consist s of the BITMAP and HLL data types, but Spark does not support the two data types. You need to customize the corresponding data types in Spark. For detailed steps, see load data into columns of [BITMAP](#load-data-into-columns-of-bitmap-type) and [HLL](#load-data-into-columns-of-HLL-type) types.
 
 ## Examples
 
@@ -349,7 +350,7 @@ The following example explains how to load data with Spark SQL by using the `INS
 
 ## Best Practices
 
-### load data into columns of BITMAP type
+### Load data into columns of BITMAP type
 
 `BITMAP` is often used to accelerate count distinct, such as counting UV, see [Use Bitmap for exact Count Distinct](https://docs.starrocks.io/en-us/latest/using_starrocks/Using_bitmap).
 Here we take the counting of UV as an example to show how to load data into columns of the `BITMAP` type.
@@ -418,7 +419,7 @@ Here we take the counting of UV as an example to show how to load data into colu
 > function to convert data of the `TINYINT`, `SMALLINT`, `INTEGER`, and `BIGINT` types in Spark to the `BITMAP` type in StarRocks, and uses
 > [`bitmap_hash`](https://docs.starrocks.io/zh-cn/latest/sql-reference/sql-functions/bitmap-functions/bitmap_hash) function for other Spark data types.
 
-### load data into columns of HLL type
+### Load data into columns of HLL type
 
 `HLL` can be used for approximate count distinct, see [Use HLL for approximate count distinct](https://docs.starrocks.io/en-us/latest/using_starrocks/Using_HLL).
 
