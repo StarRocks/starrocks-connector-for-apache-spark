@@ -351,7 +351,7 @@ The following example explains how to load data with Spark SQL by using the `INS
 ### load data into columns of BITMAP type
 
 `BITMAP` is often used to accelerate count distinct, such as counting UV, see [Use Bitmap for exact Count Distinct](https://docs.starrocks.io/en-us/latest/using_starrocks/Using_bitmap).
-Here we take the counting of UV as an example to show how to  load data into columns of BITMAP type.
+Here we take the counting of UV as an example to show how to load data into columns of the `BITMAP` type.
 
 1. Create a StarRocks Aggregate table
 
@@ -369,7 +369,7 @@ Here we take the counting of UV as an example to show how to  load data into col
 
 3. Create a Spark table 
 
-    The schema of the Spark table is inferred from the StarRocks table, and the Spark does not support `BITMAP` type. So you need to customize the corresponding column data type in Spark, for example as `BIGINT`, by configuring the option `"starrocks.column.types"="visit_users BIGINT"`. When using Stream Load to ingest data, the connector uses the [`to_bitmap`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-functions/bitmap-functions/to_bitmap) function to convert the data of `BIGINT` type into `BITMAP` type.
+    The schema of the Spark table is inferred from the StarRocks table, and the Spark does not support the `BITMAP` type. So you need to customize the corresponding column data type in Spark, for example as `BIGINT`, by configuring the option `"starrocks.column.types"="visit_users BIGINT"`. When using Stream Load to ingest data, the connector uses the [`to_bitmap`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-functions/bitmap-functions/to_bitmap) function to convert the data of `BIGINT` type into `BITMAP` type.
     
     Run the following DDL in `spark-sql`:
     
@@ -399,7 +399,7 @@ Here we take the counting of UV as an example to show how to  load data into col
        (2, CAST('2020-06-23 01:30:30' AS TIMESTAMP), 23);
     ```
 
-4. Calculate page UVs.
+4. Calculate page UVs from the StarRocks table.
 
     ```SQL
     MySQL [test]> SELECT `page_id`, COUNT(DISTINCT `visit_users`) FROM `page_uv` GROUP BY `page_id`;
@@ -420,17 +420,18 @@ Here we take the counting of UV as an example to show how to  load data into col
 ### load data into columns of HLL type
 
 `HLL` can be used for approximate count distinct, see [Use HLL for approximate count distinct](https://docs.starrocks.io/en-us/latest/using_starrocks/Using_HLL).
-Here we take the counting of UV as an example to show how to load `HLL` data.
+
+Here we take the counting of UV as an example to show how to load data into columns of the `HLL` type.
 
 1. Create a StarRocks Aggregate table
-
-Create a database `test`, and create an Aggregate table `hll_uv` with a `HLL` column `visit_users`, which uses the aggregate function `HLL_UNION`.
+	
+   In the database `test`, create an Aggregate table `hll_uv` where the column `visit_users` is defined as the `HLL` type and configured with the aggregate function `HLL_UNION`. 
 
 ```SQL
 CREATE TABLE `hll_uv` (
-  `page_id` INT NOT NULL COMMENT '页面id',
-  `visit_date` datetime NOT NULL COMMENT '访问时间',
-  `visit_users` HLL HLL_UNION NOT NULL COMMENT '访问用户id'
+  `page_id` INT NOT NULL COMMENT 'page ID',
+  `visit_date` datetime NOT NULL COMMENT 'access time',
+  `visit_users` HLL HLL_UNION NOT NULL COMMENT 'user ID'
 ) ENGINE=OLAP
 AGGREGATE KEY(`page_id`, `visit_date`)
 DISTRIBUTED BY HASH(`page_id`);
@@ -438,50 +439,43 @@ DISTRIBUTED BY HASH(`page_id`);
 
 2. Create a Spark table
 
-User id is a `BIGNIT` in Spark, and need to load into the `HLL` column `visit_users` of StarRocks table.
-The schema of the Spark table is inferred from the StarRocks table, but Spark does not have `HLL` type,
-so specify the type of `visit_users` in Spark through the option `starrocks.column.types`, and set it as `visit_users BIGINT`,
-which indicates that `visit_users` will be used as `BIGINT` type in Spark. When using stream load to ingest data,
-the connector will use the [`hll_hash`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-functions/aggregate-functions/hll_hash)
-function to convert it into StarRocks' `HLL` type.
+   The schema of the Spark table is inferred from the StarRocks table, and the Spark does not support the `HLL` type. So you need to customize the corresponding column data type in Spark, for example as `BIGINT`, by configuring the option `"starrocks.column.types"="visit_users BIGINT"`. When using Stream Load to ingest data, the connector uses the [`hll_hash`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-functions/aggregate-functions/hll_hash) function to convert the data of `BIGINT` type into `HLL` type.
 
-Run the following DDL in `spark-sql`
-
-```SQL
-CREATE TABLE `hll_uv`
-USING starrocks
-OPTIONS(
-   "starrocks.fe.http.url"="127.0.0.1:8030",
-   "starrocks.fe.jdbc.url"="jdbc:mysql://127.0.0.1:9030",
-   "starrocks.table.identifier"="test.hll_uv",
-   "starrocks.user"="root",
-   "starrocks.password"="",
-   "starrocks.column.types"="visit_users BIGINT"
-);
-```
+    Run the following DDL in `spark-sql`:
+    
+    ```SQL
+    CREATE TABLE `hll_uv`
+    USING starrocks
+    OPTIONS(
+       "starrocks.fe.http.url"="127.0.0.1:8030",
+       "starrocks.fe.jdbc.url"="jdbc:mysql://127.0.0.1:9030",
+       "starrocks.table.identifier"="test.hll_uv",
+       "starrocks.user"="root",
+       "starrocks.password"="",
+       "starrocks.column.types"="visit_users BIGINT"
+    );
+    ```
 
 3. Load data into StarRocks table
 
-Run the following DML in `spark-sql`
+    Run the following DML in `spark-sql`:
+    
+    ```SQL
+    INSERT INTO `hll_uv` VALUES
+       (3, CAST('2023-07-24 12:00:00' AS TIMESTAMP), 78),
+       (4, CAST('2023-07-24 13:20:10' AS TIMESTAMP), 2),
+       (3, CAST('2023-07-24 12:30:00' AS TIMESTAMP), 674);
+    ```
 
-```SQL
-INSERT INTO `hll_uv` VALUES
-   (3, CAST('2023-07-24 12:00:00' AS TIMESTAMP), 78),
-   (4, CAST('2023-07-24 13:20:10' AS TIMESTAMP), 2),
-   (3, CAST('2023-07-24 12:30:00' AS TIMESTAMP), 674);
-```
+4. Calculate page UVs from the StarRocks table.
 
-4. Query data in the StarRocks table
-
-Calculate page UVs.
-
-```SQL
-MySQL [test]> SELECT `page_id`, COUNT(DISTINCT `visit_users`) FROM `hll_uv` GROUP BY `page_id`;
-+---------+-----------------------------+
-| page_id | count(DISTINCT visit_users) |
-+---------+-----------------------------+
-|       4 |                           1 |
-|       3 |                           2 |
-+---------+-----------------------------+
-2 rows in set (0.01 sec)
-```
+    ```SQL
+    MySQL [test]> SELECT `page_id`, COUNT(DISTINCT `visit_users`) FROM `hll_uv` GROUP BY `page_id`;
+    +---------+-----------------------------+
+    | page_id | count(DISTINCT visit_users) |
+    +---------+-----------------------------+
+    |       4 |                           1 |
+    |       3 |                           2 |
+    +---------+-----------------------------+
+    2 rows in set (0.01 sec)
+    ```
