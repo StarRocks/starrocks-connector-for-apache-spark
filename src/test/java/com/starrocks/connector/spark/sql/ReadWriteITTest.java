@@ -135,6 +135,46 @@ public class ReadWriteITTest extends ITTestBase {
     }
 
     @Test
+    public void testConditionalUpdates() throws Exception {
+        String tableName = "testConditionalUpdates_" + genRandomUuid();
+        prepareScoreBoardTable(tableName);
+        executeSrSQL(String.format("INSERT INTO `%s`.`%s` VALUES (1, '1', 100), (2, '2', 200)", DB_NAME, tableName));
+        verifyResult(Arrays.asList(Arrays.asList(1, "1", 100), Arrays.asList(2, "2", 200)),
+                scanTable(DB_CONNECTION, DB_NAME, tableName));
+
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testSql")
+                .getOrCreate();
+
+        String ddl = String.format("CREATE TABLE sr_table \n" +
+                " USING starrocks\n" +
+                "OPTIONS(\n" +
+                "  \"starrocks.table.identifier\"=\"%s\",\n" +
+                "  \"starrocks.fe.http.url\"=\"%s\",\n" +
+                "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
+                "  \"starrocks.user\"=\"%s\",\n" +
+                "  \"starrocks.password\"=\"%s\",\n" +
+                "  \"starrocks.write.properties.merge_condition\"=\"score\"\n" +
+                ")", String.join(".", DB_NAME, tableName), FE_HTTP, FE_JDBC, USER, PASSWORD);
+        spark.sql(ddl);
+        spark.sql("INSERT INTO sr_table VALUES (1, '2', 101), (2, '3', 199)");
+
+        List<List<Object>> expectedData = new ArrayList<>();
+        expectedData.add(Arrays.asList(1, "2", 101));
+        expectedData.add(Arrays.asList(2, "2", 200));
+        List<List<Object>> actualWriteData = scanTable(DB_CONNECTION, DB_NAME, tableName);
+        verifyResult(expectedData, actualWriteData);
+
+        List<Row> readRows = spark.sql("SELECT * FROM sr_table").collectAsList();
+        verifyRows(expectedData, readRows);
+
+        spark.stop();
+    }
+
+
+    @Test
     public void testDataFramePartition() throws Exception {
         testDataFramePartitionBase("5", null);
     }
@@ -204,7 +244,7 @@ public class ReadWriteITTest extends ITTestBase {
                                 "\"replication_num\" = \"1\"" +
                                 ")",
                         DB_NAME, tableName);
-        executeSRDDLSQL(createStarRocksTable);
+        executeSrSQL(createStarRocksTable);
     }
 
     @Test
@@ -243,7 +283,7 @@ public class ReadWriteITTest extends ITTestBase {
                     "\"replication_num\" = \"1\"" +
                 ")",
                 DB_NAME, tableName);
-        executeSRDDLSQL(createStarRocksTable);
+        executeSrSQL(createStarRocksTable);
 
         SparkSession spark = SparkSession
                 .builder()
@@ -344,7 +384,7 @@ public class ReadWriteITTest extends ITTestBase {
                                 "\"replication_num\" = \"1\"" +
                                 ")",
                         DB_NAME, tableName);
-        executeSRDDLSQL(createStarRocksTable);
+        executeSrSQL(createStarRocksTable);
 
         SparkSession spark = SparkSession
                 .builder()
@@ -436,7 +476,7 @@ public class ReadWriteITTest extends ITTestBase {
                                 "\"replication_num\" = \"1\"" +
                                 ")",
                         DB_NAME, tableName);
-        executeSRDDLSQL(createStarRocksTable);
+        executeSrSQL(createStarRocksTable);
 
         SparkSession spark = SparkSession
                 .builder()
@@ -482,7 +522,7 @@ public class ReadWriteITTest extends ITTestBase {
                                 "\"replication_num\" = \"1\"" +
                                 ")",
                         DB_NAME, tableName);
-        executeSRDDLSQL(createStarRocksTable);
+        executeSrSQL(createStarRocksTable);
 
         String sparkTimeZone = "+08:00";
         String starrocksTimeZone = "+00:00";
@@ -637,7 +677,7 @@ public class ReadWriteITTest extends ITTestBase {
                                 "\"replication_num\" = \"1\"" +
                                 ")",
                         DB_NAME, tableName);
-        executeSRDDLSQL(isPk ? pkTable : aggTable);
+        executeSrSQL(isPk ? pkTable : aggTable);
     }
 
     @Test
@@ -702,7 +742,7 @@ public class ReadWriteITTest extends ITTestBase {
                                 "\"replication_num\" = \"1\"" +
                                 ")",
                         DB_NAME, tableName);
-        executeSRDDLSQL(createStarRocksTable);
+        executeSrSQL(createStarRocksTable);
     }
 
     @Test
@@ -856,7 +896,7 @@ public class ReadWriteITTest extends ITTestBase {
                                 "\"replication_num\" = \"1\"" +
                                 ")",
                         DB_NAME, tableName);
-        executeSRDDLSQL(createStarRocksTable);
+        executeSrSQL(createStarRocksTable);
         return tableName;
     }
 }
