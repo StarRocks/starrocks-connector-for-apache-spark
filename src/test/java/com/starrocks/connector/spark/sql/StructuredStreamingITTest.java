@@ -62,7 +62,7 @@ public class StructuredStreamingITTest extends ITTestBase {
                                 "\"replication_num\" = \"1\"" +
                                 ")",
                         DB_NAME, tableName);
-        executeSRDDLSQL(createStarRocksTable);
+        executeSrSQL(createStarRocksTable);
     }
 
     @Test

@@ -61,7 +61,7 @@ public class ConfigurationITTest extends ITTestBase {
                                 "\"replication_num\" = \"1\"" +
                                 ")",
                         DB_NAME, tableName);
-        executeSRDDLSQL(createStarRocksTable);
+        executeSrSQL(createStarRocksTable);
 
         schema = new StructType(new StructField[]{
                 new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
