@@ -492,8 +492,7 @@ DISTRIBUTED BY HASH(`page_id`);
 
 ### Load data into columns of ARRAY type
 
-Because some versions of StarRocks does not provide the metadata of `ARRAY` column, the connector can not infer
-the corresponding Spark data type for this column. However, you can explicitly specify the corresponding Spark data type of the column in the option `starrocks.column.types`.
+
 
 The following example explains how to load data into columns of the [`ARRAY`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-statements/data-types/Array) type.
 
@@ -513,8 +512,9 @@ DISTRIBUTED BY HASH(`id`)
 ```
 
 2. Write data to StarRocks
-
-You need to explicitly specify the corresponding Spark data type of the column by configuring the option `starrocks.column.types` as `a0 ARRAY<STRING>,a1 ARRAY<ARRAY<INT>>`.
+   
+Because some versions of StarRocks does not provide the metadata of `ARRAY` column, the connector can not infer
+the corresponding Spark data type for this column. However, you can explicitly specify the corresponding Spark data type of the column in the option `starrocks.column.types`. In this exapmle, the option need to be configured as `a0 ARRAY<STRING>,a1 ARRAY<ARRAY<INT>>`.
 
 Run the following codes in `spark-shell`:
 
