@@ -96,25 +96,33 @@ Directly download the corresponding version of the Spark connector JAR from the 
 ## Data type mapping between Spark and StarRocks
 
 - The default data type mapping is as follows:
-	| Spark data type | StarRocks data type |
-	| --------------- | ------------------- |
-	| BooleanType     | BOOLEAN             |
-	| ByteType        | TINYINT             |
-	| ShortType       | SMALLINT            |
-	| IntegerType     | INT                 |
-	| LongType        | BIGINT              |
-	| StringType      | LARGEINT            |
-	| FloatType       | FLOAT               |
-	| DoubleType      | DOUBLE              |
-	| DecimalType     | DECIMAL             |
-	| StringType      | CHAR                |
-	| StringType      | VARCHAR             |
-	| StringType      | STRING              |
-	| DateType        | DATE                |
-	| TimestampType   | DATETIME            |
+
+
+	| Spark data type | StarRocks data type                                          |
+	| --------------- | ------------------------------------------------------------ |
+	| BooleanType     | BOOLEAN                                                      |
+	| ByteType        | TINYINT                                                      |
+	| ShortType       | SMALLINT                                                     |
+	| IntegerType     | INT                                                          |
+	| LongType        | BIGINT                                                       |
+	| StringType      | LARGEINT                                                     |
+	| FloatType       | FLOAT                                                        |
+	| DoubleType      | DOUBLE                                                       |
+	| DecimalType     | DECIMAL                                                      |
+	| StringType      | CHAR                                                         |
+	| StringType      | VARCHAR                                                      |
+	| StringType      | STRING                                                       |
+	| DateType        | DATE                                                         |
+	| TimestampType   | DATETIME                                                     |
+	| ArrayType       | ARRAY <br> **NOTE:** <br> **Supported since version 1.1.1**. For detailed steps, see [Load data into columns of ARRAY type](#load-data-into-columns-of-array-type). |
+
+
+    
+
+
 - You can also customize the data type mapping.
 
-  For example, a StarRocks table consist s of the BITMAP and HLL data types, but Spark does not support the two data types. You need to customize the corresponding data types in Spark. For detailed steps, see load data into columns of [BITMAP](#load-data-into-columns-of-bitmap-type) and [HLL](#load-data-into-columns-of-HLL-type) types.
+  For example, a StarRocks table consists of the BITMAP and HLL data types, but Spark does not support the two data types. You need to customize the corresponding data types in Spark. For detailed steps, see load data into columns of [BITMAP](#load-data-into-columns-of-bitmap-typ) and [HLL](#load-data-into-columns-of-HLL-type) types. **BITMAP and HLL are supported since version 1.1.1**.
 
 ## Examples
 
@@ -145,7 +153,7 @@ DISTRIBUTED BY HASH(`id`);
 
 #### Set up your Spark environment
 
-Note that the following examples are run in Spark 3.2.4 and use `spark-shell`, `pyspark` and `spark-sql`.  Before running the examples, make sure to place the Spark connector JAR file in the `$SPARK_HOME/jars` directory.
+Note that the following examples are run in Spark 3.2.4 and use `spark-shell`, `pyspark` and `spark-sql`. Before running the examples, make sure to place the Spark connector JAR file in the `$SPARK_HOME/jars` directory.
 
 ### Load data with Spark DataFrames
 
@@ -350,11 +358,11 @@ The following example explains how to load data with Spark SQL by using the `INS
 
 ## Best Practices
 
-### Load data into columns of BITMAP type
+### Load data into columns of BITMAP type 
 
-`BITMAP` is often used to accelerate count distinct, such as counting UV, see [Use Bitmap for exact Count Distinct](https://docs.starrocks.io/en-us/latest/using_starrocks/Using_bitmap).
+[`BITMAP`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-statements/data-types/BITMAP) is often used to accelerate count distinct, such as counting UV, see [Use Bitmap for exact Count Distinct](https://docs.starrocks.io/en-us/latest/using_starrocks/Using_bitmap).
 Here we take the counting of UV as an example to show how to load data into columns of the `BITMAP` type.
-
+ 
 1. Create a StarRocks Aggregate table
 
    In the database `test`, create an Aggregate table `page_uv` where the column `visit_users` is defined as the `BITMAP` type and configured with the aggregate function `BITMAP_UNION`. 
@@ -421,9 +429,9 @@ Here we take the counting of UV as an example to show how to load data into colu
 
 ### Load data into columns of HLL type
 
-`HLL` can be used for approximate count distinct, see [Use HLL for approximate count distinct](https://docs.starrocks.io/en-us/latest/using_starrocks/Using_HLL).
+[`HLL`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-statements/data-types/HLL) can be used for approximate count distinct, see [Use HLL for approximate count distinct](https://docs.starrocks.io/en-us/latest/using_starrocks/Using_HLL). 
 
-Here we take the counting of UV as an example to show how to load data into columns of the `HLL` type.
+Here we take the counting of UV as an example to show how to load data into columns of the `HLL` type.  **`HLL` is supported since version 1.1.1**.
 
 1. Create a StarRocks Aggregate table
 	
@@ -481,3 +489,62 @@ DISTRIBUTED BY HASH(`page_id`);
     +---------+-----------------------------+
     2 rows in set (0.01 sec)
     ```
+
+### Load data into columns of ARRAY type
+
+
+
+The following example explains how to load data into columns of the [`ARRAY`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-statements/data-types/Array) type.
+
+1. Create a StarRocks table
+
+In the database `test`, create a Primary Key table `array_tbl` that includes one `INT` column and two `ARRAY` columns.
+
+```SQL
+CREATE TABLE `array_tbl` (
+  `id` INT NOT NULL,
+  `a0` ARRAY<STRING>,
+  `a1` ARRAY<ARRAY<INT>>
+) ENGINE=OLAP
+PRIMARY KEY(`id`)
+DISTRIBUTED BY HASH(`id`)
+;
+```
+
+2. Write data to StarRocks
+   
+Because some versions of StarRocks does not provide the metadata of `ARRAY` column, the connector can not infer
+the corresponding Spark data type for this column. However, you can explicitly specify the corresponding Spark data type of the column in the option `starrocks.column.types`. In this exapmle, you can configure the option as `a0 ARRAY<STRING>,a1 ARRAY<ARRAY<INT>>`.
+
+Run the following codes in `spark-shell`:
+
+```scala
+val data = Seq(
+   |  (1, Seq("hello", "starrocks"), Seq(Seq(1, 2), Seq(3, 4))),
+   |  (2, Seq("hello", "spark"), Seq(Seq(5, 6, 7), Seq(8, 9, 10)))
+   | )
+val df = data.toDF("id", "a0", "a1")
+df.write
+     .format("starrocks")
+     .option("starrocks.fe.http.url", "127.0.0.1:8030")
+     .option("starrocks.fe.jdbc.url", "jdbc:mysql://127.0.0.1:9030")
+     .option("starrocks.table.identifier", "test.array_tbl")
+     .option("starrocks.user", "root")
+     .option("starrocks.password", "")
+     .option("starrocks.column.types", "a0 ARRAY<STRING>,a1 ARRAY<ARRAY<INT>>")
+     .mode("append")
+     .save()
+```
+
+3. Query data in the StarRocks table.
+
+```SQL
+MySQL [test]> SELECT * FROM `array_tbl`;
++------+-----------------------+--------------------+
+| id   | a0                    | a1                 |
++------+-----------------------+--------------------+
+|    1 | ["hello","starrocks"] | [[1,2],[3,4]]      |
+|    2 | ["hello","spark"]     | [[5,6,7],[8,9,10]] |
++------+-----------------------+--------------------+
+2 rows in set (0.01 sec)
+```
