@@ -96,29 +96,33 @@ Directly download the corresponding version of the Spark connector JAR from the 
 ## Data type mapping between Spark and StarRocks
 
 - The default data type mapping is as follows:
-	| Spark data type | StarRocks data type |
-	| --------------- | ------------------- |
-	| BooleanType     | BOOLEAN             |
-	| ByteType        | TINYINT             |
-	| ShortType       | SMALLINT            |
-	| IntegerType     | INT                 |
-	| LongType        | BIGINT              |
-	| StringType      | LARGEINT            |
-	| FloatType       | FLOAT               |
-	| DoubleType      | DOUBLE              |
-	| DecimalType     | DECIMAL             |
-	| StringType      | CHAR                |
-	| StringType      | VARCHAR             |
-	| StringType      | STRING              |
-	| DateType        | DATE                |
-	| TimestampType   | DATETIME            |
-        | ArrayType       | ARRAY    <br> **`ARRAY` is supported since version 1.1.1**. For detailed steps, see [Load data into columns of ARRAY type](#load-data-into-columns-of-array-type) for an example.  |
+
+
+	| Spark data type | StarRocks data type                                          |
+	| --------------- | ------------------------------------------------------------ |
+	| BooleanType     | BOOLEAN                                                      |
+	| ByteType        | TINYINT                                                      |
+	| ShortType       | SMALLINT                                                     |
+	| IntegerType     | INT                                                          |
+	| LongType        | BIGINT                                                       |
+	| StringType      | LARGEINT                                                     |
+	| FloatType       | FLOAT                                                        |
+	| DoubleType      | DOUBLE                                                       |
+	| DecimalType     | DECIMAL                                                      |
+	| StringType      | CHAR                                                         |
+	| StringType      | VARCHAR                                                      |
+	| StringType      | STRING                                                       |
+	| DateType        | DATE                                                         |
+	| TimestampType   | DATETIME                                                     |
+	| ArrayType       | ARRAY <br> **NOTE:** <br> **Supported since version 1.1.1**. For detailed steps, see [Load data into columns of ARRAY type](#load-data-into-columns-of-array-type). |
+
+
     
 
 
 - You can also customize the data type mapping.
 
-  For example, a StarRocks table consists of the BITMAP and HLL data types, but Spark does not support the two data types. You need to customize the corresponding data types in Spark. For detailed steps, see load data into columns of [BITMAP](#load-data-into-columns-of-bitmap-type) and [HLL](#load-data-into-columns-of-HLL-type) types. **BITMAP and HLL are supported since version 1.1.1**.
+  For example, a StarRocks table consists of the BITMAP and HLL data types, but Spark does not support the two data types. You need to customize the corresponding data types in Spark. For detailed steps, see load data into columns of [BITMAP](#load-data-into-columns-of-bitmap-typ) and [HLL](#load-data-into-columns-of-HLL-type) types. **BITMAP and HLL are supported since version 1.1.1**.
 
 ## Examples
 
@@ -354,10 +358,13 @@ The following example explains how to load data with Spark SQL by using the `INS
 
 ## Best Practices
 
-### Load data into columns of BITMAP type (since version 1.1.1)
+### Load data into columns of BITMAP type 
+> **NOTE**
+>
+> `BITMAP` is supported since version 1.1.1.
 
 [`BITMAP`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-statements/data-types/BITMAP) is often used to accelerate count distinct, such as counting UV, see [Use Bitmap for exact Count Distinct](https://docs.starrocks.io/en-us/latest/using_starrocks/Using_bitmap).
-Here we take the counting of UV as an example to show how to load data into columns of the `BITMAP` type. **`BITMAP` is supported since version 1.1.1**.
+Here we take the counting of UV as an example to show how to load data into columns of the `BITMAP` type.
  
 1. Create a StarRocks Aggregate table
 
@@ -423,10 +430,13 @@ Here we take the counting of UV as an example to show how to load data into colu
 > function to convert data of the `TINYINT`, `SMALLINT`, `INTEGER`, and `BIGINT` types in Spark to the `BITMAP` type in StarRocks, and uses
 > [`bitmap_hash`](https://docs.starrocks.io/zh-cn/latest/sql-reference/sql-functions/bitmap-functions/bitmap_hash) function for other Spark data types.
 
-### Load data into columns of HLL type (since version 1.1.1)
+### Load data into columns of HLL type
+> **NOTE**
+>
+> `HLL` is supported since version 1.1.1.
 [`HLL`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-statements/data-types/HLL) can be used for approximate count distinct, see [Use HLL for approximate count distinct](https://docs.starrocks.io/en-us/latest/using_starrocks/Using_HLL). 
 
-Here we take the counting of UV as an example to show how to load data into columns of the `HLL` type.
+Here we take the counting of UV as an example to show how to load data into columns of the `HLL` type.  **`HLL` is supported since version 1.1.1**.
 
 1. Create a StarRocks Aggregate table
 	
@@ -486,6 +496,9 @@ DISTRIBUTED BY HASH(`page_id`);
     ```
 
 ### Load data into columns of ARRAY type  (since version 1.1.1)
+> **NOTE**
+>
+> `ARRAY` is supported since version 1.1.1.
 
 Because some versions of StarRocks does not provide the metadata of `ARRAY` column, the connector can not infer
 the corresponding Spark data type for this column. However, you can explicitly specify the corresponding Spark data type of the column in the option `starrocks.column.types`.
@@ -509,10 +522,7 @@ DISTRIBUTED BY HASH(`id`)
 
 2. Write data to StarRocks
 
-Some versions of StarRocks does not provide the metadata of `ARRAY` colum, so the connector can not infer
-the corresponding Spark data type for this column. You need to explicitly specify the corresponding Spark data type of the column by configuring the option `starrocks.column.types`.
-
-In this example, you need to configure the option `starrocks.column.types` as `a0 ARRAY<STRING>,a1 ARRAY<ARRAY<INT>>`.
+You need to explicitly specify the corresponding Spark data type of the column by configuring the option `starrocks.column.types` as `a0 ARRAY<STRING>,a1 ARRAY<ARRAY<INT>>`.
 
 Run the following codes in `spark-shell`:
 
