@@ -359,9 +359,6 @@ The following example explains how to load data with Spark SQL by using the `INS
 ## Best Practices
 
 ### Load data into columns of BITMAP type 
-> **NOTE**
->
-> `BITMAP` is supported since version 1.1.1.
 
 [`BITMAP`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-statements/data-types/BITMAP) is often used to accelerate count distinct, such as counting UV, see [Use Bitmap for exact Count Distinct](https://docs.starrocks.io/en-us/latest/using_starrocks/Using_bitmap).
 Here we take the counting of UV as an example to show how to load data into columns of the `BITMAP` type.
@@ -431,9 +428,7 @@ Here we take the counting of UV as an example to show how to load data into colu
 > [`bitmap_hash`](https://docs.starrocks.io/zh-cn/latest/sql-reference/sql-functions/bitmap-functions/bitmap_hash) function for other Spark data types.
 
 ### Load data into columns of HLL type
-> **NOTE**
->
-> `HLL` is supported since version 1.1.1.
+
 [`HLL`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-statements/data-types/HLL) can be used for approximate count distinct, see [Use HLL for approximate count distinct](https://docs.starrocks.io/en-us/latest/using_starrocks/Using_HLL). 
 
 Here we take the counting of UV as an example to show how to load data into columns of the `HLL` type.  **`HLL` is supported since version 1.1.1**.
@@ -495,10 +490,7 @@ DISTRIBUTED BY HASH(`page_id`);
     2 rows in set (0.01 sec)
     ```
 
-### Load data into columns of ARRAY type  (since version 1.1.1)
-> **NOTE**
->
-> `ARRAY` is supported since version 1.1.1.
+### Load data into columns of ARRAY type
 
 Because some versions of StarRocks does not provide the metadata of `ARRAY` column, the connector can not infer
 the corresponding Spark data type for this column. However, you can explicitly specify the corresponding Spark data type of the column in the option `starrocks.column.types`.
