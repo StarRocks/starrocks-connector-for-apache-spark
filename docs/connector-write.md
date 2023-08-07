@@ -514,7 +514,7 @@ DISTRIBUTED BY HASH(`id`)
 2. Write data to StarRocks
    
 Because some versions of StarRocks does not provide the metadata of `ARRAY` column, the connector can not infer
-the corresponding Spark data type for this column. However, you can explicitly specify the corresponding Spark data type of the column in the option `starrocks.column.types`. In this exapmle, the option need to be configured as `a0 ARRAY<STRING>,a1 ARRAY<ARRAY<INT>>`.
+the corresponding Spark data type for this column. However, you can explicitly specify the corresponding Spark data type of the column in the option `starrocks.column.types`. In this exapmle, you can configure the option as `a0 ARRAY<STRING>,a1 ARRAY<ARRAY<INT>>`.
 
 Run the following codes in `spark-shell`:
 
