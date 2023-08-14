@@ -134,6 +134,7 @@ public class ConfigurationITTest extends ITTestBase {
         options.put("starrocks.write.scan-frequency.ms", "100");
         options.put("starrocks.write.enable.transaction-stream-load", "true");
         options.put("starrocks.write.buffer.size", "12k");
+        options.put("starrocks.write.buffer.rows", "1");
         options.put("starrocks.write.flush.interval.ms", "3000");
         options.put("starrocks.write.max.retries", "2");
         options.put("starrocks.write.retry.interval.ms", "1000");
