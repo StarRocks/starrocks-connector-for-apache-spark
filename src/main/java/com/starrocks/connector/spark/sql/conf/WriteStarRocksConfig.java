@@ -59,6 +59,8 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
     // The memory size used to buffer the rows before loading the data to StarRocks.
     // This can improve the performance for writing to starrocks.
     private static final String KEY_BUFFER_SIZE = WRITE_PREFIX + "buffer.size";
+    // The number of rows buffered before sending to StarRocks.
+    private static final String KEY_BUFFER_ROWS = WRITE_PREFIX + "buffer.rows";
     // Flush interval of the row batch in millisecond
     private static final String KEY_FLUSH_INTERVAL = WRITE_PREFIX + "flush.interval.ms";
     private static final String KEY_MAX_RETIES = WRITE_PREFIX + "max.retries";
@@ -79,6 +81,7 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
     private int scanFrequencyInMs = 50;
     private boolean enableTransactionStreamLoad = true;
     private long bufferSize = 104857600;
+    private int bufferRows = Integer.MAX_VALUE;
     private int flushInterval = 300000;
     private int maxRetries = 0;
     private int retryIntervalInMs = 10000;
@@ -110,6 +113,7 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
         scanFrequencyInMs = getInt(KEY_SCAN_FREQUENCY, 50);
         enableTransactionStreamLoad = getBoolean(KEY_ENABLE_TRANSACTION, true);
         bufferSize = Utils.byteStringAsBytes(get(KEY_BUFFER_SIZE, "100m"));
+        bufferRows = getInt(KEY_BUFFER_ROWS, Integer.MAX_VALUE);
         flushInterval = getInt(KEY_FLUSH_INTERVAL, 300000);
         maxRetries = getInt(KEY_MAX_RETIES, 3);
         retryIntervalInMs = getInt(KEY_RETRY_INTERVAL_MS, 10000);
@@ -234,6 +238,7 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
                 .columns(streamLoadColumnProperty)
                 .streamLoadDataFormat(dataFormat)
                 .chunkLimit(chunkLimit)
+                .maxBufferRows(bufferRows)
                 .build();
 
         StreamLoadProperties.Builder builder = StreamLoadProperties.builder()
