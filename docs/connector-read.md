@@ -16,13 +16,17 @@ You can also map the StarRocks table to a Spark DataFrame or a Spark RDD, and th
 ## Version requirements
 
 | Spark connector | Spark         | StarRocks       | Java | Scala |
-|---------------- | ------------- | --------------- | ---- | ----- |
+|-----------------| ------------- | --------------- | ---- | ----- |
+| 1.1.1           | 3.2, 3.3, 3.4 | 2.5 and later   | 8    | 2.12  |
 | 1.1.0           | 3.2, 3.3, 3.4 | 2.5 and later   | 8    | 2.12  |
 | 1.0.0           | 3.x           | 1.18 and later  | 8    | 2.12  |
 | 1.0.0           | 2.x           | 1.18 and later  | 8    | 2.11  |
 
 > **NOTICE**
 >
+> - Please see [Spark connector upgrades](#spark-connector-upgrades) for behaviour changes among different connector versions.
+> - The connector does not provide MySQL JDBC driver since version 1.1.1, and you need import the driver to the spark classpath
+> manually. You can find the driver on [Maven Central](https://repo1.maven.org/maven2/mysql/mysql-connector-java/).
 > - In version 1.0.0, the Spark connector only supports reading data from StarRocks. From version 1.1.0 onwards, the Spark connector supports both reading data from and writing data to StarRocks.
 > - Version 1.0.0 differs from version 1.1.0 in terms of parameters and data type mappings. See [Spark connector upgrades](#spark-connector-upgrades).
 > - In general cases, no new features will be added to version 1.0.0. We recommend that you upgrade your Spark connector at your earliest opportunity.
@@ -161,6 +165,7 @@ The following parameters apply to all three reading methods: Spark SQL, Spark Da
 | starrocks.deserialize.arrow.async    | false             | Specifies whether to support asynchronously converting the Arrow memory format to RowBatches required for the iteration of the Spark connector. |
 | starrocks.deserialize.queue.size     | 64                | The size of the internal queue that holds tasks for asynchronously converting the Arrow memory format to RowBatches. This parameter is valid when `starrocks.deserialize.arrow.async` is set to `true`. |
 | starrocks.filter.query               | None              | The condition based on which you want to filter data on StarRocks. You can specify multiple filter conditions, which must be joined by `and`. StarRocks filters the data from the StarRocks table based on the specified filter conditions before the data is read by Spark. |
+| starrocks.timezone                   | Default timezone of JVM | Supported since 1.1.1. The timezone used to convert StarRocks `DATETIME` to Spark `TimestampType`. The default is the timezone of JVM returned by `ZoneId#systemDefault()`. The format could be a timezone name such as `Asia/Shanghai`, or a zone offset such as `+08:00`. |
 
 ### Parameters for Spark SQL and Spark DataFrame
 
@@ -235,7 +240,13 @@ The processing logic of the underlying storage engine used by StarRocks cannot c
 
 ## Spark connector upgrades
 
-### Upgrade from version 1.0.0 to version 1.1.0
+### Upgrade from version 1.1.0 to 1.1.1
+
+* Since 1.1.1, the connector does not provide `mysql-connector-java` which is the official JDBC driver for MySQL. It uses GPL license which has some limitations.
+  The connector needs the JDBC driver to visit StarRocks for the metas of tables, so you need add the driver to the spark classpath manually. You can find the
+  driver on [MySQL site](https://dev.mysql.com/downloads/connector/j/) or [Maven Central](https://repo1.maven.org/maven2/mysql/mysql-connector-java/).
+
+### Upgrade from version 1.0.0 to 1.1.0
 
 - In version 1.1.0, the Spark connector uses JDBC to access StarRocks to obtain more detailed table information. Therefore, you must configure `starrocks.fe.jdbc.url`.
 
