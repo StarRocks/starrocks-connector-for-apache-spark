@@ -48,6 +48,11 @@ public class StarRocksWrite implements BatchWrite, StreamingWrite {
     }
 
     @Override
+    public boolean useCommitCoordinator() {
+        return true;
+    }
+
+    @Override
     public void commit(WriterCommitMessage[] messages) {
         log.info("batch query `{}` commit", logicalInfo.queryId());
     }
