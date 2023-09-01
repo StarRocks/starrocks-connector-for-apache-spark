@@ -11,9 +11,8 @@ StarRocks provides a self-developed connector named StarRocks Connector for Apac
 
 > **NOTICE**
 >
-> - Please see [Spark connector upgrades](#upgrade-spark-connector) for behaviour changes among different versions of the Spark connector.
-> - The Spark connector does not provide MySQL JDBC driver since version 1.1.1, and you need import the driver to the spark classpath
-> manually. You can find the driver on [MySQL site](https://dev.mysql.com/downloads/connector/j/) or [Maven Central](https://repo1.maven.org/maven2/mysql/mysql-connector-java/).
+> - Please see [Upgrade Spark connector](#upgrade-spark-connector) for behaviour changes among different versions of the Spark connector.
+> - The Spark connector does not provide MySQL JDBC driver since version 1.1.1, and you need import the driver to the spark classpath manually. You can find the driver on [MySQL site](https://dev.mysql.com/downloads/connector/j/) or [Maven Central](https://repo1.maven.org/maven2/mysql/mysql-connector-java/).
 
 ## Obtain Spark connector
 
@@ -131,12 +130,12 @@ Directly download the corresponding version of the Spark connector JAR from the 
 
   For example, a StarRocks table consists of the BITMAP and HLL data types, but Spark does not support the two data types. You need to customize the corresponding data types in Spark. For detailed steps, see load data into columns of [BITMAP](#load-data-into-columns-of-bitmap-typ) and [HLL](#load-data-into-columns-of-HLL-type) types. **BITMAP and HLL are supported since version 1.1.1**.
 
-## upgrade Spark connector
+## Upgrade Spark connector
 
 ### Upgrade from version 1.1.0 to 1.1.1
 
-- Since 1.1.1, the Spark connector does not provide MySQL JDBC driver which is the official JDBC driver for MySQL, because of the limitations of the GPL license used by MySQL JDBC driver.
-  However, the Spark connector still needs the MySQL JDBC driver to connect to StarRocks for the table metadata, so you need to add the driver to the spark classpath manually. You can find the
+- Since 1.1.1, the Spark connector does not provide `mysql-connector-java` which is the official JDBC driver for MySQL, because of the limitations of the GPL license used by `mysql-connector-java`.
+  However, the Spark connector still needs the MySQL JDBC driver to connect to StarRocks for the table metadata, so you need to add the driver to the Spark classpath manually. You can find the
   driver on [MySQL site](https://dev.mysql.com/downloads/connector/j/) or [Maven Central](https://repo1.maven.org/maven2/mysql/mysql-connector-java/).
 - Since 1.1.1, the connector uses Stream Load interface by default rather than Stream Load transaction interface in version 1.1.0. If you still want to use Stream Load transaction interface, you
   can set the option `starrocks.write.max.retries` to `0`. Please see the description of `starrocks.write.enable.transaction-stream-load` and `starrocks.write.max.retries`
