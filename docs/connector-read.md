@@ -238,12 +238,12 @@ The following parameters apply only to the Spark RDD reading method.
 
 The processing logic of the underlying storage engine used by StarRocks cannot cover an expected time range when DATE and DATETIME data types are directly used. Therefore, the Spark connector maps the DATE and DATETIME data types from StarRocks to the STRING data type from Spark, and generates readable string texts matching the date and time data read from StarRocks.
 
-## Spark connector upgrades
+## Upgrade Spark connector
 
 ### Upgrade from version 1.1.0 to 1.1.1
 
-* Since 1.1.1, the connector does not provide `mysql-connector-java` which is the official JDBC driver for MySQL. It uses GPL license which has some limitations.
-  The connector needs the JDBC driver to visit StarRocks for the metas of tables, so you need add the driver to the spark classpath manually. You can find the
+- Since 1.1.1, the Spark connector does not provide MySQL JDBC driver which is the official JDBC driver for MySQL, because of the limitations of the GPL license used by MySQL JDBC driver.
+  However, the Spark connector still needs the MySQL JDBC driver to connect to StarRocks for the table metadata, so you need to add the driver to the Spark classpath manually. You can find the
   driver on [MySQL site](https://dev.mysql.com/downloads/connector/j/) or [Maven Central](https://repo1.maven.org/maven2/mysql/mysql-connector-java/).
 
 ### Upgrade from version 1.0.0 to 1.1.0

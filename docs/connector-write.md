@@ -10,9 +10,9 @@ StarRocks provides a self-developed connector named StarRocks Connector for Apac
 | 1.1.0           | 3.2, 3.3, or 3.4 | 2.5 and later | 8    | 2.12  |
 
 > **NOTICE**
-> 
-> - Please see [Spark connector upgrades](#spark-connector-upgrades) for behaviour changes among different connector versions. 
-> - The connector does not provide MySQL JDBC driver since version 1.1.1, and you need import the driver to the spark classpath
+>
+> - Please see [Spark connector upgrades](#upgrade-spark-connector) for behaviour changes among different versions of the Spark connector.
+> - The Spark connector does not provide MySQL JDBC driver since version 1.1.1, and you need import the driver to the spark classpath
 > manually. You can find the driver on [MySQL site](https://dev.mysql.com/downloads/connector/j/) or [Maven Central](https://repo1.maven.org/maven2/mysql/mysql-connector-java/).
 
 ## Obtain Spark connector
@@ -102,7 +102,7 @@ Directly download the corresponding version of the Spark connector JAR from the 
 | starrocks.write.properties.column_separator    | NO       | \t            | The column separator for CSV-formatted data.                 |
 | starrocks.write.num.partitions                 | NO       | None          | The number of partitions into which Spark can write data in parallel. When the data volume is small, you can reduce the number of partitions to lower the loading concurrency and frequency. The default value for this parameter is determined by Spark. However, this method may cause Spark Shuffle cost. |
 | starrocks.write.partition.columns              | NO       | None          | The partitioning columns in Spark. The parameter takes effect only when `starrocks.write.num.partitions` is specified. If this parameter is not specified, all columns being written are used for partitioning. |
-| starrocks.timezone                             | NO       | Default timezone of JVM | Supported since 1.1.1. The timezone used to convert Spark `TimestampType` to StarRocks `DATETIME`. The default is the timezone of JVM returned by `ZoneId#systemDefault()`. The format could be a timezone name such as `Asia/Shanghai`, or a zone offset such as `+08:00`. |
+| starrocks.timezone                             | NO       | Default timezone of JVM | Supported since 1.1.1. The timezone used to convert Spark `TimestampType` to StarRocks `DATETIME`. The default is the timezone of JVM returned by `ZoneId#systemDefault()`. The format can be a timezone name such as `Asia/Shanghai`, or a zone offset such as `+08:00`. |
 
 ## Data type mapping between Spark and StarRocks
 
@@ -135,8 +135,8 @@ Directly download the corresponding version of the Spark connector JAR from the 
 
 ### Upgrade from version 1.1.0 to 1.1.1
 
-- Since 1.1.1, the Spark connector does not provide MySQL JDBC driver which is the official JDBC driver for MySQL, because of the limitations of the  GPL license used by MySQL JDBC driver.
-  However, the Spark connector still needs the  MySQL JDBC driver to connect to StarRocks for the Table metadata, so you need to add the driver to the spark classpath manually. You can find the
+- Since 1.1.1, the Spark connector does not provide MySQL JDBC driver which is the official JDBC driver for MySQL, because of the limitations of the GPL license used by MySQL JDBC driver.
+  However, the Spark connector still needs the MySQL JDBC driver to connect to StarRocks for the table metadata, so you need to add the driver to the spark classpath manually. You can find the
   driver on [MySQL site](https://dev.mysql.com/downloads/connector/j/) or [Maven Central](https://repo1.maven.org/maven2/mysql/mysql-connector-java/).
 - Since 1.1.1, the connector uses Stream Load interface by default rather than Stream Load transaction interface in version 1.1.0. If you still want to use Stream Load transaction interface, you
   can set the option `starrocks.write.max.retries` to `0`. Please see the description of `starrocks.write.enable.transaction-stream-load` and `starrocks.write.max.retries`
