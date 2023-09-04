@@ -73,7 +73,7 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
     private static final String KEY_NUM_PARTITIONS = WRITE_PREFIX + "num.partitions";
     private static final String KEY_PARTITION_COLUMNS = WRITE_PREFIX + "partition.columns";
 
-    private String labelPrefix = "spark-";
+    private String labelPrefix = "spark";
     private int waitForContinueTimeoutMs = 30000;
     // Only support to write to one table, and one thread is enough
     private int ioThreadCount = 1;
@@ -107,7 +107,7 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
     }
 
     private void load(StructType sparkSchema) {
-        labelPrefix = get(KEY_LABEL_PREFIX);
+        labelPrefix = get(KEY_LABEL_PREFIX, "spark");
         waitForContinueTimeoutMs = getInt(KEY_WAIT_FOR_CONTINUE_TIMEOUT, 30000);
         chunkLimit = Utils.byteStringAsBytes(get(KEY_CHUNK_LIMIT, "3g"));
         scanFrequencyInMs = getInt(KEY_SCAN_FREQUENCY, 50);
@@ -226,6 +226,11 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
 
     public String[] getStreamLoadColumnNames() {
         return streamLoadColumnNames;
+    }
+
+    public boolean isPartialUpdate() {
+        String val = properties.get("partial_update");
+        return val != null && val.equalsIgnoreCase("true");
     }
 
     public StreamLoadProperties toStreamLoadProperties() {

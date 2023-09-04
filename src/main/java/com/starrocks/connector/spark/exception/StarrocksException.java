@@ -19,7 +19,7 @@
 
 package com.starrocks.connector.spark.exception;
 
-public class StarrocksException extends Exception {
+public class StarrocksException extends RuntimeException {
     public StarrocksException() {
         super();
     }
