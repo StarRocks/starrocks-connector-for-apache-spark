@@ -43,8 +43,8 @@ public class StarRocksSchema {
         return columns;
     }
 
-    public List<StarRocksField> getPks() {
-        return pks;
+    public boolean isPrimaryKey() {
+        return !pks.isEmpty();
     }
 
     public StarRocksField getField(String columnName) {

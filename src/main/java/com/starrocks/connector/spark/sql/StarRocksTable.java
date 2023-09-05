@@ -19,6 +19,7 @@
 
 package com.starrocks.connector.spark.sql;
 
+import com.starrocks.connector.spark.exception.StarrocksException;
 import com.starrocks.connector.spark.sql.conf.StarRocksConfig;
 import com.starrocks.connector.spark.sql.conf.WriteStarRocksConfig;
 import com.starrocks.connector.spark.sql.schema.StarRocksSchema;
@@ -26,7 +27,6 @@ import com.starrocks.connector.spark.sql.write.StarRocksWriteBuilder;
 import org.apache.spark.sql.connector.catalog.SupportsWrite;
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableCapability;
-import org.apache.spark.sql.connector.expressions.Transform;
 import org.apache.spark.sql.connector.write.LogicalWriteInfo;
 import org.apache.spark.sql.connector.write.WriteBuilder;
 import org.apache.spark.sql.types.StructType;
@@ -60,6 +60,7 @@ public class StarRocksTable implements Table, SupportsWrite {
     @Override
     public WriteBuilder newWriteBuilder(LogicalWriteInfo info) {
         WriteStarRocksConfig writeConfig = new WriteStarRocksConfig(config.getOriginOptions(), schema, starRocksSchema);
+        checkWriteParameter(writeConfig);
         return new StarRocksWriteBuilder(info, writeConfig);
     }
 
@@ -76,5 +77,14 @@ public class StarRocksTable implements Table, SupportsWrite {
     @Override
     public Set<TableCapability> capabilities() {
         return TABLE_CAPABILITY_SET;
+    }
+
+    private void checkWriteParameter(WriteStarRocksConfig config) {
+        if (!starRocksSchema.isPrimaryKey() && config.isPartialUpdate()) {
+            String errMsg = String.format("Table %s.%s is not a primary key table, and not supports partial update. " +
+                    "You could create a primary key table, or remove the option 'starrocks.write.properties.partial_update'.",
+                    config.getDatabase(), config.getTable());
+            throw new StarrocksException(errMsg);
+        }
     }
 }
