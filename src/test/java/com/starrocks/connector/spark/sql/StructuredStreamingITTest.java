@@ -21,7 +21,6 @@
 
 package com.starrocks.connector.spark.sql;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -32,9 +31,10 @@ import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -42,6 +42,9 @@ import java.util.List;
 import java.util.Map;
 
 public class StructuredStreamingITTest extends ITTestBase {
+
+    @Rule
+    public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     private String tableName;
     private String tableId;
@@ -91,12 +94,12 @@ public class StructuredStreamingITTest extends ITTestBase {
         options.put("starrocks.user", USER);
         options.put("starrocks.password", PASSWORD);
 
-        FileUtils.deleteDirectory(new File("checkpoint"));
+        String checkpointDir = temporaryFolder.newFolder().toURI().toString();
         StreamingQuery query = df.writeStream()
                 .format("starrocks")
                 .outputMode(OutputMode.Append())
                 .options(options)
-                .option("checkpointLocation", "checkpoint")
+                .option("checkpointLocation", checkpointDir)
                 .start();
 
         query.awaitTermination(10000);
