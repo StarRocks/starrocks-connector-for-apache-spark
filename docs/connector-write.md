@@ -2,6 +2,10 @@
 
 StarRocks provides a self-developed connector named StarRocks Connector for Apache Spark™ (Spark connector for short) to help you load data into a StarRocks table by using Spark. The basic principle is to accumulate the data and then load it all at a time into StarRocks through [STREAM LOAD](https://docs.starrocks.io/en-us/latest/sql-reference/sql-statements/data-manipulation/STREAM%20LOAD). The Spark connector is implemented based on Spark DataSource V2. A DataSource can be created by using Spark DataFrames or Spark SQL. And both batch and structured streaming modes are supported.
 
+> **NOTICE**
+>
+> Loading data into StarRocks tables with Spark connector needs SELECT and INSERT privileges. If you do not have these privileges, follow the instructions provided in [GRANT](https://docs.starrocks.io/en-us/latest/sql-reference/sql-statements/account-management/GRANT) to grant these privileges to the user that you use to connect to your StarRocks cluster.
+
 ## Version requirements
 
 | Spark connector | Spark            | StarRocks     | Java | Scala |

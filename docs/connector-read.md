@@ -8,6 +8,10 @@ You can use Spark SQL to create a temporary view on the StarRocks table, and the
 
 You can also map the StarRocks table to a Spark DataFrame or a Spark RDD, and then read data from the Spark DataFrame or Spark RDD. We recommend the use of a Spark DataFrame.
 
+> **NOTICE**
+>
+> Reading data from StarRocks tables with Spark connector needs SELECT privilege. If you do not have the privilege, follow the instructions provided in [GRANT](https://docs.starrocks.io/en-us/latest/sql-reference/sql-statements/account-management/GRANT) to grant the privilege to the user that you use to connect to your StarRocks cluster.
+
 ## Usage notes
 
 - You can filter data on StarRocks before you read the data, thereby reducing the amount of data transferred.
