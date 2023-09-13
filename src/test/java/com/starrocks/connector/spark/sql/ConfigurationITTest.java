@@ -98,8 +98,8 @@ public class ConfigurationITTest extends ITTestBase {
     public void testWriteCsvConfiguration() throws Exception {
         Map<String, String> options = new HashMap<>();
         options.put("starrocks.write.properties.format", "csv");
-        options.put("starrocks.write.properties.row_delimiter", "|");
-        options.put("starrocks.write.properties.column_separator", ",");
+        options.put("starrocks.write.properties.row_delimiter", "\\x01");
+        options.put("starrocks.write.properties.column_separator", "\\x02");
         testWriteConfigurationBase(options);
     }
 

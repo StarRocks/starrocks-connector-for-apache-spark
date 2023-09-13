@@ -21,6 +21,7 @@ package com.starrocks.connector.spark.sql.conf;
 
 import com.starrocks.connector.spark.sql.schema.StarRocksField;
 import com.starrocks.connector.spark.sql.schema.StarRocksSchema;
+import com.starrocks.data.load.stream.DelimiterParser;
 import com.starrocks.data.load.stream.StreamLoadDataFormat;
 import com.starrocks.data.load.stream.StreamLoadUtils;
 import com.starrocks.data.load.stream.properties.StreamLoadProperties;
@@ -127,8 +128,10 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
                         )
                 );
         format = originOptions.getOrDefault(KEY_PROPS_FORMAT, "CSV");
-        rowDelimiter = originOptions.getOrDefault(KEY_PROPS_ROW_DELIMITER, "\n");
-        columnSeparator = originOptions.getOrDefault(KEY_PROPS_COLUMN_SEPARATOR, "\t");
+        rowDelimiter = DelimiterParser.convertDelimiter(
+                originOptions.getOrDefault(KEY_PROPS_ROW_DELIMITER, "\n"));
+        columnSeparator = DelimiterParser.convertDelimiter(
+                originOptions.getOrDefault(KEY_PROPS_COLUMN_SEPARATOR, "\t"));
         String inferedFormat = inferFormatFromSchema(sparkSchema);
         if (inferedFormat != null) {
             format = inferedFormat;
