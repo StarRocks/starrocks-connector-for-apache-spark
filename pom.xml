@@ -54,7 +54,7 @@
 
     <groupId>com.starrocks</groupId>
     <artifactId>starrocks-spark-connector-${env.SPARK_FEATURE_VERSION}_${env.STARROCKS_SCALA_VERSION}</artifactId>
-    <version>1.1.1-SNAPSHOT</version>
+    <version>1.1.2-SNAPSHOT</version>
 
     <properties>
         <sr_scala.version>${env.STARROCKS_SCALA_VERSION}</sr_scala.version>
