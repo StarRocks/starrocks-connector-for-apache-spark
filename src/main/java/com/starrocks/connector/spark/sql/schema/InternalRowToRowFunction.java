@@ -23,17 +23,28 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.analysis.SimpleAnalyzer$;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
+import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder$;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder$;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
+import org.apache.spark.sql.catalyst.expressions.AttributeReference;
+import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.types.StructType;
+import scala.collection.JavaConverters;
 import scala.collection.Seq;
+import scala.collection.Seq$;
 
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Refer to mongo-spark
- * https://github.com/mongodb/mongo-spark/blob/main/src/main/java/com/mongodb/spark/sql/connector/schema/InternalRowToRowFunction.java.
+ * https://github.com/mongodb/mongo-spark/blob/main/src/main/java/com/mongodb/spark/sql/connector/schema
+ * /InternalRowToRowFunction.java.
  */
 public class InternalRowToRowFunction implements Function<InternalRow, Row>, Serializable {
 
@@ -42,12 +53,36 @@ public class InternalRowToRowFunction implements Function<InternalRow, Row>, Ser
     private final ExpressionEncoder.Deserializer<Row> deserializer;
 
     public InternalRowToRowFunction(StructType schema) {
-        ExpressionEncoder<Row> rowExpressionEncoder = RowEncoder$.MODULE$.apply(schema);
+        ExpressionEncoder<Row> rowExpressionEncoder;
+        Object instance;
+        Method applyMethod;
 
-        Seq<Attribute> attributeSeq = (Seq<Attribute>) (Seq<? extends Attribute>)
-                rowExpressionEncoder.schema().toAttributes();
+        // before 3.5, we use RowEncoder.apply to create ExpressionEncoder
+        // 3.5, we use ExpressionEncoder.apply to create it.
+        try {
+            applyMethod = RowEncoder$.MODULE$.getClass().getMethod("apply", StructType.class);
+            instance = RowEncoder$.MODULE$;
+        } catch (NoSuchMethodException e1) {
+            try {
+                applyMethod = ExpressionEncoder$.MODULE$.getClass().getMethod("apply", StructType.class);
+                instance = ExpressionEncoder$.MODULE$;
+            } catch (NoSuchMethodException e2) {
+                throw new RuntimeException("No method to create InternalRowToRowFunction");
+            }
+        }
 
+        try {
+            rowExpressionEncoder = (ExpressionEncoder<Row>) applyMethod.invoke(instance, schema);
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            throw new RuntimeException("Fail to call applyMethod to create InternalRowToRowFunction");
+        }
+
+        List<Attribute> attributeList = (List<Attribute>) Arrays.stream(rowExpressionEncoder.schema().fields())
+                .map(x -> (Attribute) new AttributeReference(x.name(), x.dataType(), x.nullable(), x.metadata(),
+                        NamedExpression.newExprId(), Seq$.MODULE$.empty())).collect(Collectors.toList());
+        Seq<Attribute> attributeSeq = JavaConverters.collectionAsScalaIterable(attributeList).toSeq();
         this.deserializer = rowExpressionEncoder.resolveAndBind(attributeSeq, SimpleAnalyzer$.MODULE$).createDeserializer();
+
     }
 
     @Override
