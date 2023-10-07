@@ -195,6 +195,35 @@
             </dependencies>
 
         </profile>
+
+        <profile>
+            <id>spark-3.5</id>
+            <activation>
+                <property>
+                    <name>env.spark-3.5</name>
+                </property>
+            </activation>
+
+            <properties>
+                <env.STARROCKS_SCALA_VERSION>2.12</env.STARROCKS_SCALA_VERSION>
+                <env.STARROCKS_SPARK_VERSION>3.5.0</env.STARROCKS_SPARK_VERSION>
+                <env.SPARK_FEATURE_VERSION>3.5</env.SPARK_FEATURE_VERSION>
+                <fasterxml.version>2.15.2</fasterxml.version>
+                <slf4j.version>2.0.7</slf4j.version>
+                <log4j.version>2.20.0</log4j.version>
+            </properties>
+
+            <dependencies>
+                <dependency>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-slf4j2-impl</artifactId>
+                    <version>${log4j.version}</version>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
+
+        </profile>
+
     </profiles>
 
     <dependencies>
