@@ -74,7 +74,7 @@ public class InternalRowToRowFunction implements Function<InternalRow, Row>, Ser
         try {
             rowExpressionEncoder = (ExpressionEncoder<Row>) applyMethod.invoke(instance, schema);
         } catch (IllegalAccessException | InvocationTargetException e) {
-            throw new RuntimeException("Fail to call applyMethod to create InternalRowToRowFunction");
+            throw new RuntimeException("Fail to call `apply` method to create InternalRowToRowFunction");
         }
 
         List<Attribute> attributeList = (List<Attribute>) Arrays.stream(rowExpressionEncoder.schema().fields())
