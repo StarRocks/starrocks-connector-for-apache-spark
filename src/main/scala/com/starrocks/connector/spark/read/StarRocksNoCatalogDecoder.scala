@@ -17,28 +17,17 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.starrocks.connector.spark.exception;
+package com.starrocks.connector.spark.read
 
-public class StarrocksException extends RuntimeException {
-    public StarrocksException() {
-        super();
-    }
+import com.starrocks.connector.spark.cfg.Settings
+import org.apache.spark.sql.connector.read.InputPartition
 
-    public StarrocksException(String message) {
-        super(message);
-    }
 
-    public StarrocksException(String message, Throwable cause) {
-        super(message, cause);
-    }
+// For v1.0 RDD Reader
+class StarRocksNoCatalogDecoder(partition: InputPartition, settings: Settings)
+  extends AbstractStarRocksDecoder[StarRocksRow](partition, settings, null) {
 
-    public StarrocksException(Throwable cause) {
-        super(cause);
-    }
-
-    protected StarrocksException(String message, Throwable cause,
-                                 boolean enableSuppression,
-                                 boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
-    }
+  override def decode(values: Array[Any]) : StarRocksRow = {
+    new StarRocksRow(values)
+  }
 }

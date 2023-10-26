@@ -24,7 +24,7 @@ import com.starrocks.connector.spark.cfg.ConfigurationOptions.{STARROCKS_FILTER_
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 
-object StarrocksSpark {
+object StarRocksSpark {
   def starrocksRDD(
       sc: SparkContext,
       tableIdentifier: Option[String] = None,
@@ -33,6 +33,6 @@ object StarrocksSpark {
     val params = collection.mutable.Map(cfg.getOrElse(Map.empty).toSeq: _*)
     query.map { s => params += (STARROCKS_FILTER_QUERY -> s) }
     tableIdentifier.map { s => params += (STARROCKS_TABLE_IDENTIFIER -> s) }
-    new ScalaStarrocksRDD[AnyRef](sc, params.toMap)
+    new ScalaStarRocksRDD[AnyRef](sc, params.toMap)
   }
 }

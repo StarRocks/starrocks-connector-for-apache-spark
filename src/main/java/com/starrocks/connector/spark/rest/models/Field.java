@@ -19,28 +19,48 @@
 
 package com.starrocks.connector.spark.rest.models;
 
-import javax.annotation.Nullable;
-
+import java.io.Serializable;
 import java.util.Objects;
 import java.util.Optional;
+import javax.annotation.Nullable;
 
-public class Field {
+public class Field implements Serializable {
     private String name;
     @Nullable
     private String type;
     private String comment;
-    private int precision;
-    private int scale;
+    private Integer precision;
+    private Integer scale;
+    private String isKey;
+    private Integer columnSize;
 
     public Field() {
     }
 
-    public Field(String name, @Nullable String type, String comment, int precision, int scale) {
+    public Field(String name,
+                 @Nullable String type,
+                 Integer columnSize,
+                 String comment,
+                 Integer precision,
+                 Integer scale,
+                 boolean isKey) {
+        this(name, type, columnSize, comment, precision, scale, isKey ? "true" : "false");
+    }
+
+    public Field(String name,
+                 @Nullable String type,
+                 Integer columnSize,
+                 String comment,
+                 Integer precision,
+                 Integer scale,
+                 String isKey) {
         this.name = name;
         this.type = type;
+        this.columnSize = columnSize;
         this.comment = comment;
         this.precision = precision;
         this.scale = scale;
+        this.isKey = isKey;
     }
 
     public String getName() {
@@ -59,6 +79,14 @@ public class Field {
         this.type = type;
     }
 
+    public Integer getColumnSize() {
+        return columnSize;
+    }
+
+    public void setColumnSize(Integer columnSize) {
+        this.columnSize = columnSize;
+    }
+
     public String getComment() {
         return comment;
     }
@@ -67,20 +95,28 @@ public class Field {
         this.comment = comment;
     }
 
-    public int getPrecision() {
+    public Integer getPrecision() {
         return precision;
     }
 
-    public void setPrecision(int precision) {
+    public void setPrecision(Integer precision) {
         this.precision = precision;
     }
 
-    public int getScale() {
+    public Integer getScale() {
         return scale;
     }
 
-    public void setScale(int scale) {
+    public void setScale(Integer scale) {
         this.scale = scale;
+    }
+
+    public boolean getIsKey() {
+        return "true".equalsIgnoreCase(isKey);
+    }
+
+    public void setIsKey(String isKey) {
+        this.isKey = isKey;
     }
 
     @Override
@@ -92,16 +128,18 @@ public class Field {
             return false;
         }
         Field field = (Field) o;
-        return precision == field.precision &&
-                scale == field.scale &&
+        return Objects.equals(precision, field.precision) &&
+                Objects.equals(scale, field.scale) &&
                 Objects.equals(name, field.name) &&
                 Objects.equals(type, field.type) &&
-                Objects.equals(comment, field.comment);
+                Objects.equals(comment, field.comment) &&
+                Objects.equals(isKey, field.isKey) &&
+                Objects.equals(columnSize, field.columnSize);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, type, comment, precision, scale);
+        return Objects.hash(name, type, columnSize, comment, precision, scale, isKey);
     }
 
     @Override
@@ -109,9 +147,11 @@ public class Field {
         return "Field{" +
                 "name='" + name + '\'' +
                 ", type='" + type + '\'' +
+                ", columnSize=" + columnSize +
                 ", comment='" + comment + '\'' +
                 ", precision=" + precision +
                 ", scale=" + scale +
+                ", isKey=" + isKey +
                 '}';
     }
 }

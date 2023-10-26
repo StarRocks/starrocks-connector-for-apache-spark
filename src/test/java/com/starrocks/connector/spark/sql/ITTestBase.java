@@ -19,12 +19,9 @@
 
 package com.starrocks.connector.spark.sql;
 
-import org.apache.spark.sql.Row;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -36,35 +33,45 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Properties;
 import java.util.StringJoiner;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static java.util.Objects.requireNonNull;
 import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assume.assumeTrue;
+
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.spark.sql.Row;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class ITTestBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(ITTestBase.class);
 
-    protected static String FE_HTTP;
-    protected static String FE_JDBC;
+    protected static String FE_HTTP = "10.37.42.50:8031";
+    protected static String FE_JDBC = "jdbc:mysql://10.37.42.50:9031";
     protected static String USER = "root";
     protected static String PASSWORD = "";
     private static final boolean DEBUG_MODE = false;
-    protected static String DB_NAME;
+    protected static final String DB_NAME = "sr_spark_test_db";
 
     protected static Connection DB_CONNECTION;
 
-    @BeforeClass
-    public static void setUp() throws Exception {
-        FE_HTTP = DEBUG_MODE ? "127.0.0.1:8030" : System.getProperty("http_urls");
-        FE_JDBC = DEBUG_MODE ? "jdbc:mysql://127.0.0.1:9030" : System.getProperty("jdbc_urls");
-        assumeTrue(FE_HTTP != null && FE_JDBC != null);
+    @BeforeEach
+    public void beforeClass() throws Exception {
+        Properties props = loadConnProps();
+        FE_HTTP = props.getProperty("starrocks.fe.http.url", FE_HTTP);
+        FE_JDBC = props.getProperty("starrocks.fe.jdbc.url", FE_JDBC);
+        USER = props.getProperty("starrocks.user", USER);
+        PASSWORD = props.getProperty("starrocks.password", PASSWORD);
 
-        DB_NAME = "sr_spark_test_" + genRandomUuid();
         try {
-            DB_CONNECTION = DriverManager.getConnection(FE_JDBC, "root", "");
+            DB_CONNECTION = DriverManager.getConnection(FE_JDBC, USER, PASSWORD);
             LOG.info("Success to create db connection via jdbc {}", FE_JDBC);
         } catch (Exception e) {
             LOG.error("Failed to create db connection via jdbc {}", FE_JDBC, e);
@@ -72,8 +79,7 @@ public abstract class ITTestBase {
         }
 
         try {
-            String createDb = "CREATE DATABASE " + DB_NAME;
-            executeSrSQL(createDb);
+            executeSrSQL(String.format("CREATE DATABASE IF NOT EXISTS %s", DB_NAME));
             LOG.info("Successful to create database {}", DB_NAME);
         } catch (Exception e) {
             LOG.error("Failed to create database {}", DB_NAME, e);
@@ -81,12 +87,28 @@ public abstract class ITTestBase {
         }
     }
 
-    @AfterClass
-    public static void tearDown() throws Exception {
+    protected static Properties loadConnProps() throws IOException {
+        try (InputStream inputStream = ITTestBase.class.getClassLoader()
+                .getResourceAsStream("starrocks_conn.properties")) {
+            Properties props = new Properties();
+            props.load(inputStream);
+            return props;
+        }
+    }
+
+    protected static String loadSqlTemplate(String filepath) throws IOException {
+        try (InputStream inputStream = ITTestBase.class.getClassLoader().getResourceAsStream(filepath)) {
+            return IOUtils.toString(
+                    requireNonNull(inputStream, "null input stream when load '" + filepath + "'"),
+                    StandardCharsets.UTF_8);
+        }
+    }
+
+    @AfterEach
+    public void afterClass() throws Exception {
         if (DB_CONNECTION != null) {
             try {
-                String dropDb = String.format("DROP DATABASE IF EXISTS %s FORCE", DB_NAME);
-                executeSrSQL(dropDb);
+                executeSrSQL(String.format("DROP DATABASE IF EXISTS %s FORCE", DB_NAME));
                 LOG.info("Successful to drop database {}", DB_NAME);
             } catch (Exception e) {
                 LOG.error("Failed to drop database {}", DB_NAME, e);
@@ -134,6 +156,14 @@ public abstract class ITTestBase {
 
     private static final SimpleDateFormat DATETIME_FORMATTER = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
+    protected static void printRows(List<Row> rows) {
+        if (CollectionUtils.isEmpty(rows)) {
+            System.out.println("null or empty rows");
+        }
+
+        rows.forEach(row -> System.out.println(row.mkString(" | ")));
+    }
+
     protected static void verifyRows(List<List<Object>> expected, List<Row> actualRows) {
         List<List<Object>> actual = new ArrayList<>();
         for (Row row : actualRows) {
@@ -143,6 +173,7 @@ public abstract class ITTestBase {
             }
             actual.add(objects);
         }
+
         verifyResult(expected, actual);
     }
 
