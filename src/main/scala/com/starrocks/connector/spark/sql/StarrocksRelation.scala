@@ -21,6 +21,7 @@ package com.starrocks.connector.spark.sql
 
 import com.starrocks.connector.spark.cfg.ConfigurationOptions._
 import com.starrocks.connector.spark.cfg.{ConfigurationOptions, SparkSettings}
+import com.starrocks.connector.spark.read.ScalaStarrocksRowRDD
 import com.starrocks.connector.spark.sql.schema.InferSchema
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.jdbc.JdbcDialects

@@ -20,6 +20,7 @@
 package com.starrocks.connector.spark.rest;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -242,6 +243,7 @@ public class RestService implements Serializable {
     public static Schema parseSchema(String response, Logger logger) throws StarrocksException {
         logger.trace("Parse response '{}' to schema.", response);
         ObjectMapper mapper = new ObjectMapper();
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         Schema schema;
         try {
             schema = mapper.readValue(response, Schema.class);

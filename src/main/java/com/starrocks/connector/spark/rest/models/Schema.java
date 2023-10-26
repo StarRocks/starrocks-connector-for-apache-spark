@@ -51,8 +51,8 @@ public class Schema {
         this.properties = properties;
     }
 
-    public void put(String name, String type, String comment, int scale, int precision) {
-        properties.add(new Field(name, type, comment, scale, precision));
+    public void put(String name, String type, String comment, int scale, int precision, boolean isKey) {
+        properties.add(new Field(name, type, comment, scale, precision, isKey));
     }
 
     public void put(Field f) {

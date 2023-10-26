@@ -26,6 +26,7 @@ import com.starrocks.data.load.stream.StreamLoadDataFormat;
 import com.starrocks.data.load.stream.StreamLoadUtils;
 import com.starrocks.data.load.stream.properties.StreamLoadProperties;
 import com.starrocks.data.load.stream.properties.StreamLoadTableProperties;
+import org.apache.arrow.util.VisibleForTesting;
 import org.apache.spark.sql.types.ArrayType;
 import org.apache.spark.sql.types.ByteType;
 import org.apache.spark.sql.types.DataType;
@@ -45,6 +46,9 @@ import java.util.stream.Collectors;
 public class WriteStarRocksConfig extends StarRocksConfigBase {
 
     private static final long serialVersionUID = 1L;
+
+    @VisibleForTesting
+    public static final boolean FOR_TEST_LOAD_WRITER = false;
 
     public static final String WRITE_PREFIX = PREFIX + "write.";
     // The prefix of the stream load label. Available values are within [-_A-Za-z0-9]

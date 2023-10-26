@@ -47,8 +47,8 @@ public abstract class ITTestBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(ITTestBase.class);
 
-    protected static String FE_HTTP = "127.0.0.1:11901";
-    protected static String FE_JDBC = "jdbc:mysql://127.0.0.1:11903";
+    protected static String FE_HTTP = "10.37.42.50:8030";
+    protected static String FE_JDBC = "jdbc:mysql://10.37.42.50:9030";
     protected static String USER = "root";
     protected static String PASSWORD = "";
     private static final boolean DEBUG_MODE = false;

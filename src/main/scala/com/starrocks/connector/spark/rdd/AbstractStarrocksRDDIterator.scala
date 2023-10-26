@@ -62,8 +62,8 @@ private[spark] abstract class AbstractStarrocksRDDIterator[T](
     if (!hasNext) {
       throw new NoSuchElementException("End of stream")
     }
-    val value = reader.next
-    createValue(value)
+    reader.getNextRecord
+    createValue(reader.getRow)
   }
 
   def closeIfNeeded(): Unit = {
