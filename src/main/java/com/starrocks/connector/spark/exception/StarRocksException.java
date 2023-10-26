@@ -19,14 +19,26 @@
 
 package com.starrocks.connector.spark.exception;
 
-import com.starrocks.thrift.TStatusCode;
-
-import java.util.List;
-
-public class StarrocksInternalException extends StarrocksException {
-    public StarrocksInternalException(String server, TStatusCode statusCode, List<String> errorMsgs) {
-        super("StarRocks server " + server + " internal failed, status code [" + statusCode + "] error message is " +
-                errorMsgs);
+public class StarRocksException extends RuntimeException {
+    public StarRocksException() {
+        super();
     }
 
+    public StarRocksException(String message) {
+        super(message);
+    }
+
+    public StarRocksException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    public StarRocksException(Throwable cause) {
+        super(cause);
+    }
+
+    protected StarRocksException(String message, Throwable cause,
+                                 boolean enableSuppression,
+                                 boolean writableStackTrace) {
+        super(message, cause, enableSuppression, writableStackTrace);
+    }
 }

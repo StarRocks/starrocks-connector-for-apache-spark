@@ -21,15 +21,15 @@ package com.starrocks.connector.spark.rdd
 
 import com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_VALUE_READER_CLASS
 import com.starrocks.connector.spark.cfg.Settings
-import com.starrocks.connector.spark.rest.PartitionDefinition
-
-import org.apache.spark.util.TaskCompletionListener
+import com.starrocks.connector.spark.rest.RpcPartition
+import com.starrocks.connector.spark.rest.models.Schema
 import org.apache.spark.internal.Logging
+import org.apache.spark.util.TaskCompletionListener
 import org.apache.spark.{TaskContext, TaskKilledException}
 
-private[spark] abstract class AbstractStarrocksRDDIterator[T](
-    context: TaskContext,
-    partition: PartitionDefinition) extends Iterator[T] with Logging {
+private[spark] abstract class AbstractStarRocksRDDIterator[T](context: TaskContext,
+                                                              partition: RpcPartition,
+                                                              schema: Schema) extends Iterator[T] with Logging {
 
   private var initialized = false
   private var closed = false
@@ -41,8 +41,9 @@ private[spark] abstract class AbstractStarrocksRDDIterator[T](
     initReader(settings)
     val valueReaderName = settings.getProperty(STARROCKS_VALUE_READER_CLASS)
     logDebug(s"Use value reader '$valueReaderName'.")
-    val cons = Class.forName(valueReaderName).getDeclaredConstructor(classOf[PartitionDefinition], classOf[Settings])
-    cons.newInstance(partition, settings).asInstanceOf[ScalaValueReader]
+    val cons = Class.forName(valueReaderName).getDeclaredConstructor(classOf[RpcPartition], classOf[Settings])
+    // catalog read can't exec here
+    cons.newInstance(partition, settings).asInstanceOf[RpcValueReader]
   }
 
   context.addTaskCompletionListener(new TaskCompletionListener() {
@@ -62,8 +63,8 @@ private[spark] abstract class AbstractStarrocksRDDIterator[T](
     if (!hasNext) {
       throw new NoSuchElementException("End of stream")
     }
-    val value = reader.next
-    createValue(value)
+    reader.getNextRecord
+    createValue(reader.getRow)
   }
 
   def closeIfNeeded(): Unit = {
@@ -85,6 +86,7 @@ private[spark] abstract class AbstractStarrocksRDDIterator[T](
 
   /**
    * convert value of row from reader.next return type to T.
+   *
    * @param value reader.next return value
    * @return value of type T
    */

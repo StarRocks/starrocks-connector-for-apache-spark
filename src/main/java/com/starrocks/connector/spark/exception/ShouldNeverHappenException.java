@@ -19,5 +19,5 @@
 
 package com.starrocks.connector.spark.exception;
 
-public class ShouldNeverHappenException extends StarrocksException {
+public class ShouldNeverHappenException extends StarRocksException {
 }

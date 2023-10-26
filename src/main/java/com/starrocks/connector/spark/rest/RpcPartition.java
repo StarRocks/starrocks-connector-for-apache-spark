@@ -22,6 +22,7 @@ package com.starrocks.connector.spark.rest;
 import com.starrocks.connector.spark.cfg.PropertiesSettings;
 import com.starrocks.connector.spark.cfg.Settings;
 import com.starrocks.connector.spark.exception.IllegalArgumentException;
+import org.apache.spark.sql.connector.read.InputPartition;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -32,7 +33,7 @@ import java.util.Set;
 /**
  * Starrocks RDD partition info.
  */
-public class PartitionDefinition implements Serializable, Comparable<PartitionDefinition> {
+public class RpcPartition implements Serializable, Comparable<RpcPartition>, InputPartition {
     private final String database;
     private final String table;
 
@@ -41,8 +42,9 @@ public class PartitionDefinition implements Serializable, Comparable<PartitionDe
     private final String queryPlan;
     private final String serializedSettings;
 
-    public PartitionDefinition(String database, String table,
-                               Settings settings, String beAddress, Set<Long> tabletIds, String queryPlan)
+    public RpcPartition(String database, String table,
+                        Settings settings, String beAddress,
+                        Set<Long> tabletIds, String queryPlan)
             throws IllegalArgumentException {
         if (settings != null) {
             this.serializedSettings = settings.save();
@@ -81,7 +83,7 @@ public class PartitionDefinition implements Serializable, Comparable<PartitionDe
         return serializedSettings != null ? settings.load(serializedSettings) : settings;
     }
 
-    public int compareTo(PartitionDefinition o) {
+    public int compareTo(RpcPartition o) {
         int cmp = database.compareTo(o.database);
         if (cmp != 0) {
             return cmp;
@@ -125,7 +127,7 @@ public class PartitionDefinition implements Serializable, Comparable<PartitionDe
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        PartitionDefinition that = (PartitionDefinition) o;
+        RpcPartition that = (RpcPartition) o;
         return Objects.equals(database, that.database) &&
                 Objects.equals(table, that.table) &&
                 Objects.equals(beAddress, that.beAddress) &&
@@ -146,7 +148,7 @@ public class PartitionDefinition implements Serializable, Comparable<PartitionDe
 
     @Override
     public String toString() {
-        return "PartitionDefinition{" +
+        return "RpcPartition{" +
                 ", database='" + database + '\'' +
                 ", table='" + table + '\'' +
                 ", beAddress='" + beAddress + '\'' +

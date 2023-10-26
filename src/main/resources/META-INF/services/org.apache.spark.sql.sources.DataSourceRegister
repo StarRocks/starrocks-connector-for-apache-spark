@@ -17,4 +17,4 @@
 # specific language governing permissions and limitations
 # under the License.
 
-com.starrocks.connector.spark.sql.StarRocksTableProvider
+com.starrocks.connector.spark.sql.StarRocksDataSourceProvider

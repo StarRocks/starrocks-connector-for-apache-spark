@@ -19,11 +19,12 @@
 
 package com.starrocks.connector.spark.serialization;
 
-import static com.starrocks.connector.spark.util.ErrorMessages.PARSE_NUMBER_FAILED_MESSAGE;
 
 import com.starrocks.connector.spark.exception.IllegalArgumentException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static com.starrocks.connector.spark.util.ErrorMessages.PARSE_NUMBER_FAILED_MESSAGE;
 
 /**
  * present an StarRocks BE address.

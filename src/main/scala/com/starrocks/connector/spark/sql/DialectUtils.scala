@@ -20,14 +20,14 @@
 package com.starrocks.connector.spark.sql
 
 import com.starrocks.connector.spark.cfg.ConfigurationOptions
-import com.starrocks.connector.spark.exception.StarrocksException
+import com.starrocks.connector.spark.exception.StarRocksException
 import com.starrocks.connector.spark.sql.conf.StarRocksConfigBase.KEY_FE_HTTP
 import com.starrocks.connector.spark.sql.conf.WriteStarRocksConfig
 import org.apache.spark.sql.jdbc.JdbcDialect
 import org.apache.spark.sql.sources._
 import org.slf4j.Logger
 
-private[sql] object Utils {
+private[spark] object DialectUtils {
   /**
    * quote column name
    * @param colName column name
@@ -108,11 +108,11 @@ private[sql] object Utils {
     val replaceParams = prefixParams.map{
       case (ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD, _) =>
         logger.error(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD} cannot use in StarRocks Datasource.")
-        throw new StarrocksException(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD} cannot use in" +
+        throw new StarRocksException(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD} cannot use in" +
           s" StarRocks Datasource, use 'password' option to set password.")
       case (ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER, _) =>
         logger.error(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER} cannot use in StarRocks Datasource.")
-        throw new StarrocksException(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER} cannot use in" +
+        throw new StarRocksException(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER} cannot use in" +
           s" StarRocks Datasource, use 'user' option to set user.")
       case (ConfigurationOptions.STARROCKS_PASSWORD, v) =>
         (ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD, v)
@@ -140,7 +140,7 @@ private[sql] object Utils {
 
     // validate path is available
     finalParams.getOrElse(ConfigurationOptions.STARROCKS_TABLE_IDENTIFIER,
-        throw new StarrocksException("table identifier must be specified for StarRocks table identifier."))
+        throw new StarRocksException("table identifier must be specified for StarRocks table identifier."))
 
     finalParams
   }
