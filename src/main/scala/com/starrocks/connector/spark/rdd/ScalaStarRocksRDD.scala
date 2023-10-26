@@ -19,30 +19,29 @@
 
 package com.starrocks.connector.spark.rdd
 
-import scala.reflect.ClassTag
-
 import com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_VALUE_READER_CLASS
 import com.starrocks.connector.spark.cfg.Settings
-import com.starrocks.connector.spark.rest.PartitionDefinition
-
+import com.starrocks.connector.spark.rest.RpcPartition
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 
-private[spark] class ScalaStarrocksRDD[T: ClassTag](
+import scala.reflect.ClassTag
+
+private[spark] class ScalaStarRocksRDD[T: ClassTag](
     sc: SparkContext,
     params: Map[String, String] = Map.empty)
-    extends AbstractStarrocksRDD[T](sc, params) {
-  override def compute(split: Partition, context: TaskContext): ScalaStarrocksRDDIterator[T] = {
-    new ScalaStarrocksRDDIterator(context, split.asInstanceOf[StarrocksPartition].starrocksPartition)
+    extends AbstractStarRocksRDD[T](sc, params) {
+  override def compute(split: Partition, context: TaskContext): ScalaStarRocksRDDIterator[T] = {
+    new ScalaStarRocksRDDIterator(context, split.asInstanceOf[StarRocksPartition].starrocksPartition)
   }
 }
 
-private[spark] class ScalaStarrocksRDDIterator[T](
+private[spark] class ScalaStarRocksRDDIterator[T](
     context: TaskContext,
-    partition: PartitionDefinition)
-    extends AbstractStarrocksRDDIterator[T](context, partition) {
+    partition: RpcPartition)
+    extends AbstractStarRocksRDDIterator[T](context, partition, null) {
 
   override def initReader(settings: Settings) = {
-    settings.setProperty(STARROCKS_VALUE_READER_CLASS, classOf[ScalaValueReader].getName)
+    settings.setProperty(STARROCKS_VALUE_READER_CLASS, classOf[RpcValueReader].getName)
   }
 
   override def createValue(value: Object): T = {

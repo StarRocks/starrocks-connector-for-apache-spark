@@ -25,7 +25,7 @@ import org.junit.Test;
 import java.util.HashSet;
 import java.util.Set;
 
-public class TestPartitionDefinition {
+public class RpcPartitionTest {
     private static final String DATABASE_1 = "database1";
     private static final String TABLE_1 = "table1";
     private static final String BE_1 = "be1";
@@ -48,19 +48,19 @@ public class TestPartitionDefinition {
         tabletSet3.add(TABLET_ID_1);
         tabletSet3.add(TABLET_ID_2);
 
-        PartitionDefinition pd1 = new PartitionDefinition(
+        RpcPartition pd1 = new RpcPartition(
                 DATABASE_1, TABLE_1, null, BE_1, tabletSet1, QUERY_PLAN_1);
-        PartitionDefinition pd3 = new PartitionDefinition(
+        RpcPartition pd3 = new RpcPartition(
                 DATABASE_2, TABLE_1, null, BE_1, tabletSet1, QUERY_PLAN_1);
-        PartitionDefinition pd4 = new PartitionDefinition(
+        RpcPartition pd4 = new RpcPartition(
                 DATABASE_1, TABLE_2, null, BE_1, tabletSet1, QUERY_PLAN_1);
-        PartitionDefinition pd5 = new PartitionDefinition(
+        RpcPartition pd5 = new RpcPartition(
                 DATABASE_1, TABLE_1, null, BE_2, tabletSet1, QUERY_PLAN_1);
-        PartitionDefinition pd6 = new PartitionDefinition(
+        RpcPartition pd6 = new RpcPartition(
                 DATABASE_1, TABLE_1, null, BE_1, tabletSet2, QUERY_PLAN_1);
-        PartitionDefinition pd7 = new PartitionDefinition(
+        RpcPartition pd7 = new RpcPartition(
                 DATABASE_1, TABLE_1, null, BE_1, tabletSet3, QUERY_PLAN_1);
-        PartitionDefinition pd8 = new PartitionDefinition(
+        RpcPartition pd8 = new RpcPartition(
                 DATABASE_1, TABLE_1, null, BE_1, tabletSet1, QUERY_PLAN_2);
         Assert.assertTrue(pd1.compareTo(pd3) < 0);
         Assert.assertTrue(pd1.compareTo(pd4) < 0);

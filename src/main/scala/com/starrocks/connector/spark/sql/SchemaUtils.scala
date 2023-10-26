@@ -19,17 +19,18 @@
 
 package com.starrocks.connector.spark.sql
 
-import scala.collection.JavaConverters._
-
 import com.starrocks.connector.spark.cfg.Settings
-import com.starrocks.connector.spark.exception.StarrocksException
+import com.starrocks.connector.spark.exception.StarRocksException
 import com.starrocks.connector.spark.rest.RestService
 import com.starrocks.connector.spark.rest.models.{Field, Schema}
+import com.starrocks.connector.spark.sql.schema.{StarRocksField, StarRocksSchema}
 import com.starrocks.thrift.TScanColumnDesc
-
+import org.apache.commons.collections4.CollectionUtils
 import org.apache.spark.sql.types._
-
 import org.slf4j.LoggerFactory
+
+import java.util
+import scala.collection.JavaConverters._
 
 private[spark] object SchemaUtils {
   private val logger = LoggerFactory.getLogger(SchemaUtils.getClass.getSimpleName.stripSuffix("$"))
@@ -39,8 +40,8 @@ private[spark] object SchemaUtils {
    * @param cfg configuration
    * @return Spark Catalyst StructType
    */
-  def discoverSchema(cfg: Settings): StructType = {
-    val schema = discoverSchemaFromFe(cfg)
+  def discoverDataType(cfg: Settings): StructType = {
+    val schema = discoverTableSchema(cfg)
     convertToStruct(schema)
   }
 
@@ -49,9 +50,7 @@ private[spark] object SchemaUtils {
    * @param cfg configuration
    * @return inner schema struct
    */
-  def discoverSchemaFromFe(cfg: Settings): Schema = {
-    RestService.getSchema(cfg, logger)
-  }
+  def discoverTableSchema(cfg: Settings): Schema = RestService.getSchema(cfg, logger)
 
   /**
    * convert inner schema struct to Spark Catalyst StructType
@@ -59,7 +58,7 @@ private[spark] object SchemaUtils {
    * @return Spark Catalyst StructType
    */
   def convertToStruct(schema: Schema): StructType = {
-    var fields = List[StructField]()
+    var fields:List[StructField] = List()
     schema.getProperties.asScala.foreach(f =>
       fields :+= DataTypes.createStructField(f.getName, getCatalystType(f.getType, f.getPrecision, f.getScale), true))
     DataTypes.createStructType(fields.asJava)
@@ -97,7 +96,7 @@ private[spark] object SchemaUtils {
       case "JSON"            => DataTypes.StringType
       // ARRAY HLL BITMAP
       case _                 =>
-        throw new StarrocksException("Unsupported type " + starrocksType)
+        throw new StarRocksException("Unsupported type " + starrocksType)
     }
   }
 
@@ -106,9 +105,25 @@ private[spark] object SchemaUtils {
    * @param tscanColumnDescs StarRocks BE return schema
    * @return inner schema struct
    */
-  def convertToSchema(tscanColumnDescs: Seq[TScanColumnDesc]): Schema = {
-    val schema = new Schema(tscanColumnDescs.length)
-    tscanColumnDescs.foreach(desc => schema.put(new Field(desc.getName, desc.getType.name, "", 0, 0)))
-    schema
+  def convert(tscanColumnDescs: Seq[TScanColumnDesc]): StarRocksSchema = {
+    val fields = tscanColumnDescs.toStream
+      .map(desc => new StarRocksField(desc.getName, desc.getType.name, 0, 0, 0, 0)).toList
+    new StarRocksSchema(fields.asJava)
   }
+
+  //TODO schema only use
+  def convert(schema: Schema): StarRocksSchema = {
+    val columns: util.List[StarRocksField] = new util.ArrayList[StarRocksField]
+    val pks: util.List[StarRocksField] = new util.ArrayList[StarRocksField]
+    val fields: util.List[Field] = schema.getProperties
+    if (CollectionUtils.isNotEmpty(fields)) for (i <- 0 until fields.size) {
+      val field: Field = fields.get(i)
+      val srField: StarRocksField = new StarRocksField(field.getName, field.getType, i + 1, // start at 1
+        field.getColumnSize, field.getPrecision, field.getScale)
+      columns.add(srField)
+      if (field.getIsKey) pks.add(srField)
+    }
+    new StarRocksSchema(columns, pks, schema.getTableId)
+  }
+
 }

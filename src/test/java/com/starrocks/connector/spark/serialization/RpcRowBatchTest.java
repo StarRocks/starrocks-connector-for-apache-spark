@@ -22,6 +22,7 @@ package com.starrocks.connector.spark.serialization;
 import com.google.common.collect.ImmutableList;
 import com.starrocks.connector.spark.rest.RestService;
 import com.starrocks.connector.spark.rest.models.Schema;
+import com.starrocks.connector.spark.sql.SchemaUtils;
 import com.starrocks.thrift.TScanBatchResult;
 import com.starrocks.thrift.TStatus;
 import com.starrocks.thrift.TStatusCode;
@@ -62,8 +63,8 @@ import java.util.NoSuchElementException;
 
 import static org.hamcrest.core.StringStartsWith.startsWith;
 
-public class TestRowBatch {
-    private static Logger logger = LoggerFactory.getLogger(TestRowBatch.class);
+public class RpcRowBatchTest {
+    private static Logger logger = LoggerFactory.getLogger(RpcRowBatchTest.class);
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();
@@ -247,7 +248,7 @@ public class TestRowBatch {
 
         Schema schema = RestService.parseSchema(schemaStr, logger);
 
-        RowBatch rowBatch = new RowBatch(scanBatchResult, schema);
+        RpcRowBatch rowBatch = new RpcRowBatch(scanBatchResult, SchemaUtils.convert(schema));
 
         List<Object> expectedRow1 = Arrays.asList(
                 Boolean.TRUE,
@@ -361,24 +362,24 @@ public class TestRowBatch {
 
         Schema schema = RestService.parseSchema(schemaStr, logger);
 
-        RowBatch rowBatch = new RowBatch(scanBatchResult, schema);
+        RpcRowBatch rpcRowBatch = new RpcRowBatch(scanBatchResult, SchemaUtils.convert(schema));
 
-        Assert.assertTrue(rowBatch.hasNext());
-        List<Object> actualRow0 = rowBatch.next();
+        Assert.assertTrue(rpcRowBatch.hasNext());
+        List<Object> actualRow0 = rpcRowBatch.next();
         Assert.assertArrayEquals(binaryRow0, (byte[]) actualRow0.get(0));
 
-        Assert.assertTrue(rowBatch.hasNext());
-        List<Object> actualRow1 = rowBatch.next();
+        Assert.assertTrue(rpcRowBatch.hasNext());
+        List<Object> actualRow1 = rpcRowBatch.next();
         Assert.assertArrayEquals(binaryRow1, (byte[]) actualRow1.get(0));
 
-        Assert.assertTrue(rowBatch.hasNext());
-        List<Object> actualRow2 = rowBatch.next();
+        Assert.assertTrue(rpcRowBatch.hasNext());
+        List<Object> actualRow2 = rpcRowBatch.next();
         Assert.assertArrayEquals(binaryRow2, (byte[]) actualRow2.get(0));
 
-        Assert.assertFalse(rowBatch.hasNext());
+        Assert.assertFalse(rpcRowBatch.hasNext());
         thrown.expect(NoSuchElementException.class);
         thrown.expectMessage(startsWith("Get row offset:"));
-        rowBatch.next();
+        rpcRowBatch.next();
     }
 
     @Test
@@ -425,24 +426,24 @@ public class TestRowBatch {
 
         Schema schema = RestService.parseSchema(schemaStr, logger);
 
-        RowBatch rowBatch = new RowBatch(scanBatchResult, schema);
+        RpcRowBatch rpcRowBatch = new RpcRowBatch(scanBatchResult, SchemaUtils.convert(schema));
 
-        Assert.assertTrue(rowBatch.hasNext());
-        List<Object> actualRow0 = rowBatch.next();
+        Assert.assertTrue(rpcRowBatch.hasNext());
+        List<Object> actualRow0 = rpcRowBatch.next();
         Assert.assertEquals(Decimal.apply(12340000000L, 11, 9), (Decimal) actualRow0.get(0));
 
-        Assert.assertTrue(rowBatch.hasNext());
-        List<Object> actualRow1 = rowBatch.next();
+        Assert.assertTrue(rpcRowBatch.hasNext());
+        List<Object> actualRow1 = rpcRowBatch.next();
         Assert.assertEquals(Decimal.apply(88880000000L, 11, 9), (Decimal) actualRow1.get(0));
 
-        Assert.assertTrue(rowBatch.hasNext());
-        List<Object> actualRow2 = rowBatch.next();
+        Assert.assertTrue(rpcRowBatch.hasNext());
+        List<Object> actualRow2 = rpcRowBatch.next();
         Assert.assertEquals(Decimal.apply(10000000000L, 11, 9), (Decimal) actualRow2.get(0));
 
-        Assert.assertFalse(rowBatch.hasNext());
+        Assert.assertFalse(rpcRowBatch.hasNext());
         thrown.expect(NoSuchElementException.class);
         thrown.expectMessage(startsWith("Get row offset:"));
-        rowBatch.next();
+        rpcRowBatch.next();
     }
 
     @Test
@@ -490,23 +491,23 @@ public class TestRowBatch {
 
         Schema schema = RestService.parseSchema(schemaStr, logger);
 
-        RowBatch rowBatch = new RowBatch(scanBatchResult, schema);
+        RpcRowBatch rpcRowBatch = new RpcRowBatch(scanBatchResult, SchemaUtils.convert(schema));
 
-        Assert.assertTrue(rowBatch.hasNext());
-        List<Object> actualRow0 = rowBatch.next();
+        Assert.assertTrue(rpcRowBatch.hasNext());
+        List<Object> actualRow0 = rpcRowBatch.next();
         Assert.assertEquals(Decimal.apply(12340000L, 17, 6), (Decimal) actualRow0.get(0));
 
-        Assert.assertTrue(rowBatch.hasNext());
-        List<Object> actualRow1 = rowBatch.next();
+        Assert.assertTrue(rpcRowBatch.hasNext());
+        List<Object> actualRow1 = rpcRowBatch.next();
         Assert.assertEquals(Decimal.apply(88880000L, 17, 6), (Decimal) actualRow1.get(0));
 
-        Assert.assertTrue(rowBatch.hasNext());
-        List<Object> actualRow2 = rowBatch.next();
+        Assert.assertTrue(rpcRowBatch.hasNext());
+        List<Object> actualRow2 = rpcRowBatch.next();
         Assert.assertEquals(Decimal.apply(10000000L, 17, 6), (Decimal) actualRow2.get(0));
 
-        Assert.assertFalse(rowBatch.hasNext());
+        Assert.assertFalse(rpcRowBatch.hasNext());
         thrown.expect(NoSuchElementException.class);
         thrown.expectMessage(startsWith("Get row offset:"));
-        rowBatch.next();
+        rpcRowBatch.next();
     }
 }

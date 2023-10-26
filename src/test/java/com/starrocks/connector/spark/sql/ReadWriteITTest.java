@@ -231,7 +231,7 @@ public class ReadWriteITTest extends ITTestBase {
         spark.stop();
     }
 
-    private void prepareScoreBoardTable(String tableName) throws Exception {
+    public static void prepareScoreBoardTable(String tableName) throws Exception {
         String createStarRocksTable =
                 String.format("CREATE TABLE `%s`.`%s` (" +
                                 "id INT," +

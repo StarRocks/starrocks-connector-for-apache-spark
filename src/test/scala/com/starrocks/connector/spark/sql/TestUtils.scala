@@ -20,7 +20,7 @@
 package com.starrocks.connector.spark.sql
 
 import com.starrocks.connector.spark.cfg.ConfigurationOptions
-import com.starrocks.connector.spark.exception.StarrocksException
+import com.starrocks.connector.spark.exception.StarRocksException
 import org.apache.spark.sql.jdbc.JdbcDialects
 import org.apache.spark.sql.sources._
 import org.hamcrest.core.StringStartsWith.startsWith
@@ -51,22 +51,22 @@ class TestUtils extends ExpectedExceptionTest {
     val validOrFilter = Or(equalFilter, greaterThanFilter)
     val invalidOrFilter = Or(equalFilter, notSupportFilter)
 
-    Assert.assertEquals("`left` = 5", Utils.compileFilter(equalFilter, dialect, inValueLengthLimit).get)
-    Assert.assertEquals("`left` > 5", Utils.compileFilter(greaterThanFilter, dialect, inValueLengthLimit).get)
-    Assert.assertEquals("`left` >= 5", Utils.compileFilter(greaterThanOrEqualFilter, dialect, inValueLengthLimit).get)
-    Assert.assertEquals("`left` < 5", Utils.compileFilter(lessThanFilter, dialect, inValueLengthLimit).get)
-    Assert.assertEquals("`left` <= 5", Utils.compileFilter(lessThanOrEqualFilter, dialect, inValueLengthLimit).get)
-    Assert.assertEquals("`left` in (1, 2, 3, 4)", Utils.compileFilter(validInFilter, dialect, inValueLengthLimit).get)
-    Assert.assertTrue(Utils.compileFilter(emptyInFilter, dialect, inValueLengthLimit).isEmpty)
-    Assert.assertTrue(Utils.compileFilter(invalidInFilter, dialect, inValueLengthLimit).isEmpty)
-    Assert.assertEquals("`left` is null", Utils.compileFilter(isNullFilter, dialect, inValueLengthLimit).get)
-    Assert.assertEquals("`left` is not null", Utils.compileFilter(isNotNullFilter, dialect, inValueLengthLimit).get)
+    Assert.assertEquals("`left` = 5", DialectUtils.compileFilter(equalFilter, dialect, inValueLengthLimit).get)
+    Assert.assertEquals("`left` > 5", DialectUtils.compileFilter(greaterThanFilter, dialect, inValueLengthLimit).get)
+    Assert.assertEquals("`left` >= 5", DialectUtils.compileFilter(greaterThanOrEqualFilter, dialect, inValueLengthLimit).get)
+    Assert.assertEquals("`left` < 5", DialectUtils.compileFilter(lessThanFilter, dialect, inValueLengthLimit).get)
+    Assert.assertEquals("`left` <= 5", DialectUtils.compileFilter(lessThanOrEqualFilter, dialect, inValueLengthLimit).get)
+    Assert.assertEquals("`left` in (1, 2, 3, 4)", DialectUtils.compileFilter(validInFilter, dialect, inValueLengthLimit).get)
+    Assert.assertTrue(DialectUtils.compileFilter(emptyInFilter, dialect, inValueLengthLimit).isEmpty)
+    Assert.assertTrue(DialectUtils.compileFilter(invalidInFilter, dialect, inValueLengthLimit).isEmpty)
+    Assert.assertEquals("`left` is null", DialectUtils.compileFilter(isNullFilter, dialect, inValueLengthLimit).get)
+    Assert.assertEquals("`left` is not null", DialectUtils.compileFilter(isNotNullFilter, dialect, inValueLengthLimit).get)
     Assert.assertEquals("(`left` = 5) and (`left` > 5)",
-      Utils.compileFilter(validAndFilter, dialect, inValueLengthLimit).get)
-    Assert.assertTrue(Utils.compileFilter(invalidAndFilter, dialect, inValueLengthLimit).isEmpty)
+      DialectUtils.compileFilter(validAndFilter, dialect, inValueLengthLimit).get)
+    Assert.assertTrue(DialectUtils.compileFilter(invalidAndFilter, dialect, inValueLengthLimit).isEmpty)
     Assert.assertEquals("(`left` = 5) or (`left` > 5)",
-      Utils.compileFilter(validOrFilter, dialect, inValueLengthLimit).get)
-    Assert.assertTrue(Utils.compileFilter(invalidOrFilter, dialect, inValueLengthLimit).isEmpty)
+      DialectUtils.compileFilter(validOrFilter, dialect, inValueLengthLimit).get)
+    Assert.assertTrue(DialectUtils.compileFilter(invalidOrFilter, dialect, inValueLengthLimit).isEmpty)
   }
 
   @Test
@@ -77,7 +77,7 @@ class TestUtils extends ExpectedExceptionTest {
       "user" -> "user",
       "password" -> "password"
     )
-    val result1 = Utils.params(parameters1, logger)
+    val result1 = DialectUtils.params(parameters1, logger)
     Assert.assertEquals("a.b", result1(ConfigurationOptions.STARROCKS_TABLE_IDENTIFIER))
     Assert.assertEquals("x_y", result1("starrocks.test.underline"))
     Assert.assertEquals("user", result1("starrocks.request.auth.user"))
@@ -87,22 +87,22 @@ class TestUtils extends ExpectedExceptionTest {
     val parameters2 = Map(
       ConfigurationOptions.TABLE_IDENTIFIER -> "a.b"
     )
-    val result2 = Utils.params(parameters2, logger)
+    val result2 = DialectUtils.params(parameters2, logger)
     Assert.assertEquals("a.b", result2(ConfigurationOptions.STARROCKS_TABLE_IDENTIFIER))
 
     val parameters3 = Map(
       ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD -> "a.b"
     )
-    thrown.expect(classOf[StarrocksException])
+    thrown.expect(classOf[StarRocksException])
     thrown.expectMessage(
       startsWith(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD} cannot use in StarRocks Datasource,"))
-    Utils.params(parameters3, logger)
+    DialectUtils.params(parameters3, logger)
 
     val parameters4 = Map(
       ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER -> "a.b"
     )
-    thrown.expect(classOf[StarrocksException])
+    thrown.expect(classOf[StarRocksException])
     thrown.expectMessage(startsWith(s"${ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER} cannot use in StarRocks Datasource,"))
-    Utils.params(parameters4, logger)
+    DialectUtils.params(parameters4, logger)
   }
 }

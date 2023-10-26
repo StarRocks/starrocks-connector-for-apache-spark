@@ -19,17 +19,12 @@
 
 package com.starrocks.connector.spark.rest;
 
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_FENODES;
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLET_SIZE;
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLET_SIZE_DEFAULT;
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLET_SIZE_MIN;
-import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLE_IDENTIFIER;
-import static org.hamcrest.core.StringStartsWith.startsWith;
+import java.util.*;
 
 import com.starrocks.connector.spark.cfg.PropertiesSettings;
 import com.starrocks.connector.spark.cfg.Settings;
-import com.starrocks.connector.spark.exception.StarrocksException;
 import com.starrocks.connector.spark.exception.IllegalArgumentException;
+import com.starrocks.connector.spark.exception.StarRocksException;
 import com.starrocks.connector.spark.rest.models.Field;
 import com.starrocks.connector.spark.rest.models.QueryPlan;
 import com.starrocks.connector.spark.rest.models.Schema;
@@ -41,17 +36,11 @@ import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import static com.starrocks.connector.spark.cfg.ConfigurationOptions.*;
+import static org.hamcrest.core.StringStartsWith.startsWith;
 
-public class TestRestService {
-    private static Logger logger = LoggerFactory.getLogger(TestRestService.class);
+public class RestServiceTest {
+    private static Logger logger = LoggerFactory.getLogger(RestServiceTest.class);
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();
@@ -113,7 +102,7 @@ public class TestRestService {
         settings.setProperty(STARROCKS_FENODES, "fe");
 
         String expected = "http://fe/api/a/b/";
-        Assert.assertEquals(expected, RestService.getUriStr(settings, logger));
+        Assert.assertEquals(expected, RestService.getSchemaUriStr(settings));
     }
 
     @Test
@@ -123,29 +112,29 @@ public class TestRestService {
                 + "\"scale\":\"9\",\"comment\":\"\",\"type\":\"DECIMAL128\",\"precision\":\"30\"}],\"status\":200}";
         Schema expected = new Schema();
         expected.setStatus(200);
-        Field k1 = new Field("k1", "TINYINT", "", 0, 0);
-        Field k5 = new Field("k5", "DECIMALV2", "", 9, 0);
-        Field k6 = new Field("k6", "DECIMAL128", "", 30, 9);
+        Field k1 = new Field("k1", "TINYINT", 3, "", 0, 0, true);
+        Field k5 = new Field("k5", "DECIMALV2", 27, "", 9, 0, true);
+        Field k6 = new Field("k6", "DECIMAL128", 38, "", 30, 9, true);
         expected.put(k1);
         expected.put(k5);
         expected.put(k6);
         Assert.assertEquals(expected, RestService.parseSchema(res, logger));
 
         String notJsonRes = "not json";
-        thrown.expect(StarrocksException.class);
+        thrown.expect(StarRocksException.class);
         thrown.expectMessage(startsWith("StarRocks FE's response is not a json. res:"));
         RestService.parseSchema(notJsonRes, logger);
 
         String notSchemaRes = "{\"property\":[{\"type\":\"TINYINT\",\"name\":\"k1\",\"comment\":\"\"},"
                 + "{\"name\":\"k5\",\"scale\":\"0\",\"comment\":\"\",\"type\":\"DECIMALV2\",\"precision\":\"9\"}],"
                 + "\"status\":200}";
-        thrown.expect(StarrocksException.class);
+        thrown.expect(StarRocksException.class);
         thrown.expectMessage(startsWith("StarRocks FE's response cannot map to schema. res: "));
         RestService.parseSchema(notSchemaRes, logger);
 
         String notOkRes = "{\"properties\":[{\"type\":\"TINYINT\",\"name\":\"k1\",\"comment\":\"\"},{\"name\":\"k5\","
                 + "\"scale\":\"0\",\"comment\":\"\",\"type\":\"DECIMALV2\",\"precision\":\"9\"}],\"status\":20}";
-        thrown.expect(StarrocksException.class);
+        thrown.expect(StarRocksException.class);
         thrown.expectMessage(startsWith("StarRocks FE's response is not OK, status is "));
         RestService.parseSchema(notOkRes, logger);
     }
@@ -184,24 +173,24 @@ public class TestRestService {
         QueryPlan expected = new QueryPlan();
         expected.setPartitions(partitions);
         expected.setStatus(200);
-        expected.setOpaqued_query_plan("query_plan");
+        expected.setOpaquedQueryPlan("query_plan");
 
-        QueryPlan actual = RestService.getQueryPlan(res, logger);
+        QueryPlan actual = RestService.parseQueryPlan(res, logger);
         Assert.assertEquals(expected, actual);
 
         String notJsonRes = "not json";
-        thrown.expect(StarrocksException.class);
+        thrown.expect(StarRocksException.class);
         thrown.expectMessage(startsWith("StarRocks FE's response is not a json. res:"));
         RestService.parseSchema(notJsonRes, logger);
 
         String notQueryPlanRes = "{\"hello\": \"world\"}";
-        thrown.expect(StarrocksException.class);
+        thrown.expect(StarRocksException.class);
         thrown.expectMessage(startsWith("StarRocks FE's response cannot map to schema. res: "));
         RestService.parseSchema(notQueryPlanRes, logger);
 
         String notOkRes = "{\"partitions\":{\"11017\":{\"routings\":[\"be1\",\"be2\"],\"version\":3,"
                 + "\"versionHash\":1,\"schemaHash\":1}},\"opaqued_query_plan\":\"queryPlan\",\"status\":20}";
-        thrown.expect(StarrocksException.class);
+        thrown.expect(StarRocksException.class);
         thrown.expectMessage(startsWith("StarRocks FE's response is not OK, status is "));
         RestService.parseSchema(notOkRes, logger);
     }
@@ -214,7 +203,7 @@ public class TestRestService {
                 + "\"11021\":{\"routings\":[\"be3\"],\"version\":3,\"versionHash\":1,\"schemaHash\":1}},"
                 + "\"opaqued_query_plan\":\"query_plan\",\"status\":200}";
 
-        QueryPlan queryPlan = RestService.getQueryPlan(res, logger);
+        QueryPlan queryPlan = RestService.parseQueryPlan(res, logger);
 
         List<Long> be1Tablet = new ArrayList<>();
         be1Tablet.add(11017L);
@@ -230,16 +219,16 @@ public class TestRestService {
         String noBeRes = "{\"partitions\":{"
                 + "\"11021\":{\"routings\":[],\"version\":3,\"versionHash\":1,\"schemaHash\":1}},"
                 + "\"opaqued_query_plan\":\"query_plan\",\"status\":200}";
-        thrown.expect(StarrocksException.class);
+        thrown.expect(StarRocksException.class);
         thrown.expectMessage(startsWith("Cannot choice StarRocks BE for tablet"));
-        RestService.selectBeForTablet(RestService.getQueryPlan(noBeRes, logger), logger);
+        RestService.selectBeForTablet(RestService.parseQueryPlan(noBeRes, logger), logger);
 
         String notNumberRes = "{\"partitions\":{"
                 + "\"11021xxx\":{\"routings\":[\"be1\"],\"version\":3,\"versionHash\":1,\"schemaHash\":1}},"
                 + "\"opaqued_query_plan\":\"query_plan\",\"status\":200}";
-        thrown.expect(StarrocksException.class);
+        thrown.expect(StarRocksException.class);
         thrown.expectMessage(startsWith("Parse tablet id "));
-        RestService.selectBeForTablet(RestService.getQueryPlan(noBeRes, logger), logger);
+        RestService.selectBeForTablet(RestService.parseQueryPlan(noBeRes, logger), logger);
     }
 
     @Test
@@ -280,24 +269,46 @@ public class TestRestService {
         Set<Long> be1Tablet = new HashSet<>();
         be1Tablet.add(1L);
         be1Tablet.add(2L);
-        PartitionDefinition pd1 = new PartitionDefinition(
+        RpcPartition pd1 = new RpcPartition(
                 database, table, settings, "be1", be1Tablet, opaquedQueryPlan);
 
         Set<Long> be2Tablet = new HashSet<>();
         be2Tablet.add(3L);
         be2Tablet.add(4L);
-        PartitionDefinition pd2 = new PartitionDefinition(
+        RpcPartition pd2 = new RpcPartition(
                 database, table, settings, "be2", be2Tablet, opaquedQueryPlan);
 
-        List<PartitionDefinition> expected = new ArrayList<>();
+        List<RpcPartition> expected = new ArrayList<>();
         expected.add(pd1);
         expected.add(pd2);
         Collections.sort(expected);
 
-        List<PartitionDefinition> actual = RestService.tabletsMapToPartition(
+        List<RpcPartition> actual = RestService.tabletsMapToPartition(
                 settings, beToTablets, opaquedQueryPlan, database, table, logger);
         Collections.sort(actual);
 
         Assert.assertEquals(expected, actual);
+    }
+
+    @Test
+    public void testNewSchemaResp() {
+        String resp = "{\"tableId\":\"16025\",\"etlTable\":{\"indexes\":[{\"indexId\":16026," +
+                "\"columns\":[{\"columnName\":\"id\",\"columnType\":\"INT\",\"isAllowNull\":false,\"isKey\":true," +
+                "\"aggregationType\":null,\"defaultValue\":null,\"stringLength\":0,\"precision\":0,\"scale\":0," +
+                "\"defineExpr\":null},{\"columnName\":\"name\",\"columnType\":\"VARCHAR\",\"isAllowNull\":true," +
+                "\"isKey\":false,\"aggregationType\":\"NONE\",\"defaultValue\":\"\",\"stringLength\":65533," +
+                "\"precision\":0,\"scale\":0,\"defineExpr\":null},{\"columnName\":\"score\",\"columnType\":\"INT\"," +
+                "\"isAllowNull\":false,\"isKey\":false,\"aggregationType\":\"NONE\",\"defaultValue\":\"0\"," +
+                "\"stringLength\":0,\"precision\":0,\"scale\":0,\"defineExpr\":null}],\"schemaHash\":610340242," +
+                "\"indexType\":\"DUPLICATE\",\"isBaseIndex\":true}],\"partitionInfo\":{\"partitionType\":" +
+                "\"UNPARTITIONED\",\"partitionColumnRefs\":[],\"distributionColumnRefs\":[\"id\"],\"partitions\":" +
+                "[{\"partitionId\":16024,\"startKeys\":[],\"endKeys\":[],\"isMinPartition\":true,\"isMaxPartition" +
+                "\":true,\"bucketNum\":2}]},\"fileGroups\":[]},\"properties\":[{\"name\":\"id\",\"isKey\":\"true\"," +
+                "\"comment\":\"\",\"type\":\"INT\"},{\"name\":\"name\",\"isKey\":\"false\",\"comment\":\"\",\"type\":" +
+                "\"VARCHAR\"},{\"name\":\"score\",\"isKey\":\"false\",\"comment\":\"\",\"type\":\"INT\"}],\"status\":200}";
+
+        Schema schema = RestService.parseSchema(resp, logger);
+        Assert.assertEquals(schema.getTableId().longValue(), 16025L);
+
     }
 }

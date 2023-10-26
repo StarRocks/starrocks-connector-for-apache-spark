@@ -17,26 +17,33 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.starrocks.connector.spark.rest.models;
+package com.starrocks.connector.spark.serialization;
+
+import static org.hamcrest.core.StringStartsWith.startsWith;
+
+import com.starrocks.connector.spark.exception.IllegalArgumentException;
 
 import org.junit.Assert;
-import org.junit.Test;
 import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-public class TestSchema {
+public class RoutingTest {
     @Rule
     public ExpectedException thrown = ExpectedException.none();
 
     @Test
-    public void testPutGet() {
-        Schema ts = new Schema(1);
-        Field f = new Field();
-        ts.put(f);
-        Assert.assertEquals(f, ts.get(0));
+    public void testRouting() throws Exception {
+        Routing r1 = new Routing("10.11.12.13:1234");
+        Assert.assertEquals("10.11.12.13", r1.getHost());
+        Assert.assertEquals(1234, r1.getPort());
 
-        thrown.expect(IndexOutOfBoundsException.class);
-        thrown.expectMessage("Index: 1, Fields size: 1");
-        ts.get(1);
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage(startsWith("argument "));
+        new Routing("10.11.12.13:wxyz");
+
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage(startsWith("Parse "));
+        new Routing("10.11.12.13");
     }
 }

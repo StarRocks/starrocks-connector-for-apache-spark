@@ -20,9 +20,10 @@
 package com.starrocks.connector.spark.serialization;
 
 import com.google.common.base.Preconditions;
-import com.starrocks.connector.spark.exception.StarrocksException;
-import com.starrocks.connector.spark.rest.models.Field;
-import com.starrocks.connector.spark.rest.models.Schema;
+import com.starrocks.connector.spark.exception.StarRocksException;
+import com.starrocks.connector.spark.rest.models.FieldType;
+import com.starrocks.connector.spark.sql.schema.StarRocksField;
+import com.starrocks.connector.spark.sql.schema.StarRocksSchema;
 import com.starrocks.connector.spark.util.DataTypeUtils;
 import com.starrocks.thrift.TScanBatchResult;
 import org.apache.arrow.memory.RootAllocator;
@@ -49,82 +50,42 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.TimeZone;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * row batch data container.
  */
-public class RowBatch {
-    private static Logger logger = LoggerFactory.getLogger(RowBatch.class);
+public class RpcRowBatch extends BaseRowBatch {
+    private static Logger logger = LoggerFactory.getLogger(RpcRowBatch.class);
 
-    public static class Row {
-        private List<Object> cols;
-
-        Row(int colCount) {
-            this.cols = new ArrayList<>(colCount);
-        }
-
-        List<Object> getCols() {
-            return cols;
-        }
-
-        public void put(Object o) {
-            cols.add(o);
-        }
-    }
-
-    private final SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd");
-    private final SimpleDateFormat dateTimeFormatter;
-
-    // offset for iterate the rowBatch
-    private int offsetInRowBatch = 0;
-    private int rowCountInOneBatch = 0;
-    private int readRowCount = 0;
-    private List<Row> rowBatch = new ArrayList<>();
     private final ArrowStreamReader arrowStreamReader;
     private final VectorSchemaRoot root;
     private List<FieldVector> fieldVectors;
     private RootAllocator rootAllocator;
-    private final Schema schema;
-    private final Map<String, Field> fieldMap;
 
-    public RowBatch(TScanBatchResult nextResult, Schema schema) throws StarrocksException {
+    public RpcRowBatch(TScanBatchResult nextResult, StarRocksSchema schema) throws StarRocksException {
         this(nextResult, schema, ZoneId.systemDefault());
     }
 
-    public RowBatch(TScanBatchResult nextResult, Schema schema, ZoneId timeZone) throws StarrocksException {
-        this.schema = schema;
-        this.dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        dateTimeFormatter.setTimeZone(TimeZone.getTimeZone(timeZone));
-        this.fieldMap = schema.getProperties().stream()
-                .collect(
-                        Collectors.toMap(
-                                Field::getName,
-                                Function.identity()
-                        )
-                );
+    public RpcRowBatch(TScanBatchResult nextResult, StarRocksSchema schema, ZoneId timeZone) throws StarRocksException {
+        super(schema, timeZone);
         this.rootAllocator = new RootAllocator(Integer.MAX_VALUE);
         this.arrowStreamReader = new ArrowStreamReader(
                 new ByteArrayInputStream(nextResult.getRows()),
                 rootAllocator
         );
-        this.offsetInRowBatch = 0;
         try {
             this.root = arrowStreamReader.getVectorSchemaRoot();
             while (arrowStreamReader.loadNextBatch()) {
                 fieldVectors = root.getFieldVectors();
-                if (fieldVectors.size() != schema.size()) {
+                if (fieldVectors.size() != schema.getColumns().size()) {
                     logger.error("Schema size '{}' is not equal to arrow field size '{}'.",
-                            schema.size(), fieldVectors.size());
-                    throw new StarrocksException("Load StarRocks data failed, schema size of fetch data is wrong.");
+                            schema.getColumns().size(), fieldVectors.size());
+                    throw new StarRocksException("Load StarRocks data failed, schema size of fetch data is wrong.");
                 }
                 if (fieldVectors.size() == 0 || root.getRowCount() == 0) {
                     logger.debug("One batch in arrow has no data.");
@@ -140,35 +101,18 @@ public class RowBatch {
             }
         } catch (Exception e) {
             logger.error("Read StarRocks Data failed because: ", e);
-            throw new StarrocksException(e.getMessage());
+            throw new StarRocksException(e.getMessage());
         } finally {
             close();
         }
     }
 
-    public boolean hasNext() {
-        if (offsetInRowBatch < readRowCount) {
-            return true;
-        }
-        return false;
-    }
-
-    private void addValueToRow(int rowIndex, Object obj) {
-        if (rowIndex > rowCountInOneBatch) {
-            String errMsg = "Get row offset: " + rowIndex + " larger than row size: " +
-                    rowCountInOneBatch;
-            logger.error(errMsg);
-            throw new NoSuchElementException(errMsg);
-        }
-        rowBatch.get(readRowCount + rowIndex).put(obj);
-    }
-
-    public void convertArrowToRowBatch() throws Exception {
+    public void convertArrowToRowBatch() {
         try {
             for (int col = 0; col < fieldVectors.size(); col++) {
                 FieldVector curFieldVector = fieldVectors.get(col);
                 Types.MinorType mt = curFieldVector.getMinorType();
-                Field field = fieldMap.get(curFieldVector.getName());
+                StarRocksField field = fieldMap.get(curFieldVector.getName());
 
                 String currentType;
 
@@ -178,13 +122,13 @@ public class RowBatch {
                     currentType = DataTypeUtils.map(mt);
                 }
 
-                switch (currentType) {
-                    case "NULL_TYPE":
+                switch (FieldType.of(field.getType())) {
+                    case NULL:
                         for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
                             addValueToRow(rowIndex, null);
                         }
                         break;
-                    case "BOOLEAN":
+                    case BOOLEAN:
                         Preconditions.checkArgument(mt.equals(Types.MinorType.BIT),
                                 typeMismatchMessage(currentType, mt));
                         BitVector bitVector = (BitVector) curFieldVector;
@@ -193,7 +137,7 @@ public class RowBatch {
                             addValueToRow(rowIndex, fieldValue);
                         }
                         break;
-                    case "TINYINT":
+                    case TINYINT:
                         Preconditions.checkArgument(mt.equals(Types.MinorType.TINYINT),
                                 typeMismatchMessage(currentType, mt));
                         TinyIntVector tinyIntVector = (TinyIntVector) curFieldVector;
@@ -202,7 +146,7 @@ public class RowBatch {
                             addValueToRow(rowIndex, fieldValue);
                         }
                         break;
-                    case "SMALLINT":
+                    case SMALLINT:
                         Preconditions.checkArgument(mt.equals(Types.MinorType.SMALLINT),
                                 typeMismatchMessage(currentType, mt));
                         SmallIntVector smallIntVector = (SmallIntVector) curFieldVector;
@@ -211,7 +155,7 @@ public class RowBatch {
                             addValueToRow(rowIndex, fieldValue);
                         }
                         break;
-                    case "INT":
+                    case INT:
                         Preconditions.checkArgument(mt.equals(Types.MinorType.INT),
                                 typeMismatchMessage(currentType, mt));
                         IntVector intVector = (IntVector) curFieldVector;
@@ -220,7 +164,7 @@ public class RowBatch {
                             addValueToRow(rowIndex, fieldValue);
                         }
                         break;
-                    case "BIGINT":
+                    case BIGINT:
                         Preconditions.checkArgument(mt.equals(Types.MinorType.BIGINT),
                                 typeMismatchMessage(currentType, mt));
                         BigIntVector bigIntVector = (BigIntVector) curFieldVector;
@@ -229,7 +173,7 @@ public class RowBatch {
                             addValueToRow(rowIndex, fieldValue);
                         }
                         break;
-                    case "FLOAT":
+                    case FLOAT:
                         Preconditions.checkArgument(mt.equals(Types.MinorType.FLOAT4),
                                 typeMismatchMessage(currentType, mt));
                         Float4Vector float4Vector = (Float4Vector) curFieldVector;
@@ -238,8 +182,8 @@ public class RowBatch {
                             addValueToRow(rowIndex, fieldValue);
                         }
                         break;
-                    case "TIME":
-                    case "DOUBLE":
+                    case TIME:
+                    case DOUBLE:
                         Preconditions.checkArgument(mt.equals(Types.MinorType.FLOAT8),
                                 typeMismatchMessage(currentType, mt));
                         Float8Vector float8Vector = (Float8Vector) curFieldVector;
@@ -248,7 +192,7 @@ public class RowBatch {
                             addValueToRow(rowIndex, fieldValue);
                         }
                         break;
-                    case "BINARY":
+                    case BINARY:
                         Preconditions.checkArgument(mt.equals(Types.MinorType.VARBINARY),
                                 typeMismatchMessage(currentType, mt));
                         VarBinaryVector varBinaryVector = (VarBinaryVector) curFieldVector;
@@ -257,7 +201,7 @@ public class RowBatch {
                             addValueToRow(rowIndex, fieldValue);
                         }
                         break;
-                    case "DECIMAL":
+                    case DECIMAL:
                         Preconditions.checkArgument(mt.equals(Types.MinorType.VARCHAR),
                                 typeMismatchMessage(currentType, mt));
                         VarCharVector varCharVectorForDecimal = (VarCharVector) curFieldVector;
@@ -273,15 +217,14 @@ public class RowBatch {
                             } catch (NumberFormatException e) {
                                 String errMsg = "Decimal response result '" + decimalValue + "' is illegal.";
                                 logger.error(errMsg, e);
-                                throw new StarrocksException(errMsg);
+                                throw new StarRocksException(errMsg);
                             }
                             addValueToRow(rowIndex, decimal);
                         }
                         break;
-                    case "DECIMALV2":
-                    case "DECIMAL32":
-                    case "DECIMAL64":
-                    case "DECIMAL128":
+                    case DECIMAL32:
+                    case DECIMAL64:
+                    case DECIMAL128:
                         Preconditions.checkArgument(mt.equals(Types.MinorType.DECIMAL),
                                 typeMismatchMessage(currentType, mt));
                         DecimalVector decimalVector = (DecimalVector) curFieldVector;
@@ -294,7 +237,7 @@ public class RowBatch {
                             addValueToRow(rowIndex, decimal);
                         }
                         break;
-                    case "DATE":
+                    case DATE:
                         Preconditions.checkArgument(mt.equals(Types.MinorType.VARCHAR),
                                 typeMismatchMessage(currentType, mt));
                         VarCharVector varCharVectorForDate = (VarCharVector) curFieldVector;
@@ -304,10 +247,13 @@ public class RowBatch {
                                 continue;
                             }
                             String value = new String(varCharVectorForDate.get(rowIndex));
-                            addValueToRow(rowIndex, new Date(dateFormatter.parse(value).getTime()));
+                            LocalDateTime parsedTime = LocalDate.parse(value, dateFormatter).atStartOfDay();
+                            Instant instant = parsedTime.atZone(zoneId).toInstant();
+
+                            addValueToRow(rowIndex, Date.from(instant));
                         }
                         break;
-                    case "DATETIME":
+                    case DATETIME:
                         Preconditions.checkArgument(mt.equals(Types.MinorType.VARCHAR),
                                 typeMismatchMessage(currentType, mt));
                         VarCharVector varCharVectorForDateTime = (VarCharVector) curFieldVector;
@@ -317,12 +263,12 @@ public class RowBatch {
                                 continue;
                             }
                             String value = new String(varCharVectorForDateTime.get(rowIndex));
-                            addValueToRow(rowIndex, new Timestamp(dateTimeFormatter.parse(value).getTime()));
+                            addValueToRow(rowIndex, Timestamp.valueOf(LocalDateTime.parse(value, dateTimeFormatter)));
                         }
                         break;
-                    case "LARGEINT":
-                    case "CHAR":
-                    case "VARCHAR":
+                    case LARGEINT:
+                    case VARCHAR:
+                    case CHAR:
                         Preconditions.checkArgument(mt.equals(Types.MinorType.VARCHAR),
                                 typeMismatchMessage(currentType, mt));
                         VarCharVector varCharVector = (VarCharVector) curFieldVector;
@@ -336,33 +282,15 @@ public class RowBatch {
                         }
                         break;
                     default:
-                        String errMsg = "Unsupported type " + schema.get(col).getType();
+                        String errMsg = "Unsupported type " + schema.getColumns().get(col).getType();
                         logger.error(errMsg);
-                        throw new StarrocksException(errMsg);
+                        throw new StarRocksException(errMsg);
                 }
             }
         } catch (Exception e) {
             close();
             throw e;
         }
-    }
-
-    public List<Object> next() throws StarrocksException {
-        if (!hasNext()) {
-            String errMsg = "Get row offset:" + offsetInRowBatch + " larger than row size: " + readRowCount;
-            logger.error(errMsg);
-            throw new NoSuchElementException(errMsg);
-        }
-        return rowBatch.get(offsetInRowBatch++).getCols();
-    }
-
-    private String typeMismatchMessage(final String sparkType, final Types.MinorType arrowType) {
-        final String messageTemplate = "Spark type is %1$s, but arrow type is %2$s.";
-        return String.format(messageTemplate, sparkType, arrowType.name());
-    }
-
-    public int getReadRowCount() {
-        return readRowCount;
     }
 
     public void close() {

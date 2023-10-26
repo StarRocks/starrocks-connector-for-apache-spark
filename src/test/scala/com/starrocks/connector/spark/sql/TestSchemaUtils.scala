@@ -19,7 +19,7 @@
 
 package com.starrocks.connector.spark.sql
 
-import com.starrocks.connector.spark.exception.StarrocksException
+import com.starrocks.connector.spark.exception.StarRocksException
 import com.starrocks.connector.spark.rest.models.{Field, Schema}
 import com.starrocks.thrift.{TPrimitiveType, TScanColumnDesc}
 import org.apache.spark.sql.types._
@@ -33,8 +33,8 @@ class TestSchemaUtils extends ExpectedExceptionTest {
   def testConvertToStruct(): Unit = {
     val schema = new Schema
     schema.setStatus(200)
-    val k1 = new Field("k1", "TINYINT", "", 0, 0)
-    val k5 = new Field("k5", "BIGINT", "", 0, 0)
+    val k1 = new Field("k1", "TINYINT", 3, "", 0, 0, false)
+    val k5 = new Field("k5", "BIGINT", 19, "", 0, 0, false)
     schema.put(k1)
     schema.put(k5)
 
@@ -67,11 +67,11 @@ class TestSchemaUtils extends ExpectedExceptionTest {
     Assert.assertEquals(DecimalType(30, 7), SchemaUtils.getCatalystType("DECIMAL128", 30, 7))
     Assert.assertEquals(DataTypes.DoubleType, SchemaUtils.getCatalystType("TIME", 0, 0))
 
-    thrown.expect(classOf[StarrocksException])
+    thrown.expect(classOf[StarRocksException])
     thrown.expectMessage(startsWith("Unsupported type"))
     SchemaUtils.getCatalystType("HLL", 0, 0)
 
-    thrown.expect(classOf[StarrocksException])
+    thrown.expect(classOf[StarRocksException])
     thrown.expectMessage(startsWith("Unrecognized StarRocks type"))
     SchemaUtils.getCatalystType("UNRECOGNIZED", 0, 0)
   }
@@ -88,11 +88,11 @@ class TestSchemaUtils extends ExpectedExceptionTest {
 
     val expected = new Schema
     expected.setStatus(0)
-    val ek1 = new Field("k1", "BOOLEAN", "", 0, 0)
-    val ek2 = new Field("k2", "DOUBLE", "", 0, 0)
+    val ek1 = new Field("k1", "BOOLEAN", 1, "", 0, 0, false)
+    val ek2 = new Field("k2", "DOUBLE", 15, "", 0, 0, false)
     expected.put(ek1)
     expected.put(ek2)
 
-    Assert.assertEquals(expected, SchemaUtils.convertToSchema(Seq(k1, k2)))
+    Assert.assertEquals(expected, SchemaUtils.convert(Seq(k1, k2)))
   }
 }

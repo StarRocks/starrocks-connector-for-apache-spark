@@ -17,39 +17,35 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.starrocks.connector.spark.sql
+package com.starrocks.connector.spark.read
 
 import com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_VALUE_READER_CLASS
 import com.starrocks.connector.spark.cfg.Settings
-import com.starrocks.connector.spark.rdd.{AbstractStarrocksRDD, AbstractStarrocksRDDIterator, StarrocksPartition}
-import com.starrocks.connector.spark.rest.PartitionDefinition
-
-import org.apache.spark.{Partition, SparkContext, TaskContext}
+import com.starrocks.connector.spark.rdd.{AbstractStarRocksRDD, AbstractStarRocksRDDIterator, StarRocksPartition}
+import com.starrocks.connector.spark.rest.RpcPartition
+import com.starrocks.connector.spark.rest.models.Schema
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.{Partition, SparkContext, TaskContext}
 
-private[spark] class ScalaStarrocksRowRDD(
-  sc: SparkContext,
-  params: Map[String, String] = Map.empty,
-  struct: StructType)
-  extends AbstractStarrocksRDD[Row](sc, params) {
+private[spark] class ScalaStarRocksRowRDD(sc: SparkContext, params: Map[String, String] = Map.empty)
+  extends AbstractStarRocksRDD[Row](sc, params) {
 
-  override def compute(split: Partition, context: TaskContext): ScalaStarrocksRowRDDIterator = {
-    new ScalaStarrocksRowRDDIterator(context, split.asInstanceOf[StarrocksPartition].starrocksPartition, struct)
+  override def compute(split: Partition, context: TaskContext): ScalaStarRocksRowRDDIterator = {
+    // check schema null
+    new ScalaStarRocksRowRDDIterator(context, split.asInstanceOf[StarRocksPartition].starrocksPartition, null)
   }
 }
 
-private[spark] class ScalaStarrocksRowRDDIterator(
-  context: TaskContext,
-  partition: PartitionDefinition,
-  struct: StructType)
-  extends AbstractStarrocksRDDIterator[Row](context, partition) {
+private[spark] class ScalaStarRocksRowRDDIterator(context: TaskContext,
+                                                  partition: RpcPartition,
+                                                  schema: Schema)
+  extends AbstractStarRocksRDDIterator[Row](context, partition, schema) {
 
   override def initReader(settings: Settings) = {
-    settings.setProperty(STARROCKS_VALUE_READER_CLASS, classOf[ScalaStarrocksRowValueReader].getName)
+    settings.setProperty(STARROCKS_VALUE_READER_CLASS, classOf[StarRocksNoCatalogDecoder].getName)
   }
 
   override def createValue(value: Object): Row = {
-    value.asInstanceOf[ScalaStarrocksRow]
+    value.asInstanceOf[Row]
   }
 }

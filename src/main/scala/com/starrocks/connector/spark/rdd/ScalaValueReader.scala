@@ -22,17 +22,14 @@ package com.starrocks.connector.spark.rdd
 import com.starrocks.connector.spark.backend.BackendClient
 import com.starrocks.connector.spark.cfg.ConfigurationOptions._
 import com.starrocks.connector.spark.cfg.Settings
-import com.starrocks.connector.spark.exception.ShouldNeverHappenException
-import com.starrocks.connector.spark.rest.PartitionDefinition
-import com.starrocks.connector.spark.rest.models.Schema
-import com.starrocks.connector.spark.serialization.{Routing, RowBatch}
+import com.starrocks.connector.spark.rest.RpcPartition
+import com.starrocks.connector.spark.serialization.{Routing, RpcRowBatch}
 import com.starrocks.connector.spark.sql.SchemaUtils
+import com.starrocks.connector.spark.sql.schema.StarRocksSchema
 import com.starrocks.connector.spark.util.ErrorMessages
-import com.starrocks.connector.spark.util.ErrorMessages.SHOULD_NOT_HAPPEN_MESSAGE
 import com.starrocks.thrift.{TScanCloseParams, TScanNextBatchParams, TScanOpenParams, TScanOpenResult}
 import org.apache.log4j.Logger
 
-import java.time.ZoneId
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.collection.JavaConversions._
@@ -41,17 +38,16 @@ import scala.util.control.Breaks
 
 /**
  * read data from Starrocks BE to array.
+ *
  * @param partition Starrocks RDD partition
- * @param settings request configuration
+ * @param settings  request configuration
  */
-class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
-  protected val logger = Logger.getLogger(classOf[ScalaValueReader])
-
-  protected val timeZone = ZoneId.of(settings.getProperty(STARROCKS_TIMEZONE, ZoneId.systemDefault.toString))
+class RpcValueReader(partition: RpcPartition, settings: Settings)
+  extends BaseValueReader(partition, settings, null) {
+  protected val logger = Logger.getLogger(classOf[RpcValueReader])
   protected val client = new BackendClient(new Routing(partition.getBeAddress), settings)
-  protected var offset = 0
+  protected var offset = 0L
   protected var eos: AtomicBoolean = new AtomicBoolean(false)
-  protected var rowBatch: RowBatch = _
   // flag indicate if support deserialize Arrow to RowBatch asynchronously
   protected var deserializeArrowToRowBatchAsync: Boolean = Try {
     settings.getProperty(STARROCKS_DESERIALIZE_ARROW_ASYNC, STARROCKS_DESERIALIZE_ARROW_ASYNC_DEFAULT.toString).toBoolean
@@ -60,7 +56,7 @@ class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
     STARROCKS_DESERIALIZE_ARROW_ASYNC_DEFAULT
   }
 
-  protected var rowBatchBlockingQueue: BlockingQueue[RowBatch] = {
+  protected var rowBatchBlockingQueue: BlockingQueue[RpcRowBatch] = {
     val blockingQueueSize = Try {
       settings.getProperty(STARROCKS_DESERIALIZE_QUEUE_SIZE, STARROCKS_DESERIALIZE_QUEUE_SIZE_DEFAULT.toString).toInt
     } getOrElse {
@@ -68,7 +64,7 @@ class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
       STARROCKS_DESERIALIZE_QUEUE_SIZE_DEFAULT
     }
 
-    var queue: BlockingQueue[RowBatch] = null
+    var queue: BlockingQueue[RpcRowBatch] = null
     if (deserializeArrowToRowBatchAsync) {
       queue = new ArrayBlockingQueue(blockingQueueSize)
     }
@@ -88,8 +84,8 @@ class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
     val batchSize = Try {
       settings.getProperty(STARROCKS_BATCH_SIZE, STARROCKS_BATCH_SIZE_DEFAULT.toString).toInt
     } getOrElse {
-        logger.warn(ErrorMessages.PARSE_NUMBER_FAILED_MESSAGE, STARROCKS_BATCH_SIZE, settings.getProperty(STARROCKS_BATCH_SIZE))
-        STARROCKS_BATCH_SIZE_DEFAULT
+      logger.warn(ErrorMessages.PARSE_NUMBER_FAILED_MESSAGE, STARROCKS_BATCH_SIZE, settings.getProperty(STARROCKS_BATCH_SIZE))
+      STARROCKS_BATCH_SIZE_DEFAULT
     }
 
     val queryStarrocksTimeout = Try {
@@ -113,23 +109,22 @@ class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
     params.setPasswd(settings.getProperty(STARROCKS_REQUEST_AUTH_PASSWORD, ""))
 
     logger.debug(s"Open scan params is, " +
-        s"cluster: ${params.getCluster}, " +
-        s"database: ${params.getDatabase}, " +
-        s"table: ${params.getTable}, " +
-        s"tabletId: ${params.getTablet_ids}, " +
-        s"batch size: $batchSize, " +
-        s"query timeout: $queryStarrocksTimeout, " +
-        s"execution memory limit: $execMemLimit, " +
-        s"user: ${params.getUser}, " +
-        s"query plan: ${params.opaqued_query_plan}")
+      s"cluster: ${params.getCluster}, " +
+      s"database: ${params.getDatabase}, " +
+      s"table: ${params.getTable}, " +
+      s"tabletId: ${params.getTablet_ids}, " +
+      s"batch size: $batchSize, " +
+      s"query timeout: $queryStarrocksTimeout, " +
+      s"execution memory limit: $execMemLimit, " +
+      s"user: ${params.getUser}, " +
+      s"query plan: ${params.opaqued_query_plan}")
 
     params
   }
 
   protected val openResult: TScanOpenResult = client.openScanner(openParams)
   protected val contextId: String = openResult.getContext_id
-  protected val schema: Schema =
-    SchemaUtils.convertToSchema(openResult.getSelected_columns)
+  protected val schema: StarRocksSchema = SchemaUtils.convert(openResult.getSelected_columns)
 
   protected val asyncThread: Thread = new Thread {
     override def run {
@@ -140,7 +135,7 @@ class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
         val nextResult = client.getNext(nextBatchParams)
         eos.set(nextResult.isEos)
         if (!eos.get) {
-          val rowBatch = new RowBatch(nextResult, schema, timeZone)
+          val rowBatch = new RpcRowBatch(nextResult, schema, timeZone)
           offset += rowBatch.getReadRowCount
           rowBatch.close
           rowBatchBlockingQueue.put(rowBatch)
@@ -160,12 +155,8 @@ class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
 
   logger.debug(s"Open scan result is, contextId: $contextId, schema: $schema.")
 
-  /**
-   * read data and cached in rowBatch.
-   * @return true if hax next value
-   */
-  def hasNext: Boolean = {
-    var hasNext = false
+  override def hasNext: Boolean = {
+    rowHasNext = rowBatch == null || rowBatch.hasNext
     if (deserializeArrowToRowBatchAsync && asyncThreadStarted) {
       // support deserialize Arrow to RowBatch asynchronously
       if (rowBatch == null || !rowBatch.hasNext) {
@@ -174,7 +165,7 @@ class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
           while (!eos.get || !rowBatchBlockingQueue.isEmpty) {
             if (!rowBatchBlockingQueue.isEmpty) {
               rowBatch = rowBatchBlockingQueue.take
-              hasNext = true
+              rowBatchHasNext = true
               loop.break
             } else {
               // wait for rowBatch put in queue or eos change
@@ -183,7 +174,7 @@ class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
           }
         }
       } else {
-        hasNext = true
+        rowBatchHasNext = true
       }
     } else {
       // Arrow data was acquired synchronously during the iterative process
@@ -197,28 +188,17 @@ class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
         nextBatchParams.setOffset(offset)
         val nextResult = client.getNext(nextBatchParams)
         eos.set(nextResult.isEos)
+        rowHasNext = nextResult.rows != null
         if (!eos.get) {
-          rowBatch = new RowBatch(nextResult, schema, timeZone)
+          rowBatch = new RpcRowBatch(nextResult, schema, timeZone)
         }
       }
-      hasNext = !eos.get
+      rowBatchHasNext = !eos.get
     }
-    hasNext
+    rowBatchHasNext
   }
 
-  /**
-   * get next value.
-   * @return next value
-   */
-  def next: AnyRef = {
-    if (!hasNext) {
-      logger.error(SHOULD_NOT_HAPPEN_MESSAGE)
-      throw new ShouldNeverHappenException
-    }
-    rowBatch.next
-  }
-
-  def close(): Unit = {
+  override def close(): Unit = {
     val closeParams = new TScanCloseParams
     closeParams.context_id = contextId
     client.closeScanner(closeParams)

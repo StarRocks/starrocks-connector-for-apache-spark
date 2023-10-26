@@ -1,4 +1,4 @@
-// Modifications Copyright 2021 StarRocks Limited.
+// Copyright 2021-present StarRocks, Inc. All rights reserved.
 //
 // Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
@@ -17,16 +17,30 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.starrocks.connector.spark.exception;
+package com.starrocks.connector.spark;
 
-import com.starrocks.thrift.TStatusCode;
+import java.util.function.Consumer;
 
-import java.util.List;
+/**
+ * Throwing {@link Consumer}.
+ */
+@FunctionalInterface
+public interface ThrowingConsumer<T> extends Consumer<T> {
 
-public class StarrocksInternalException extends StarrocksException {
-    public StarrocksInternalException(String server, TStatusCode statusCode, List<String> errorMsgs) {
-        super("StarRocks server " + server + " internal failed, status code [" + statusCode + "] error message is " +
-                errorMsgs);
+    @Override
+    default void accept(T t) {
+        try {
+            accept0(t);
+        } catch (Throwable ex) {
+            throw new RuntimeException(ex);
+        }
     }
+
+    /**
+     * Performs this operation on the given argument.
+     *
+     * @see #accept(Object)
+     */
+    void accept0(T t) throws Throwable;
 
 }

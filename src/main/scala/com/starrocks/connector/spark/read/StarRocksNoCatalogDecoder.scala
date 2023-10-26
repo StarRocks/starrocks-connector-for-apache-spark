@@ -17,22 +17,17 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.starrocks.connector.spark.rdd
+package com.starrocks.connector.spark.read
 
-import com.starrocks.connector.spark.cfg.ConfigurationOptions.{STARROCKS_FILTER_QUERY, STARROCKS_TABLE_IDENTIFIER}
+import com.starrocks.connector.spark.cfg.Settings
+import org.apache.spark.sql.connector.read.InputPartition
 
-import org.apache.spark.SparkContext
-import org.apache.spark.rdd.RDD
 
-object StarRocksSpark {
-  def starrocksRDD(
-      sc: SparkContext,
-      tableIdentifier: Option[String] = None,
-      query: Option[String] = None,
-      cfg: Option[Map[String, String]] = None): RDD[AnyRef] = {
-    val params = collection.mutable.Map(cfg.getOrElse(Map.empty).toSeq: _*)
-    query.map { s => params += (STARROCKS_FILTER_QUERY -> s) }
-    tableIdentifier.map { s => params += (STARROCKS_TABLE_IDENTIFIER -> s) }
-    new ScalaStarRocksRDD[AnyRef](sc, params.toMap)
+// For v1.0 RDD Reader
+class StarRocksNoCatalogDecoder(partition: InputPartition, settings: Settings)
+  extends AbstractStarRocksDecoder[StarRocksRow](partition, settings, null) {
+
+  override def decode(values: Array[Any]) : StarRocksRow = {
+    new StarRocksRow(values)
   }
 }

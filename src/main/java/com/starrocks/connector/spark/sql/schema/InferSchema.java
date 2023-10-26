@@ -38,8 +38,8 @@ public final class InferSchema {
 
     public static StructType inferSchema(Map<String, String> options) {
         SimpleStarRocksConfig config = new SimpleStarRocksConfig(options);
-        StarRocksSchema starocksSchema = StarRocksConnector.getSchema(config);
-        return inferSchema(starocksSchema, config);
+        StarRocksSchema starrocksSchema = StarRocksConnector.getSchema(config);
+        return inferSchema(starrocksSchema, config);
     }
 
     public static StructType inferSchema(StarRocksSchema starRocksSchema, StarRocksConfig config) {
@@ -85,6 +85,7 @@ public final class InferSchema {
 
         return new StructField(field.getName(), dataType, true, Metadata.empty());
     }
+
     static DataType inferDataType(StarRocksField field) {
         String type = field.getType().toLowerCase(Locale.ROOT);
         switch (type) {
@@ -101,20 +102,28 @@ public final class InferSchema {
                 return DataTypes.LongType;
             case "bigint unsigned":
                 return DataTypes.StringType;
+            case "largeint":
+                return DataTypes.StringType;
             case "float":
                 return DataTypes.FloatType;
             case "double":
                 return DataTypes.DoubleType;
-            case "decimal":
-                return DataTypes.createDecimalType(Integer.parseInt(field.getSize()), Integer.parseInt(field.getScale()));
+            case "decimalv2":
+            case "decimal32":
+            case "decimal64":
+            case "decimal128":
+                return DataTypes.createDecimalType(field.getPrecision(), field.getScale());
             case "char":
             case "varchar":
+            case "string":
             case "json":
                 return DataTypes.StringType;
             case "date":
                 return DataTypes.DateType;
             case "datetime":
                 return DataTypes.TimestampType;
+            case "boolean":
+                return DataTypes.BooleanType;
             default:
                 throw new UnsupportedOperationException(String.format(
                         "Unsupported starrocks type, column name: %s, data type: %s", field.getName(), field.getType()));

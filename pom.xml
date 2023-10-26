@@ -391,6 +391,18 @@
             <version>${log4j.version}</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.22</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.8.1</version>
+            <scope>test</scope>
+        </dependency>
 
         <!-- end -->
     </dependencies>
@@ -476,6 +488,7 @@
                     </licenseFamilies>
                     <excludes>
                         <exclude>src/test/resources/data/**</exclude>
+                        <exclude>src/test/resources/sql/**</exclude>
                         <exclude>**/target/**</exclude>
                         <exclude>**/*.md</exclude>
 <!--                        <exclude>README.md</exclude>-->
