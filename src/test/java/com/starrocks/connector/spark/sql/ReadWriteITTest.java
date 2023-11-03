@@ -135,6 +135,45 @@ public class ReadWriteITTest extends ITTestBase {
     }
 
     @Test
+    public void testMultiTableJoinSql() throws Exception {
+        String tableName = "testSql_" + genRandomUuid();
+        prepareScoreBoardTable(tableName);
+
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testSql")
+                .getOrCreate();
+
+        List<List<Object>> expectedData = new ArrayList<>();
+        expectedData.add(Arrays.asList(1, "2", 3));
+        expectedData.add(Arrays.asList(2, "3", 4));
+
+        String ddl = String.format("CREATE TEMPORARY VIEW sr_table \n" +
+                " USING starrocks\n" +
+                "OPTIONS(\n" +
+                "  \"starrocks.table.identifier\"=\"%s\",\n" +
+                "  \"starrocks.filter.query\"=\"%s\",\n" +
+                "  \"starrocks.fe.http.url\"=\"%s\",\n" +
+                "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
+                "  \"starrocks.user\"=\"%s\",\n" +
+                "  \"starrocks.password\"=\"%s\"\n" +
+                ")", String.join(".", DB_NAME, tableName), "id=1", FE_HTTP, FE_JDBC, USER, PASSWORD);
+        spark.sql(ddl);
+        spark.sql("INSERT INTO sr_table VALUES (1, \"2\", 3), (2, \"3\", 4)");
+
+        List<List<Object>> actualWriteData = scanTable(DB_CONNECTION, DB_NAME, tableName);
+        verifyResult(expectedData, actualWriteData);
+
+        List<List<Object>> joinExpectedData = new ArrayList<>();
+        joinExpectedData.add(Arrays.asList(1, "2", 3,  1, "2", 3));
+        List<Row> readRows = spark.sql("SELECT a.*, b.* FROM sr_table a join sr_table b on a.id=b.id").collectAsList();
+        verifyRows(joinExpectedData, readRows);
+
+        spark.stop();
+    }
+
+    @Test
     public void testConditionalUpdates() throws Exception {
         String tableName = "testConditionalUpdates_" + genRandomUuid();
         prepareScoreBoardTable(tableName);

@@ -83,7 +83,11 @@ private[sql] class StarrocksRelation(
     }
 
     if (filters != null && filters.length > 0) {
-      paramWithScan += (ConfigurationOptions.STARROCKS_FILTER_QUERY -> filterWhereClause)
+      val userFilters = paramWithScan.get(ConfigurationOptions.STARROCKS_FILTER_QUERY)
+        .filter(filters => filters.nonEmpty)
+        .map(filters => " and (" + filters + ")")
+        .getOrElse("")
+      paramWithScan += (ConfigurationOptions.STARROCKS_FILTER_QUERY -> (filterWhereClause + userFilters))
     }
 
     new ScalaStarrocksRowRDD(sqlContext.sparkContext, paramWithScan.toMap, lazySchema)
