@@ -19,23 +19,56 @@
 
 package com.starrocks.connector.spark.sql;
 
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
-import static com.starrocks.connector.spark.sql.ITTestBase.FE_HTTP;
-import static com.starrocks.connector.spark.sql.ITTestBase.FE_JDBC;
-import static com.starrocks.connector.spark.sql.ITTestBase.PASSWORD;
-import static com.starrocks.connector.spark.sql.ITTestBase.USER;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
-public class CatalogTest {
+public class CatalogTest extends ITTestBase{
+
+    String tableName = "testSql_" + genRandomUuid();
+
+    @Before
+    public void prepare() throws Exception {
+        String createStarRocksDB = String.format("CREATE DATABASE IF NOT EXISTS %s", DB_NAME);
+        executeSrSQL(createStarRocksDB);
+        String createStarRocksTable =
+                String.format("CREATE TABLE IF NOT EXISTS `%s`.`%s` (" +
+                                "id INT," +
+                                "name STRING," +
+                                "score INT" +
+                                ") ENGINE=OLAP " +
+                                "PRIMARY KEY(`id`) " +
+                                "DISTRIBUTED BY HASH(`id`) BUCKETS 2 " +
+                                "PROPERTIES (" +
+                                "\"replication_num\" = \"1\"" +
+                                ")",
+                        DB_NAME, tableName);
+        executeSrSQL(createStarRocksTable);
+    }
+
+    @After
+    public void close() throws Exception {
+        String dropTable = String.format("DROP TABLE IF EXISTS `%s`.`%s` ", DB_NAME, tableName);
+        executeSrSQL(dropTable);
+
+        String dropDB = String.format("DROP Database IF EXISTS `%s` ", DB_NAME);
+        executeSrSQL(dropDB);
+    }
 
     @Test
-    public void testSql() {
+    public void testLocalSql() throws Exception {
         SparkSession spark = SparkSession
                 .builder()
                 .master("local[1]")
-                .appName("testSql")
+                .appName("testLocalSql")
                 .config("spark.sql.catalog.starrocks", "com.starrocks.connector.spark.catalog.StarRocksCatalog")
+                .config("spark.sql.defaultCatalog", "starrocks")
                 .config("spark.sql.catalog.starrocks.fe.http.url", FE_HTTP)
                 .config("spark.sql.catalog.starrocks.fe.jdbc.url", FE_JDBC)
                 .config("spark.sql.catalog.starrocks.password", PASSWORD)
@@ -44,18 +77,24 @@ public class CatalogTest {
 
         String listDb = "show databases";
         spark.sql(listDb).show();
-        String changeDb = "use starrocks.demo";
+        String changeDb = String.format("use starrocks.%s", DB_NAME);
         spark.sql(changeDb).show();
         String listTables = "show tables";
         spark.sql(listTables).show();
-        String selectQuery = "select * from tab1";
-        spark.sql(selectQuery).show();
 
-        String prunedColumnQuery = "select k1, v3, v4 from tab1";
-        spark.sql(prunedColumnQuery).show();
+        List<List<Object>> expectedData = new ArrayList<>();
+        expectedData.add(Arrays.asList(1, "2", 3));
+        expectedData.add(Arrays.asList(2, "3", 4));
 
-        String insertQuery = "insert into tab3 select * from tab1";
-        spark.sql(insertQuery).show();
+        String insertSql = String.format("INSERT INTO %s VALUES (1, \"2\", 3), (2, \"3\", 4)", tableName);
+        spark.sql(insertSql);
+
+        List<List<Object>> actualWriteData = scanTable(DB_CONNECTION, DB_NAME, tableName);
+        verifyResult(expectedData, actualWriteData);
+
+        String selectSql = String.format("SELECT * FROM %s", tableName);
+        List<Row> readRows = spark.sql(selectSql).collectAsList();
+        verifyRows(expectedData, readRows);
 
         spark.stop();
     }

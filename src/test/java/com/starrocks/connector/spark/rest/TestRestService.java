@@ -320,7 +320,6 @@ public class TestRestService {
                 "\"VARCHAR\"},{\"name\":\"score\",\"isKey\":\"false\",\"comment\":\"\",\"type\":\"INT\"}],\"status\":200}";
 
         Schema schema = RestService.parseSchema(resp, logger);
-        Assert.assertEquals(schema.getStatus(), 0);
+        Assert.assertEquals(schema.getStatus(), 0L);
     }
-
 }

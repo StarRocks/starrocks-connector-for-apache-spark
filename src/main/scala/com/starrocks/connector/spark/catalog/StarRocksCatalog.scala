@@ -93,10 +93,9 @@ class StarRocksCatalog extends TableCatalog
   override def alterNamespace(namespace: Array[String], changes: NamespaceChange*): Unit =
     throw new UnsupportedOperationException
 
-  override def dropNamespace(namespace: Array[String], cascade: Boolean): Boolean =
-    throw new UnsupportedOperationException
-
   override def listFunctions(namespace: Array[String]): Array[Identifier] = throw new UnsupportedOperationException
 
   override def loadFunction(ident: Identifier): UnboundFunction = throw new UnsupportedOperationException
+
+  override def dropNamespace(strings: Array[String]): Boolean = throw new UnsupportedOperationException
 }

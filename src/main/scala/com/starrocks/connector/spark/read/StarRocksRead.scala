@@ -25,7 +25,6 @@ import com.starrocks.connector.spark.rest.{PartitionDefinition, RestService}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.read._
-import org.apache.spark.sql.connector.read.partitioning.{Partitioning, UnknownPartitioning}
 import org.apache.spark.sql.types.StructType
 
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
@@ -50,15 +49,12 @@ class StarRocksScanBuilder(schema: StructType,
 class StarRocksScan(schema: StructType, config: Settings) extends Scan
   with Batch
   with Logging
-  with SupportsReportPartitioning
   with PartitionReaderFactory {
   lazy val inputPartitions: Array[PartitionDefinition] = RestService.findPartitions(config, log).asScala.toArray
 
   override def readSchema(): StructType = schema
 
   override def toBatch: Batch = this
-
-  override def outputPartitioning(): Partitioning = new UnknownPartitioning(inputPartitions.length)
 
   override def planInputPartitions(): Array[InputPartition] = inputPartitions.toArray
 

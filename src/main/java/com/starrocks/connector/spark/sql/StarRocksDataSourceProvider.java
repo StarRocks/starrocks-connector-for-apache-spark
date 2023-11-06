@@ -72,7 +72,7 @@ public class StarRocksDataSourceProvider implements RelationProvider,
         return "starrocks";
     }
 
-    //TODO 将所有转换的逻辑统一
+    //TODO schema only use
     private static StarRocksSchema convert(Schema schema) {
         List<StarRocksField> columns = new ArrayList<>();
         List<StarRocksField> pks = new ArrayList<>();
