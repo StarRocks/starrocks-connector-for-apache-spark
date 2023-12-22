@@ -174,6 +174,49 @@ public class ReadWriteITTest extends ITTestBase {
     }
 
     @Test
+    public void testPartialUpdates() throws Exception {
+        String tableName = "testPartialUpdates_" + genRandomUuid();
+        prepareScoreBoardTable(tableName);
+        executeSrSQL(String.format("INSERT INTO `%s`.`%s` VALUES (1, '1', 100), (2, '2', 200)", DB_NAME, tableName));
+        verifyResult(Arrays.asList(Arrays.asList(1, "1", 100), Arrays.asList(2, "2", 200)),
+                scanTable(DB_CONNECTION, DB_NAME, tableName));
+
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testSql")
+                .getOrCreate();
+
+        String ddl = String.format("CREATE TABLE sr_table \n" +
+                " USING starrocks\n" +
+                "OPTIONS(\n" +
+                "  \"starrocks.table.identifier\"=\"%s\",\n" +
+                "  \"starrocks.fe.http.url\"=\"%s\",\n" +
+                "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
+                "  \"starrocks.user\"=\"%s\",\n" +
+                "  \"starrocks.password\"=\"%s\",\n" +
+                "  \"starrocks.columns\"=\"id,score\",\n" +
+                "  \"starrocks.write.properties.partial_update\"=\"true\"\n" +
+                ")", String.join(".", DB_NAME, tableName), FE_HTTP, FE_JDBC, USER, PASSWORD);
+        spark.sql(ddl);
+        spark.sql("INSERT INTO sr_table VALUES (1, 101), (2, 199)");
+
+        List<List<Object>> expectedData = new ArrayList<>();
+        expectedData.add(Arrays.asList(1, "1", 101));
+        expectedData.add(Arrays.asList(2, "2", 199));
+        List<List<Object>> actualWriteData = scanTable(DB_CONNECTION, DB_NAME, tableName);
+        verifyResult(expectedData, actualWriteData);
+
+        expectedData.clear();
+        expectedData.add(Arrays.asList(1, 101));
+        expectedData.add(Arrays.asList(2, 199));
+        List<Row> readRows = spark.sql("SELECT * FROM sr_table").collectAsList();
+        verifyRows(expectedData, readRows);
+
+        spark.stop();
+    }
+
+    @Test
     public void testConditionalUpdates() throws Exception {
         String tableName = "testConditionalUpdates_" + genRandomUuid();
         prepareScoreBoardTable(tableName);
