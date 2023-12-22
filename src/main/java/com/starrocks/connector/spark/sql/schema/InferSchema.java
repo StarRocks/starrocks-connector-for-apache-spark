@@ -19,6 +19,7 @@
 
 package com.starrocks.connector.spark.sql.schema;
 
+import com.starrocks.connector.spark.exception.StarrocksException;
 import com.starrocks.connector.spark.sql.conf.SimpleStarRocksConfig;
 import com.starrocks.connector.spark.sql.conf.StarRocksConfig;
 import com.starrocks.connector.spark.sql.connect.StarRocksConnector;
@@ -49,8 +50,19 @@ public final class InferSchema {
             starRocksFields = starRocksSchema.getColumns();
         } else {
             starRocksFields = new ArrayList<>();
+            List<String> nonExistedColumns = new ArrayList<>();
             for (String column : inputColumns) {
-                starRocksFields.add(starRocksSchema.getField(column));
+                StarRocksField field = starRocksSchema.getField(column);
+                if (field == null) {
+                    nonExistedColumns.add(column);
+                }
+                starRocksFields.add(field);
+            }
+            if (!nonExistedColumns.isEmpty()) {
+                throw new StarrocksException(
+                        String.format("Can't find those columns %s in StarRocks table `%s`.`%s`. " +
+                                "Please check your configuration 'starrocks.columns' to make sure all columns exist in the table",
+                                nonExistedColumns, config.getDatabase(), config.getTable()));
             }
         }
 
