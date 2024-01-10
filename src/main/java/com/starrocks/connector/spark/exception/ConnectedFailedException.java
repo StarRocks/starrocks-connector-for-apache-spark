@@ -24,7 +24,7 @@ public class ConnectedFailedException extends StarrocksException {
         super("Connect to " + server + "failed.", cause);
     }
 
-    public ConnectedFailedException(String server, int statusCode, Throwable cause) {
-        super("Connect to " + server + "failed, status code is " + statusCode + ".", cause);
+    public ConnectedFailedException(String server, String status, String entity,  Throwable cause) {
+        super(String.format("Connect to %s failed, status: %s, response entity: %s.", server, status, entity), cause);
     }
 }
