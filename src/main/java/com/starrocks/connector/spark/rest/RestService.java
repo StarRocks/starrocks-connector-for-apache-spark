@@ -119,29 +119,30 @@ public class RestService implements Serializable {
             request.addHeader(new BasicScheme().authenticate(creds, request, context));
         } catch (AuthenticationException e) {
             logger.error(CONNECT_FAILED_MESSAGE, request.getURI(), e);
-            throw new ConnectedFailedException(request.getURI().toString(), -1, e);
+            throw new ConnectedFailedException(request.getURI().toString(), e);
         }
 
         logger.info("Send request to StarRocks FE '{}' with user '{}'.", request.getURI(), user);
 
         IOException ex = null;
-        int statusCode = -1;
+        String status = null;
+        String responseEntity = null;
 
         for (int attempt = 0; attempt < retries; attempt++) {
             CloseableHttpClient httpClient = HttpClients.createDefault();
             logger.debug("Attempt {} to request {}.", attempt, request.getURI());
             try {
                 CloseableHttpResponse response = httpClient.execute(request, context);
-                statusCode = response.getStatusLine().getStatusCode();
-                if (statusCode != HttpStatus.SC_OK) {
-                    logger.warn("Failed to get response from StarRocks FE {}, http code is {}",
-                            request.getURI(), statusCode);
+                status = response.getStatusLine().toString();
+                responseEntity = response.getEntity() == null ? null : EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+                if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK) {
+                    logger.warn("Failed to get response from StarRocks FE {}, http status is {}, entity: {}",
+                            request.getURI(), status, responseEntity);
                     continue;
                 }
-                String res = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
                 logger.trace("Success get response from StarRocks FE: {}, response is: {}.",
-                        request.getURI(), res);
-                return res;
+                        request.getURI(), responseEntity);
+                return responseEntity;
             } catch (IOException e) {
                 ex = e;
                 logger.warn(CONNECT_FAILED_MESSAGE, request.getURI(), e);
@@ -149,7 +150,7 @@ public class RestService implements Serializable {
         }
 
         logger.error(CONNECT_FAILED_MESSAGE, request.getURI(), ex);
-        throw new ConnectedFailedException(request.getURI().toString(), statusCode, ex);
+        throw new ConnectedFailedException(request.getURI().toString(), status, responseEntity, ex);
     }
 
     /**
