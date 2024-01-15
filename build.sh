@@ -38,7 +38,7 @@ if ! ${MVN_CMD} --version; then
 fi
 export MVN_CMD
 
-supported_spark_version=("3.2" "3.3" "3.4" "3.5")
+supported_spark_version=("3.1" "3.2" "3.3" "3.4" "3.5")
 version_msg=$(IFS=, ; echo "${supported_spark_version[*]}")
 if [ ! $1 ]
 then
