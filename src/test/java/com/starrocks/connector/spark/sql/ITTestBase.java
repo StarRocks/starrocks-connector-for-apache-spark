@@ -51,15 +51,15 @@ public abstract class ITTestBase {
     protected static String FE_JDBC = "jdbc:mysql://127.0.0.1:11903";
     protected static String USER = "root";
     protected static String PASSWORD = "";
-    private static final boolean DEBUG_MODE = false;
+    private static final boolean DEBUG_MODE = true;
     protected static String DB_NAME;
 
     protected static Connection DB_CONNECTION;
 
     @BeforeClass
     public static void setUp() throws Exception {
-        FE_HTTP = DEBUG_MODE ? "127.0.0.1:11901" : System.getProperty("http_urls");
-        FE_JDBC = DEBUG_MODE ? "jdbc:mysql://127.0.0.1:11903" : System.getProperty("jdbc_urls");
+        FE_HTTP = DEBUG_MODE ? "127.0.0.1:8054" : System.getProperty("http_urls");
+        FE_JDBC = DEBUG_MODE ? "jdbc:mysql://127.0.0.1:9054" : System.getProperty("jdbc_urls");
         assumeTrue(FE_HTTP != null && FE_JDBC != null);
 
         DB_NAME = "sr_spark_test_" + genRandomUuid();

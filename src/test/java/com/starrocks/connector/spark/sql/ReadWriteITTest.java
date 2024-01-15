@@ -46,6 +46,30 @@ import java.util.stream.Collectors;
 public class ReadWriteITTest extends ITTestBase {
 
     @Test
+    public void testBingx() throws Exception {
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testBingx")
+                .getOrCreate();
+
+        String logDdl = String.format("CREATE TABLE dwd_user_log_active_ip \n" +
+                " USING starrocks\n" +
+                "OPTIONS(\n" +
+                "  \"starrocks.table.identifier\"=\"%s\",\n" +
+                "  \"starrocks.fe.http.url\"=\"%s\",\n" +
+                "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
+                "  \"starrocks.user\"=\"%s\",\n" +
+                "  \"starrocks.password\"=\"%s\"\n" +
+                ")", String.join(".", "dwd", "dwd_user_log_active_ip"), FE_HTTP, FE_JDBC, USER, PASSWORD);
+        spark.sql(logDdl);
+
+        List<Row> rows = spark.sql("select uid,ip from dwd_user_log_active_ip where stats_date = '2023-01-12'").collectAsList();
+
+        spark.stop();
+    }
+
+    @Test
     public void testDataFrame() throws Exception {
         String tableName = "testDataFrame_" + genRandomUuid();
         prepareScoreBoardTable(tableName);
