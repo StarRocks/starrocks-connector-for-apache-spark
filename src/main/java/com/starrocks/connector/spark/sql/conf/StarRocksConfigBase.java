@@ -19,6 +19,7 @@
 
 package com.starrocks.connector.spark.sql.conf;
 
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,13 +89,10 @@ public abstract class StarRocksConfigBase implements StarRocksConfig {
         this.username = get(KEY_USERNAME);
         this.password = get(KEY_PASSWORD);
         String identifier = get(KEY_TABLE_IDENTIFIER);
-        try {
+        if (StringUtils.isNotEmpty(identifier)) {
             String[] parsedResult = parseIdentifier(identifier, LOG);
             this.database = parsedResult[0];
             this.table = parsedResult[1];
-        } catch (Exception e) {
-            LOG.error("Failed to parse table identifier: {}", identifier, e);
-            throw new RuntimeException(e);
         }
         this.columns = getArray(KEY_COLUMNS, null);
         this.columnTypes = get(KEY_COLUMN_TYPES);
@@ -221,4 +219,5 @@ public abstract class StarRocksConfigBase implements StarRocksConfig {
                 ? defaultValue
                 : Arrays.stream(value.split(",")).map(String::trim).toArray(String[]::new);
     }
+
 }

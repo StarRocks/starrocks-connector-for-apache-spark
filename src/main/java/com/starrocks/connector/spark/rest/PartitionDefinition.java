@@ -22,6 +22,7 @@ package com.starrocks.connector.spark.rest;
 import com.starrocks.connector.spark.cfg.PropertiesSettings;
 import com.starrocks.connector.spark.cfg.Settings;
 import com.starrocks.connector.spark.exception.IllegalArgumentException;
+import org.apache.spark.sql.connector.read.InputPartition;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -32,7 +33,7 @@ import java.util.Set;
 /**
  * Starrocks RDD partition info.
  */
-public class PartitionDefinition implements Serializable, Comparable<PartitionDefinition> {
+public class PartitionDefinition implements Serializable, Comparable<PartitionDefinition>, InputPartition {
     private final String database;
     private final String table;
 

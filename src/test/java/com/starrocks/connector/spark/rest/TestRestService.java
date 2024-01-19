@@ -48,6 +48,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 public class TestRestService {
@@ -123,9 +124,9 @@ public class TestRestService {
                 + "\"scale\":\"9\",\"comment\":\"\",\"type\":\"DECIMAL128\",\"precision\":\"30\"}],\"status\":200}";
         Schema expected = new Schema();
         expected.setStatus(200);
-        Field k1 = new Field("k1", "TINYINT", "", 0, 0);
-        Field k5 = new Field("k5", "DECIMALV2", "", 9, 0);
-        Field k6 = new Field("k6", "DECIMAL128", "", 30, 9);
+        Field k1 = new Field("k1", "TINYINT", "", 0, 0, true);
+        Field k5 = new Field("k5", "DECIMALV2", "", 9, 0, true);
+        Field k6 = new Field("k6", "DECIMAL128", "", 30, 9, true);
         expected.put(k1);
         expected.put(k5);
         expected.put(k6);
@@ -299,5 +300,26 @@ public class TestRestService {
         Collections.sort(actual);
 
         Assert.assertEquals(expected, actual);
+    }
+
+    @Test
+    public void testNewSchemaResp() {
+        String resp = "{\"tableId\":\"16025\",\"etlTable\":{\"indexes\":[{\"indexId\":16026," +
+                "\"columns\":[{\"columnName\":\"id\",\"columnType\":\"INT\",\"isAllowNull\":false,\"isKey\":true," +
+                "\"aggregationType\":null,\"defaultValue\":null,\"stringLength\":0,\"precision\":0,\"scale\":0," +
+                "\"defineExpr\":null},{\"columnName\":\"name\",\"columnType\":\"VARCHAR\",\"isAllowNull\":true," +
+                "\"isKey\":false,\"aggregationType\":\"NONE\",\"defaultValue\":\"\",\"stringLength\":65533," +
+                "\"precision\":0,\"scale\":0,\"defineExpr\":null},{\"columnName\":\"score\",\"columnType\":\"INT\"," +
+                "\"isAllowNull\":false,\"isKey\":false,\"aggregationType\":\"NONE\",\"defaultValue\":\"0\"," +
+                "\"stringLength\":0,\"precision\":0,\"scale\":0,\"defineExpr\":null}],\"schemaHash\":610340242," +
+                "\"indexType\":\"DUPLICATE\",\"isBaseIndex\":true}],\"partitionInfo\":{\"partitionType\":" +
+                "\"UNPARTITIONED\",\"partitionColumnRefs\":[],\"distributionColumnRefs\":[\"id\"],\"partitions\":" +
+                "[{\"partitionId\":16024,\"startKeys\":[],\"endKeys\":[],\"isMinPartition\":true,\"isMaxPartition" +
+                "\":true,\"bucketNum\":2}]},\"fileGroups\":[]},\"properties\":[{\"name\":\"id\",\"isKey\":\"true\"," +
+                "\"comment\":\"\",\"type\":\"INT\"},{\"name\":\"name\",\"isKey\":\"false\",\"comment\":\"\",\"type\":" +
+                "\"VARCHAR\"},{\"name\":\"score\",\"isKey\":\"false\",\"comment\":\"\",\"type\":\"INT\"}],\"status\":200}";
+
+        Schema schema = RestService.parseSchema(resp, logger);
+        Assert.assertEquals(schema.getStatus(), 0L);
     }
 }

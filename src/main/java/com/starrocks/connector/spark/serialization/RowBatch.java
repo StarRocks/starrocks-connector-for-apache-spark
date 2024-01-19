@@ -147,10 +147,7 @@ public class RowBatch {
     }
 
     public boolean hasNext() {
-        if (offsetInRowBatch < readRowCount) {
-            return true;
-        }
-        return false;
+        return offsetInRowBatch < readRowCount;
     }
 
     private void addValueToRow(int rowIndex, Object obj) {

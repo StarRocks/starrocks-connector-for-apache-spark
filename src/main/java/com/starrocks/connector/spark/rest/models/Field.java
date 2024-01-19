@@ -27,16 +27,27 @@ public class Field {
     private String comment;
     private int precision;
     private int scale;
+    private String isKey;
 
     public Field() {
     }
 
-    public Field(String name, String type, String comment, int precision, int scale) {
+    public Field(String name, String type, String comment, int precision, int scale, boolean isKey) {
         this.name = name;
         this.type = type;
         this.comment = comment;
         this.precision = precision;
         this.scale = scale;
+        this.isKey = isKey ? "true" : "false";
+    }
+
+    public Field(String name, String type, String comment, int precision, int scale, String isKey) {
+        this.name = name;
+        this.type = type;
+        this.comment = comment;
+        this.precision = precision;
+        this.scale = scale;
+        this.isKey = isKey;
     }
 
     public String getName() {
@@ -77,6 +88,14 @@ public class Field {
 
     public void setScale(int scale) {
         this.scale = scale;
+    }
+
+    public boolean getIsKey() {
+        return isKey.equalsIgnoreCase("true");
+    }
+
+    public void setIsKey(String isKey) {
+        this.isKey = isKey;
     }
 
     @Override

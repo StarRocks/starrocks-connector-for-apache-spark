@@ -19,40 +19,17 @@
 
 package com.starrocks.connector.spark.read
 
-import org.apache.spark.sql.Row
+import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
+import org.apache.spark.unsafe.types.UTF8String
 
-private[spark] class StarrocksRow(var values: Array[Any]) extends Row with StarRocksGenericRow {
+class StarrocksInternalRow(override val values: Array[Any])
+  extends GenericInternalRow(values)
+    with StarRocksGenericRow {
 
   /** No-arg constructor for Kryo serialization. */
   def this() = this(null)
 
-  def iterator = values.iterator
+  def getAs[T](ordinal: Int) = genericGet(ordinal).asInstanceOf[T]
 
-  override def length: Int = values.length
-
-  override def apply(i: Int): Any = values(i)
-
-  override def get(i: Int): Any = values(i)
-
-  override def isNullAt(i: Int): Boolean = values(i) == null
-
-  override def getInt(i: Int): Int = getAs[Int](i)
-
-  override def getLong(i: Int): Long = getAs[Long](i)
-
-  override def getDouble(i: Int): Double = getAs[Double](i)
-
-  override def getFloat(i: Int): Float = getAs[Float](i)
-
-  override def getBoolean(i: Int): Boolean = getAs[Boolean](i)
-
-  override def getShort(i: Int): Short = getAs[Short](i)
-
-  override def getByte(i: Int): Byte = getAs[Byte](i)
-
-  override def getString(i: Int): String = get(i).toString()
-
-  override def copy(): Row = this
-
-  override def toSeq = values
+  override def getUTF8String(ordinal: Int): UTF8String = UTF8String.fromString(getAs[String](ordinal))
 }
