@@ -24,16 +24,19 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.spark.sql.types.ArrayType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.DecimalType;
 import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.math.BigDecimal;
 import java.sql.Date;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,6 +47,43 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class ReadWriteITTest extends ITTestBase {
+
+    @Test
+    public void testOutputColNames() throws Exception {
+        String tableName = "testDataFrame_" + genRandomUuid();
+        prepareScoreBoardTable(tableName);
+
+        try (Statement statement = DB_CONNECTION.createStatement()) {
+            statement.execute("insert into " + DB_NAME + "." + tableName + " VALUES (1, '2', 3), (2, '3', 4)");
+        }
+
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testDataFrame")
+                .getOrCreate();
+        String ddl = String.format("CREATE TABLE sr_table \n" +
+                " USING starrocks\n" +
+                "OPTIONS(\n" +
+                "  \"starrocks.table.identifier\"=\"%s\",\n" +
+                "  \"starrocks.fe.http.url\"=\"%s\",\n" +
+                "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
+                "  \"starrocks.user\"=\"%s\",\n" +
+                "  \"starrocks.password\"=\"%s\"\n" +
+                ")", String.join(".", DB_NAME, tableName), FE_HTTP, FE_JDBC, USER, PASSWORD);
+        spark.sql(ddl);
+
+
+        List<Row> rows = spark.sql("select id, id, upper(name) as upper_name from sr_table where score = 4")
+                .collectAsList();
+        Assert.assertEquals(1, rows.size());
+
+        GenericRowWithSchema row = (GenericRowWithSchema) rows.get(0);
+        Assert.assertEquals(1, row.schema().fieldIndex("id"));
+        Assert.assertEquals(2, row.schema().fieldIndex("upper_name"));
+
+        spark.stop();
+    }
 
     @Test
     public void testDataFrame() throws Exception {
