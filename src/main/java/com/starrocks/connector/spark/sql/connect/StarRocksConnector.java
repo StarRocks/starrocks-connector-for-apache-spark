@@ -23,8 +23,6 @@ import com.starrocks.connector.spark.exception.StarrocksException;
 import com.starrocks.connector.spark.sql.conf.StarRocksConfig;
 import com.starrocks.connector.spark.sql.schema.StarRocksField;
 import com.starrocks.connector.spark.sql.schema.StarRocksSchema;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -32,6 +30,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -39,9 +38,11 @@ import java.util.Map;
 
 public class StarRocksConnector {
 
-    private static final Logger LOG = LoggerFactory.getLogger(StarRocksConnector.class);
-
     public static StarRocksSchema getSchema(StarRocksConfig config) {
+        if (config.isSchemaless()) {
+            StarRocksField field = new StarRocksField("c0", "VARCHAR", 0, "65535", null);
+            return new StarRocksSchema(Collections.singletonList(field), Collections.emptyList());
+        }
 
         List<Map<String, String>> columnValues = extractColumnValuesBySql(
                 config.getFeJdbcUrl(),

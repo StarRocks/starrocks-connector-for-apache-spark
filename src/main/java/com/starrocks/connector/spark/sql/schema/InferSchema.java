@@ -44,6 +44,10 @@ public final class InferSchema {
     }
 
     public static StructType inferSchema(StarRocksSchema starRocksSchema, StarRocksConfig config) {
+        if (config.isSchemaless()) {
+            return SchemalessConverter.SCHEMA;
+        }
+
         String[] inputColumns = config.getColumns();
         List<StarRocksField> starRocksFields;
         if (inputColumns == null || inputColumns.length == 0) {

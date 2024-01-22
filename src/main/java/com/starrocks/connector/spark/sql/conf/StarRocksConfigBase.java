@@ -22,11 +22,12 @@ package com.starrocks.connector.spark.sql.conf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
 
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_PASSWORD;
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_REQUEST_CONNECT_TIMEOUT_MS;
@@ -60,6 +61,8 @@ public abstract class StarRocksConfigBase implements StarRocksConfig {
     // data type mapping instead of all columns
     public static final String KEY_COLUMN_TYPES = PREFIX + "column.types";
 
+    private static final String KEY_SCHEMALESS = PREFIX + "schemaless";
+
     protected final Map<String, String> originOptions;
 
     private String[] feHttpUrls;
@@ -76,6 +79,7 @@ public abstract class StarRocksConfigBase implements StarRocksConfig {
     private int httpRequestConnectTimeoutMs;
     private int httpRequestSocketTimeoutMs;
     private ZoneId timeZone;
+    private boolean schemaless = false;
 
     public StarRocksConfigBase(Map<String, String> options) {
         this.originOptions = new HashMap<>(options);
@@ -101,6 +105,7 @@ public abstract class StarRocksConfigBase implements StarRocksConfig {
         this.httpRequestRetries = getInt(KEY_REQUEST_RETRIES, 3);
         this.httpRequestConnectTimeoutMs = getInt(KEY_REQUEST_CONNECT_TIMEOUT, 30000);
         this.httpRequestSocketTimeoutMs = getInt(KEY_REQUEST_SOCKET_TIMEOUT, 30000);
+        this.schemaless = getBoolean(KEY_SCHEMALESS, false);
 
         String tz = get(STARROCKS_TIMEZONE);
         this.timeZone = tz == null ? ZoneId.systemDefault() : ZoneId.of(get(STARROCKS_TIMEZONE));
@@ -171,6 +176,11 @@ public abstract class StarRocksConfigBase implements StarRocksConfig {
     @Nullable
     public String getColumnTypes() {
         return columnTypes;
+    }
+
+    @Override
+    public boolean isSchemaless() {
+        return schemaless;
     }
 
     protected String get(final String key) {

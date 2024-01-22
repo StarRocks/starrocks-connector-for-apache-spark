@@ -23,6 +23,7 @@ import com.starrocks.connector.spark.sql.conf.WriteStarRocksConfig;
 import com.starrocks.connector.spark.sql.schema.CsvRowStringConverter;
 import com.starrocks.connector.spark.sql.schema.JSONRowStringConverter;
 import com.starrocks.connector.spark.sql.schema.RowStringConverter;
+import com.starrocks.connector.spark.sql.schema.SchemalessConverter;
 import com.starrocks.connector.spark.util.EnvUtils;
 import com.starrocks.data.load.stream.StreamLoadManager;
 import com.starrocks.data.load.stream.StreamLoadSnapshot;
@@ -56,7 +57,9 @@ public class StarRocksDataWriter implements DataWriter<InternalRow>, Serializabl
         this.partitionId = partitionId;
         this.taskId = taskId;
         this.epochId = epochId;
-        if ("csv".equalsIgnoreCase(config.getFormat())) {
+        if (config.isSchemaless()) {
+            this.converter = new SchemalessConverter(config.getTimeZone());
+        } else if ("csv".equalsIgnoreCase(config.getFormat())) {
             this.converter = new CsvRowStringConverter(schema, config.getColumnSeparator(), config.getTimeZone());
         }  else if ("json".equalsIgnoreCase(config.getFormat())) {
             this.converter = new JSONRowStringConverter(schema, config.getStreamLoadColumnNames(), config.getTimeZone());

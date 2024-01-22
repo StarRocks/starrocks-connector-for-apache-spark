@@ -45,4 +45,6 @@ public interface StarRocksConfig extends Serializable {
     String[] getColumns();
     @Nullable
     String getColumnTypes();
+
+    boolean isSchemaless();
 }
