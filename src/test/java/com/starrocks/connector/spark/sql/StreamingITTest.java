@@ -219,15 +219,24 @@ public class StreamingITTest extends ITTestBase {
         options.put("starrocks.table.identifier", tableId);
         options.put("starrocks.user", USER);
         options.put("starrocks.password", PASSWORD);
-        options.put("starrocks.schemaless", "true");
-        options.put("starrocks.write.properties.format", "json");
+//        options.put("starrocks.schemaless", "true");
+//        options.put("starrocks.write.properties.format", "json");
+//        kafkaStream.foreachRDD(rdd ->
+//                spark.createDataFrame(rdd.map(record -> RowFactory.create(record.value())), SchemalessConverter.SCHEMA)
+//                    .write()
+//                    .format("starrocks")
+//                    .options(options)
+//                    .mode(SaveMode.Append)
+//                    .save()
+//        );
+
         kafkaStream.foreachRDD(rdd ->
-                spark.createDataFrame(rdd.map(record -> RowFactory.create(record.value())), SchemalessConverter.SCHEMA)
-                    .write()
-                    .format("starrocks")
-                    .options(options)
-                    .mode(SaveMode.Append)
-                    .save()
+                spark.read().json(rdd.map(ConsumerRecord::value))
+                        .write()
+                        .format("starrocks")
+                        .options(options)
+                        .mode(SaveMode.Append)
+                        .save()
         );
 
         jssc.start();

@@ -51,7 +51,7 @@ public abstract class ITTestBase {
     protected static String FE_JDBC = "jdbc:mysql://127.0.0.1:11903";
     protected static String USER = "root";
     protected static String PASSWORD = "";
-    protected static final boolean DEBUG_MODE = false;
+    protected static final boolean DEBUG_MODE = true;
     protected static String DB_NAME;
 
     protected static Connection DB_CONNECTION;

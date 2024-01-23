@@ -21,9 +21,8 @@
 
 package com.starrocks.connector.spark.examples
 
-import com.starrocks.connector.spark.sql.schema.SchemalessConverter
 import org.apache.kafka.common.serialization.StringDeserializer
-import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.kafka010.{ConsumerStrategies, KafkaUtils, LocationStrategies}
 import org.apache.spark.streaming.{Milliseconds, StreamingContext}
 
@@ -52,18 +51,33 @@ object KafkaToStarRocksStreaming {
       LocationStrategies.PreferConsistent,
       ConsumerStrategies.Subscribe[String, String](topics, kafkaParams))
 
+//    kafkaStream.foreachRDD(rdd =>
+//      spark.createDataFrame(rdd.map(record => Row(record.value())), SchemalessConverter.SCHEMA)
+//        .write.format("starrocks")
+//          .option("starrocks.fe.http.url", "127.0.0.1:8030")
+//          .option("starrocks.fe.jdbc.url", "jdbc://mysql/127.0.0.1:9030")
+//          .option("starrocks.table.identifier", "test.score_board")
+//          .option("starrocks.user", "root")
+//          .option("starrocks.password", "")
+//          .option("starrocks.schemaless", "true")
+//          .option("starrocks.write.properties.format", "json")
+//          .mode("append")
+//          .save()
+//    )
+
     kafkaStream.foreachRDD(rdd =>
-      spark.createDataFrame(rdd.map(record => Row(record.value())), SchemalessConverter.SCHEMA)
+      spark.read.json(rdd.map(record => record.value()))
+        .toDF()
         .write.format("starrocks")
-          .option("starrocks.fe.http.url", "127.0.0.1:8030")
-          .option("starrocks.fe.jdbc.url", "jdbc://mysql/127.0.0.1:9030")
-          .option("starrocks.table.identifier", "test.score_board")
-          .option("starrocks.user", "root")
-          .option("starrocks.password", "")
-          .option("starrocks.schemaless", "true")
-          .option("starrocks.write.properties.format", "json")
-          .mode("append")
-          .save()
+        .option("starrocks.fe.http.url", "127.0.0.1:8030")
+        .option("starrocks.fe.jdbc.url", "jdbc://mysql/127.0.0.1:9030")
+        .option("starrocks.table.identifier", "test.score_board")
+        .option("starrocks.user", "root")
+        .option("starrocks.password", "")
+//        .option("starrocks.schemaless", "true")
+//        .option("starrocks.write.properties.format", "json")
+        .mode("append")
+        .save()
     )
 
 
