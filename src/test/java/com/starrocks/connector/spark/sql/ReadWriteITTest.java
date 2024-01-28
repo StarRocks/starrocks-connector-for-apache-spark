@@ -868,6 +868,54 @@ public class ReadWriteITTest extends ITTestBase {
     }
 
     @Test
+    public void testJsonType() throws Exception {
+        String tableName = "testJsonType_" + genRandomUuid();
+        prepareJsonTable(tableName);
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testJsonType")
+                .getOrCreate();
+
+        String ddl = String.format("CREATE TABLE sr_table \n" +
+                        " USING starrocks\n" +
+                        "OPTIONS(\n" +
+                        "  \"starrocks.table.identifier\"=\"%s\",\n" +
+                        "  \"starrocks.fe.http.url\"=\"%s\",\n" +
+                        "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
+                        "  \"starrocks.user\"=\"%s\",\n" +
+                        "  \"starrocks.password\"=\"%s\"\n" +
+                        ")", String.join(".", DB_NAME, tableName), FE_HTTP, FE_JDBC, USER, PASSWORD);
+        spark.sql(ddl);
+        spark.sql("INSERT INTO sr_table VALUES (1, 1.1, '{\"a\": 1, \"b\": true}'), (2, 2.2, '{\"a\": 2, \"b\": false}')");
+
+        List<List<Object>> expectedData = new ArrayList<>();
+        expectedData.add(Arrays.asList(1, 1.1, "{\"a\": 1, \"b\": true}"));
+        expectedData.add(Arrays.asList(2, 2.2, "{\"a\": 2, \"b\": false}"));
+
+        List<Row> readRows = spark.sql("SELECT * FROM sr_table").collectAsList();
+        verifyRows(expectedData, readRows);
+
+        spark.stop();
+    }
+
+    private void prepareJsonTable(String tableName) throws Exception {
+        String createStarRocksTable =
+                String.format("CREATE TABLE `%s`.`%s` (" +
+                                "c0 INT," +
+                                "c1 DOUBLE," +
+                                "c2 JSON" +
+                                ") ENGINE=OLAP " +
+                                "PRIMARY KEY(`c0`) " +
+                                "DISTRIBUTED BY HASH(`c0`) BUCKETS 2 " +
+                                "PROPERTIES (" +
+                                "\"replication_num\" = \"1\"" +
+                                ")",
+                        DB_NAME, tableName);
+        executeSrSQL(createStarRocksTable);
+    }
+
+    @Test
     public void testArrayWithCsv() throws Exception {
         testArrayBase(false);
     }

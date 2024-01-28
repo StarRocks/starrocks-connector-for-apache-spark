@@ -19,51 +19,12 @@
 
 package com.starrocks.connector.spark.sql
 
-import scala.collection.JavaConverters._
-
-import com.starrocks.connector.spark.cfg.Settings
 import com.starrocks.connector.spark.exception.StarrocksException
-import com.starrocks.connector.spark.rest.RestService
 import com.starrocks.connector.spark.rest.models.{Field, Schema}
 import com.starrocks.thrift.TScanColumnDesc
-
 import org.apache.spark.sql.types._
 
-import org.slf4j.LoggerFactory
-
 private[spark] object SchemaUtils {
-  private val logger = LoggerFactory.getLogger(SchemaUtils.getClass.getSimpleName.stripSuffix("$"))
-
-  /**
-   * discover StarRocks table schema from StarRocks FE.
-   * @param cfg configuration
-   * @return Spark Catalyst StructType
-   */
-  def discoverSchema(cfg: Settings): StructType = {
-    val schema = discoverSchemaFromFe(cfg)
-    convertToStruct(schema)
-  }
-
-  /**
-   * discover StarRocks table schema from StarRocks FE.
-   * @param cfg configuration
-   * @return inner schema struct
-   */
-  def discoverSchemaFromFe(cfg: Settings): Schema = {
-    RestService.getSchema(cfg, logger)
-  }
-
-  /**
-   * convert inner schema struct to Spark Catalyst StructType
-   * @param schema inner schema
-   * @return Spark Catalyst StructType
-   */
-  def convertToStruct(schema: Schema): StructType = {
-    var fields = List[StructField]()
-    schema.getProperties.asScala.foreach(f =>
-      fields :+= DataTypes.createStructField(f.getName, getCatalystType(f.getType, f.getPrecision, f.getScale), true))
-    DataTypes.createStructType(fields.asJava)
-  }
 
   /**
    * translate StarRocks Type to Spark Catalyst type
@@ -108,7 +69,9 @@ private[spark] object SchemaUtils {
    */
   def convertToSchema(tscanColumnDescs: Seq[TScanColumnDesc]): Schema = {
     val schema = new Schema(tscanColumnDescs.length)
-    tscanColumnDescs.foreach(desc => schema.put(new Field(desc.getName, desc.getType.name, "", 0, 0)))
+    // The type for some columns may be null, such as json column
+    tscanColumnDescs.foreach(desc => schema.put(new Field(
+      desc.getName, if (desc.getType == null) null else desc.getType.name, "", 0, 0)))
     schema
   }
 }
