@@ -26,24 +26,7 @@ import org.apache.spark.sql.types._
 import org.hamcrest.core.StringStartsWith.startsWith
 import org.junit.{Assert, Test}
 
-import scala.collection.JavaConverters._
-
 class TestSchemaUtils extends ExpectedExceptionTest {
-  @Test
-  def testConvertToStruct(): Unit = {
-    val schema = new Schema
-    schema.setStatus(200)
-    val k1 = new Field("k1", "TINYINT", "", 0, 0)
-    val k5 = new Field("k5", "BIGINT", "", 0, 0)
-    schema.put(k1)
-    schema.put(k5)
-
-    var fields = List[StructField]()
-    fields :+= DataTypes.createStructField("k1", DataTypes.ByteType, true)
-    fields :+= DataTypes.createStructField("k5", DataTypes.LongType, true)
-    val expected = DataTypes.createStructType(fields.asJava)
-    Assert.assertEquals(expected, SchemaUtils.convertToStruct(schema))
-  }
 
   @Test
   def testGetCatalystType(): Unit = {

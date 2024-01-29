@@ -128,11 +128,11 @@ public class StarRocksConnector {
         }
 
         if (columnValues.isEmpty()) {
-            String errMsg = String.format("Can't get schema of %s.%s from StarRocks. The possible reasons: " +
-                            "1) The table does not exist. 2) The user does not have SELECT privilege on the " +
+            String errMsg = String.format("Can't get schema of table [%s.%s] from StarRocks. The possible reasons: " +
+                            "1) The table does not exist. 2) The user does not have [SELECT] privilege on the " +
                             "table, and can't read the schema. Please make sure that the table exists in StarRocks, " +
-                            "and grant SELECT privilege to the user. If you are loading data to the table, also need " +
-                            "to grant INSERT privilege to the user.", database, table);
+                            "and grant [SELECT] privilege to the user. If you are loading data to the table, also need " +
+                            "to grant [INSERT] privilege to the user.", database, table);
             throw new StarrocksException(errMsg);
         }
         return columnValues;

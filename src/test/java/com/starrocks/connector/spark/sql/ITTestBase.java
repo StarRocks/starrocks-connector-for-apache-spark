@@ -47,8 +47,8 @@ public abstract class ITTestBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(ITTestBase.class);
 
-    protected static String FE_HTTP = "127.0.0.1:11901";
-    protected static String FE_JDBC = "jdbc:mysql://127.0.0.1:11903";
+    protected static String FE_HTTP;
+    protected static String FE_JDBC;
     protected static String USER = "root";
     protected static String PASSWORD = "";
     private static final boolean DEBUG_MODE = false;
@@ -58,8 +58,8 @@ public abstract class ITTestBase {
 
     @BeforeClass
     public static void setUp() throws Exception {
-        FE_HTTP = DEBUG_MODE ? "127.0.0.1:11901" : System.getProperty("http_urls");
-        FE_JDBC = DEBUG_MODE ? "jdbc:mysql://127.0.0.1:11903" : System.getProperty("jdbc_urls");
+        FE_HTTP = DEBUG_MODE ? "127.0.0.1:8030" : System.getProperty("http_urls");
+        FE_JDBC = DEBUG_MODE ? "jdbc:mysql://127.0.0.1:9030" : System.getProperty("jdbc_urls");
         assumeTrue(FE_HTTP != null && FE_JDBC != null);
 
         DB_NAME = "sr_spark_test_" + genRandomUuid();

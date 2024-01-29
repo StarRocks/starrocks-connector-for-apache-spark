@@ -19,10 +19,14 @@
 
 package com.starrocks.connector.spark.rest.models;
 
+import javax.annotation.Nullable;
+
 import java.util.Objects;
+import java.util.Optional;
 
 public class Field {
     private String name;
+    @Nullable
     private String type;
     private String comment;
     private int precision;
@@ -31,7 +35,7 @@ public class Field {
     public Field() {
     }
 
-    public Field(String name, String type, String comment, int precision, int scale) {
+    public Field(String name, @Nullable String type, String comment, int precision, int scale) {
         this.name = name;
         this.type = type;
         this.comment = comment;
@@ -47,11 +51,11 @@ public class Field {
         this.name = name;
     }
 
-    public String getType() {
-        return type;
+    public Optional<String> getType() {
+        return Optional.ofNullable(type);
     }
 
-    public void setType(String type) {
+    public void setType(@Nullable String type) {
         this.type = type;
     }
 

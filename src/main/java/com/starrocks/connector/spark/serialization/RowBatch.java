@@ -172,8 +172,8 @@ public class RowBatch {
 
                 String currentType;
 
-                if (field != null) {
-                    currentType = field.getType();
+                if (field != null && field.getType().isPresent()) {
+                    currentType = field.getType().get();
                 } else {
                     currentType = DataTypeUtils.map(mt);
                 }
