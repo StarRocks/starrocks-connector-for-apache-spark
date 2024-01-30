@@ -10,6 +10,7 @@ StarRocks provides a self-developed connector named StarRocks Connector for Apac
 
 | Spark connector | Spark            | StarRocks     | Java | Scala |
 |-----------------| ---------------- | ------------- | ---- | ----- |
+| 1.1.2           | 3.2, 3.3, 3.4, 3.5 | 2.5 and later   | 8    | 2.12  |
 | 1.1.1           | 3.2, 3.3, or 3.4 | 2.5 and later | 8    | 2.12  |
 | 1.1.0           | 3.2, 3.3, or 3.4 | 2.5 and later | 8    | 2.12  |
 
