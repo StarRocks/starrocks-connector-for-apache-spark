@@ -79,7 +79,7 @@ private[sql] class StarrocksRelation(
           requiredColumns.map(Utils.quote).mkString(","))
     } else {
       paramWithScan += (ConfigurationOptions.STARROCKS_READ_FIELD ->
-          lazySchema.fields.map(f => f.name).mkString(","))
+          lazySchema.fields.map(f => Utils.quote(f.name)).mkString(","))
     }
 
     if (filters != null && filters.length > 0) {
