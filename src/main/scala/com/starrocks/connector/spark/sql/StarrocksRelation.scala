@@ -63,9 +63,27 @@ private[sql] class StarrocksRelation(
   // PrunedScan
   override def buildScan(requiredColumns: Array[String]): RDD[Row] = buildScan(requiredColumns, Array.empty)
 
+  // todo
+  // possible unhandle filters for bitmap type
+
   // PrunedFilteredScan
-  override def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
+  override def buildScan(requiredColumns: Array[String], _filters: Array[Filter]): RDD[Row] = {
     val paramWithScan = mutable.LinkedHashMap[String, String]() ++ parameters
+
+
+    def isBitMapColumn (name:String) = {
+      lazySchema.find((p) => p.name == name) match {
+        case Some(value) => value.dataType == InferSchema.BitMapType
+        case None => false
+      }
+    }
+
+    // things to do:
+    // 1. filter out isNotNull for bitmap type as isNotNull is not working for bitmap type
+    val filters = _filters.filter {
+      case IsNotNull(attribute) => !isBitMapColumn(attribute)
+      case _ => true
+    }
 
     // filter where clause can be handled by StarRocks BE
     val filterWhereClause: String = {
@@ -73,13 +91,25 @@ private[sql] class StarrocksRelation(
           .map(filter => s"($filter)").mkString(" and ")
     }
 
+    def columnExpression(column:String) = {
+      if (isBitMapColumn(column)){
+        // in somehow, strarrocks will use  MemroyScrashSink to gather result in execution plan,
+        // which will use arrow to do serialization.
+        // but since the be/src/util/arrow/starocks_column_to_arrow.cpp doesn't support non-primitive type,
+        // we have to use this trick to fetch it from be first.
+        String.format("array_join(bitmap_to_array(%s),',')",Utils.quote(column))
+      }else{
+        Utils.quote(column)
+      }
+    }
+
     // required columns for column pruner
     if (requiredColumns != null && requiredColumns.length > 0) {
       paramWithScan += (ConfigurationOptions.STARROCKS_READ_FIELD ->
-          requiredColumns.map(Utils.quote).mkString(","))
+          requiredColumns.map(columnExpression).mkString(","))
     } else {
       paramWithScan += (ConfigurationOptions.STARROCKS_READ_FIELD ->
-          lazySchema.fields.map(f => Utils.quote(f.name)).mkString(","))
+          lazySchema.fields.map(f => columnExpression(f.name)).mkString(","))
     }
 
     if (filters != null && filters.length > 0) {

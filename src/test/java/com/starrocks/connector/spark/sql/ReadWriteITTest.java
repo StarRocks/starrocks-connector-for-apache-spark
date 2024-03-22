@@ -925,6 +925,62 @@ public class ReadWriteITTest extends ITTestBase {
         testArrayBase(true);
     }
 
+    @Test
+    public void testBitmap() throws  Exception{
+        String tableName = "testSql_" + genRandomUuid();
+        prepareBitmapTable(tableName);
+
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testBitmap")
+                .getOrCreate();
+
+        List<List<Object>> expectedData = new ArrayList<>();
+        expectedData.add(Arrays.asList(1, "2", 3, Collections.singleton(4)));
+        expectedData.add(Arrays.asList(2, "3", 4, Collections.singletonList(5)));
+
+        String ddl = String.format("CREATE TABLE sr_table \n" +
+                " USING starrocks\n" +
+                "OPTIONS(\n" +
+                "  \"starrocks.table.identifier\"=\"%s\",\n" +
+                "  \"starrocks.fe.http.url\"=\"%s\",\n" +
+                "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
+                "  \"starrocks.user\"=\"%s\",\n" +
+                "  \"starrocks.password\"=\"%s\"\n" +
+                ")", String.join(".", DB_NAME, tableName), FE_HTTP, FE_JDBC, USER, PASSWORD);
+        spark.sql(ddl);
+        spark.sql("INSERT INTO sr_table VALUES (1, \"2\", 3, array(4)), (2, \"3\", 4, array(5))");
+
+        List<List<Object>> actualWriteData = queryTable(DB_CONNECTION,
+                String.format("select id,name,score,bitmap_to_array(feature) from %s.%s",
+                    DB_NAME, tableName)
+        );
+        verifyResult(expectedData, actualWriteData);
+
+        List<Row> readRows = spark.sql("SELECT * FROM sr_table where array_contains(feature,4) and id < 3").collectAsList();
+        verifyRows(expectedData.subList(0,1), readRows);
+
+        spark.stop();
+    }
+
+    private void prepareBitmapTable(String tableName) throws Exception{
+        String createStarRocksTable =
+                String.format("CREATE TABLE `%s`.`%s` (" +
+                                "id INT," +
+                                "name STRING," +
+                                "score INT," +
+                                "feature bitmap" +
+                                ") ENGINE=OLAP " +
+                                "PRIMARY KEY(`id`) " +
+                                "DISTRIBUTED BY HASH(`id`) BUCKETS 2 " +
+                                "PROPERTIES (" +
+                                "\"replication_num\" = \"1\"" +
+                                ")",
+                        DB_NAME, tableName);
+        executeSrSQL(createStarRocksTable);
+    }
+
     private void testArrayBase(boolean useJson) throws Exception {
         String tableName = prepareArrayTable("testArray");
 

@@ -23,7 +23,7 @@ import com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_VALUE_RE
 import com.starrocks.connector.spark.cfg.Settings
 import com.starrocks.connector.spark.rdd.{AbstractStarrocksRDD, AbstractStarrocksRDDIterator, StarrocksPartition}
 import com.starrocks.connector.spark.rest.PartitionDefinition
-
+import com.starrocks.connector.spark.sql.schema.InferSchema
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.StructType
@@ -50,6 +50,17 @@ private[spark] class ScalaStarrocksRowRDDIterator(
   }
 
   override def createValue(value: Object): Row = {
-    value.asInstanceOf[ScalaStarrocksRow]
+    val row = value.asInstanceOf[ScalaStarrocksRow]
+
+    struct.fields.zipWithIndex.filter((tuple)=>{
+      tuple._1.dataType == InferSchema.BitMapType
+    }).foreach(tuple=>{
+      // as the starrocks limited support of arrow type, bitmap
+      // will be firstly encode to comma separated string,
+      // then convert back here
+      row.values(tuple._2) = row.getString(tuple._2).split(",").map((v) => v.toLong)
+    })
+
+    row
   }
 }

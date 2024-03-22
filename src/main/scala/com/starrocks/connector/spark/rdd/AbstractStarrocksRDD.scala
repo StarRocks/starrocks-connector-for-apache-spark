@@ -19,7 +19,7 @@
 
 package com.starrocks.connector.spark.rdd
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
 import com.starrocks.connector.spark.cfg.SparkSettings
@@ -34,7 +34,7 @@ private[spark] abstract class AbstractStarrocksRDD[T: ClassTag](
     extends RDD[T](sc, Nil) {
 
   override def getPartitions: Array[Partition] = {
-    starrocksPartitions.zipWithIndex.map { case (starrocksPartition, idx) =>
+    starrocksPartitions.asScala.zipWithIndex.map { case (starrocksPartition, idx) =>
       new StarrocksPartition(id, idx, starrocksPartition)
     }.toArray
   }
@@ -53,7 +53,7 @@ private[spark] abstract class AbstractStarrocksRDD[T: ClassTag](
    */
   @transient private[spark] lazy val starrocksCfg = {
     val cfg = new SparkSettings(sc.getConf)
-    cfg.merge(params)
+    cfg.merge(params.asJava)
   }
 
   @transient private[spark] lazy val starrocksPartitions = {
