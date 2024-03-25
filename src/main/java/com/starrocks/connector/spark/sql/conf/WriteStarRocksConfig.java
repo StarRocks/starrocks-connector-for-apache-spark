@@ -165,8 +165,10 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
             StarRocksField starRocksField = starRocksSchema.getField(field.name());
             if (starRocksField.isBitmap()) {
                 streamLoadColumnNames[i] = "__tmp" + field.name();
-                expressions.add(String.format("`%s`=%s(`%s`)",
-                        field.name(), getBitmapFunction(field), streamLoadColumnNames[i]));
+                // seems `value`=array_to_bitmap(`__tmpvalue`) will not work,
+                // for somehow, starrocks interpret it(`__tmpvalue`) as varchar.
+                expressions.add(String.format("`%s`=array_to_bitmap(cast(`%s` as array<bigint>))",
+                        field.name(), streamLoadColumnNames[i]));
             } else if (starRocksField.isHll()) {
                 streamLoadColumnNames[i] = "__tmp" + field.name();
                 expressions.add(String.format("`%s`=hll_hash(`%s`)", field.name(), streamLoadColumnNames[i]));

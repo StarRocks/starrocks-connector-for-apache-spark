@@ -29,6 +29,7 @@ import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -97,6 +98,8 @@ public final class InferSchema {
 
         return new StructField(field.getName(), dataType, true, Metadata.empty());
     }
+
+    public static DataType BitMapType = DataTypes.createArrayType(DataTypes.LongType);
     static DataType inferDataType(StarRocksField field) {
         String type = field.getType().toLowerCase(Locale.ROOT);
         switch (type) {
@@ -127,6 +130,8 @@ public final class InferSchema {
                 return DataTypes.DateType;
             case "datetime":
                 return DataTypes.TimestampType;
+            case "bitmap":
+                return BitMapType;
             default:
                 throw new UnsupportedOperationException(String.format(
                         "Unsupported starrocks type, column name: %s, data type: %s", field.getName(), field.getType()));

@@ -24,6 +24,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.collection.Seq;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -176,7 +177,12 @@ public abstract class ITTestBase {
             StringJoiner joiner = new StringJoiner(",", "[", "]");
             ((List<?>) object).forEach(obj -> joiner.add(convertToStr(obj, true)));
             result = joiner.toString();
-        } else if (object instanceof Timestamp) {
+        } else if (object instanceof  Seq) {
+            // for scala array type
+            StringJoiner joiner = new StringJoiner(",", "[", "]");
+            ((Seq<?>) object).foreach(obj -> joiner.add(convertToStr(obj, true)));
+            result = joiner.toString();
+        }else if (object instanceof Timestamp) {
             result = DATETIME_FORMATTER.format((Timestamp) object);
         } else {
             result = object == null ? "null" : object.toString();
