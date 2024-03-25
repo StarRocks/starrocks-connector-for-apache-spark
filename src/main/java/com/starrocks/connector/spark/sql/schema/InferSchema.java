@@ -23,7 +23,12 @@ import com.starrocks.connector.spark.exception.StarrocksException;
 import com.starrocks.connector.spark.sql.conf.SimpleStarRocksConfig;
 import com.starrocks.connector.spark.sql.conf.StarRocksConfig;
 import com.starrocks.connector.spark.sql.connect.StarRocksConnector;
-import org.apache.spark.sql.types.*;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Metadata;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
+
 
 import java.util.ArrayList;
 import java.util.HashMap;
