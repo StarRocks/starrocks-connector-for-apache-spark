@@ -50,7 +50,7 @@ public class ReadWriteITTest extends ITTestBase {
 
     @Test
     public void testOutputColNames() throws Exception {
-        String tableName = "testDataFrame_" + genRandomUuid();
+        String tableName = "testOutputColNames_" + genRandomUuid();
         prepareScoreBoardTable(tableName);
 
         try (Statement statement = DB_CONNECTION.createStatement()) {
@@ -1068,5 +1068,43 @@ public class ReadWriteITTest extends ITTestBase {
                         DB_NAME, tableName);
         executeSrSQL(createStarRocksTable);
         return tableName;
+    }
+
+    @Test
+    public void testJsonLz4Compression() throws Exception {
+        String tableName = "testJsonLz4Compression_" + genRandomUuid();
+        prepareScoreBoardTable(tableName);
+
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testJsonLz4Compression")
+                .getOrCreate();
+
+        List<List<Object>> expectedData = new ArrayList<>();
+        expectedData.add(Arrays.asList(1, "2", 3));
+        expectedData.add(Arrays.asList(2, "3", 4));
+
+        String ddl = String.format("CREATE TABLE sr_table \n" +
+                " USING starrocks\n" +
+                "OPTIONS(\n" +
+                "  \"starrocks.table.identifier\"=\"%s\",\n" +
+                "  \"starrocks.fe.http.url\"=\"%s\",\n" +
+                "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
+                "  \"starrocks.user\"=\"%s\",\n" +
+                "  \"starrocks.write.properties.format\"=\"json\",\n" +
+                "  \"starrocks.write.properties.compression\"=\"lz4_frame\",\n" +
+                "  \"starrocks.password\"=\"%s\"\n" +
+                ")", String.join(".", DB_NAME, tableName), FE_HTTP, FE_JDBC, USER, PASSWORD);
+        spark.sql(ddl);
+        spark.sql("INSERT INTO sr_table VALUES (1, \"2\", 3), (2, \"3\", 4)");
+
+        List<List<Object>> actualWriteData = scanTable(DB_CONNECTION, DB_NAME, tableName);
+        verifyResult(expectedData, actualWriteData);
+
+        List<Row> readRows = spark.sql("SELECT * FROM sr_table").collectAsList();
+        verifyRows(expectedData, readRows);
+
+        spark.stop();
     }
 }
