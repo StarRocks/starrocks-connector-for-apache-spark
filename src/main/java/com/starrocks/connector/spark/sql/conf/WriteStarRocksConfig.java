@@ -247,6 +247,7 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
                 .streamLoadDataFormat(dataFormat)
                 .chunkLimit(chunkLimit)
                 .maxBufferRows(bufferRows)
+                .addCommonProperties(properties)
                 .build();
 
         StreamLoadProperties.Builder builder = StreamLoadProperties.builder()
