@@ -168,15 +168,16 @@ public class RowBatch {
             for (int col = 0; col < fieldVectors.size(); col++) {
                 FieldVector curFieldVector = fieldVectors.get(col);
                 Types.MinorType mt = curFieldVector.getMinorType();
-                Field field = fieldMap.get(curFieldVector.getName());
-
-                String currentType;
-
-                if (field != null && field.getType().isPresent()) {
-                    currentType = field.getType().get();
-                } else {
-                    currentType = DataTypeUtils.map(mt);
+                String vectorName = curFieldVector.getName();
+                Field field = schema.get(col);
+                Preconditions.checkNotNull(field,
+                        "Can't find schema for arrow vector [%s] at index [%s]", vectorName, col);
+                if (!vectorName.isEmpty()) {
+                    Preconditions.checkState(vectorName.equals(field.getName()),
+                            "The column at [%s] has inconsistent column names between schema [%s] " +
+                                    "and arrow vector [%s]", col, field.getName(), vectorName);
                 }
+                String currentType = field.getType().orElseGet(() -> DataTypeUtils.map(mt));
 
                 switch (currentType) {
                     case "NULL_TYPE":

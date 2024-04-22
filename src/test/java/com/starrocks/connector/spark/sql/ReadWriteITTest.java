@@ -1107,4 +1107,60 @@ public class ReadWriteITTest extends ITTestBase {
 
         spark.stop();
     }
+
+    @Test
+    public void testArrowVectorNameIsEmptyForTimestampType() throws Exception {
+        String tableName = "testArrowVectorNameIsEmptyForTimestampType_" + genRandomUuid();
+        prepareDateAndDateTimeTable(tableName);
+        executeSrSQL(
+                String.format("INSERT INTO `%s`.`%s` VALUES (1, '1', '2024-04-20', '2024-04-20 19:00:00')",
+                    DB_NAME, tableName));
+
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testArrowVectorNameIsEmptyForTimestampType")
+                .getOrCreate();
+
+        String ddl = String.format("CREATE TABLE src \n" +
+                "USING starrocks\n" +
+                "OPTIONS(\n" +
+                "  \"starrocks.table.identifier\"=\"%s\",\n" +
+                "  \"starrocks.fe.http.url\"=\"%s\",\n" +
+                "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
+                "  \"starrocks.user\"=\"%s\",\n" +
+                "  \"starrocks.password\"=\"%s\"\n" +
+                ")", String.join(".", DB_NAME, tableName), FE_HTTP, FE_JDBC, USER, PASSWORD);
+        spark.sql(ddl);
+        List<Row> readRows = spark.sql("SELECT c1, c2, c3 FROM src WHERE c0 = 1;").collectAsList();
+
+        List<List<Object>> expectedData = Collections.singletonList(
+                Arrays.asList(
+                        "1",
+                        Date.valueOf("2024-04-20"),
+                        Timestamp.valueOf("2024-04-20 19:00:00")
+                )
+        );
+        verifyRows(expectedData, readRows);
+
+        spark.stop();
+    }
+
+    private void prepareDateAndDateTimeTable(String tableName) throws Exception {
+        String createStarRocksTable =
+                String.format("CREATE TABLE `%s`.`%s` (" +
+                                "c0 INT," +
+                                "c1 STRING," +
+                                "c2 DATE," +
+                                "c3 DATETIME" +
+                                ") ENGINE=OLAP " +
+                                "PRIMARY KEY(`c0`) " +
+                                "DISTRIBUTED BY HASH(`c0`) BUCKETS 2 " +
+                                "PROPERTIES (" +
+                                "\"replication_num\" = \"1\"" +
+                                ")",
+                        DB_NAME, tableName);
+        executeSrSQL(createStarRocksTable);
+    }
+
 }
