@@ -289,7 +289,7 @@ public class RestService implements Serializable {
         if (!StringUtils.isEmpty(cfg.getProperty(STARROCKS_FILTER_QUERY))) {
             sql += " where " + cfg.getProperty(STARROCKS_FILTER_QUERY);
         }
-        logger.debug("Query SQL Sending to StarRocks FE is: '{}'.", sql);
+        logger.info("Query SQL Sending to StarRocks FE is: '{}'.", sql);
 
         HttpPost httpPost = new HttpPost(getUriStr(cfg, logger) + QUERY_PLAN);
         String entity = "{\"sql\": \"" + sql + "\"}";
