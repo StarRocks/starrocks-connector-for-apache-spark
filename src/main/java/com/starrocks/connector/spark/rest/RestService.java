@@ -51,6 +51,8 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.InetAddress;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -355,6 +357,32 @@ public class RestService implements Serializable {
     }
 
     /**
+     * check if BE node is active
+     * @param candidate BE node, format: <be_address>:<thrift_port>
+     * @return BE node status, active is true
+     */
+    @VisibleForTesting
+    static boolean isCandidateActive(String candidate) {
+        String[] split = candidate.split(":");
+        String host = split[0];
+        int port = Integer.parseInt(split[1]);
+        Socket socket = null;
+        try {
+            socket = new Socket(InetAddress.getByName(host), port);
+            return true;
+        } catch (Exception e) {
+            return false;
+        } finally {
+            if (socket != null) {
+                try {
+                    socket.close();
+                } catch (IOException e) {
+                }
+            }
+        }
+    }
+
+    /**
      * select which StarRocks BE to get tablet data.
      *
      * @param queryPlan {@link QueryPlan} translated from StarRocks FE response
@@ -364,6 +392,7 @@ public class RestService implements Serializable {
      */
     @VisibleForTesting
     static Map<String, List<Long>> selectBeForTablet(QueryPlan queryPlan, Logger logger) throws StarrocksException {
+        Map<String, Boolean> candidatesStatus = new HashMap<>();
         Map<String, List<Long>> be2Tablets = new HashMap<>();
         for (Map.Entry<String, Tablet> part : queryPlan.getPartitions().entrySet()) {
             logger.debug("Parse tablet info: '{}'.", part);
@@ -378,6 +407,14 @@ public class RestService implements Serializable {
             String target = null;
             int tabletCount = Integer.MAX_VALUE;
             for (String candidate : part.getValue().getRoutings()) {
+                // check if BE node is active and save the status
+                if (!candidatesStatus.containsKey(candidate)) {
+                    candidatesStatus.put(candidate, isCandidateActive(candidate));
+                }
+                // check if BE node is active, if not, continue
+                if (Boolean.FALSE.equals(candidatesStatus.get(candidate))) {
+                    continue;
+                }
                 logger.trace("Evaluate StarRocks BE '{}' to tablet '{}'.", candidate, tabletId);
                 if (!be2Tablets.containsKey(candidate)) {
                     logger.debug("Choice a new StarRocks BE '{}' for tablet '{}'.", candidate, tabletId);
