@@ -21,9 +21,14 @@ package com.starrocks.connector.spark.serialization;
 
 import static com.starrocks.connector.spark.util.ErrorMessages.PARSE_NUMBER_FAILED_MESSAGE;
 
+import com.starrocks.connector.spark.cfg.ConfigurationOptions;
+import com.starrocks.connector.spark.cfg.Settings;
 import com.starrocks.connector.spark.exception.IllegalArgumentException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * present an StarRocks BE address.
@@ -34,12 +39,30 @@ public class Routing {
     private String host;
     private int port;
 
-    public Routing(String routing) throws IllegalArgumentException {
-        parseRouting(routing);
+    public Routing(String routing, Settings settings) throws IllegalArgumentException {
+        parseRouting(routing, settings);
     }
 
-    private void parseRouting(String routing) throws IllegalArgumentException {
+    private void parseRouting(String routing, Settings settings) throws IllegalArgumentException {
         logger.debug("Parse StarRocks BE address: '{}'.", routing);
+        String beHostMappingList = settings.getProperty(ConfigurationOptions.STARROCKS_BE_HOST_MAPPING_LIST, "");
+        if (beHostMappingList.length() > 0) {
+            String list = beHostMappingList;
+            Map<String, String> mappingMap = new HashMap<>();
+            String[] beHostMappingInfos = list.split(";");
+            for (String beHostMappingInfo : beHostMappingInfos) {
+                String[] mapping = beHostMappingInfo.split(",");
+                mappingMap.put(mapping[1].trim(), mapping[0].trim());
+            }
+            if (!mappingMap.containsKey(routing)) {
+                throw new RuntimeException("Not find be node info from the be port mappping list");
+            }
+            routing = mappingMap.get(routing);
+            logger.info("query data from be by using be-hostname {}", routing);
+        } else {
+            logger.info("query data from be by using be-ip {}", routing);
+        }
+
         String[] hostPort = routing.split(":");
         if (hostPort.length != 2) {
             logger.error("Format of StarRocks BE address '{}' is illegal.", routing);
