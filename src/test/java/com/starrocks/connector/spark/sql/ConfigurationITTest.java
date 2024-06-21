@@ -29,8 +29,8 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -39,14 +39,15 @@ import java.util.Map;
 import java.util.StringJoiner;
 
 public class ConfigurationITTest extends ITTestBase {
-    
+
     private String tableName;
     private String tableId;
 
     private StructType schema;
 
-    @Before
+    @BeforeEach
     public void prepare() throws Exception {
+        super.beforeClass();
         this.tableName = "testConfig_" + genRandomUuid();
         this.tableId = String.join(".", DB_NAME, tableName);
         String createStarRocksTable =

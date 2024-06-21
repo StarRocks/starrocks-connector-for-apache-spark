@@ -30,11 +30,11 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -43,13 +43,10 @@ import java.util.Map;
 
 public class StructuredStreamingITTest extends ITTestBase {
 
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
     private String tableName;
     private String tableId;
 
-    @Before
+    @BeforeEach
     public void prepare() throws Exception {
         this.tableName = "testConfig_" + genRandomUuid();
         this.tableId = String.join(".", DB_NAME, tableName);
@@ -69,7 +66,7 @@ public class StructuredStreamingITTest extends ITTestBase {
     }
 
     @Test
-    public void testStructuredStreaming() throws Exception {
+    public void testStructuredStreaming(@TempDir() Path temporaryFolder) throws Exception {
         SparkSession spark = SparkSession
                 .builder()
                 .master("local[1]")
@@ -94,7 +91,7 @@ public class StructuredStreamingITTest extends ITTestBase {
         options.put("starrocks.user", USER);
         options.put("starrocks.password", PASSWORD);
 
-        String checkpointDir = temporaryFolder.newFolder().toURI().toString();
+        String checkpointDir = temporaryFolder.toString();
         StreamingQuery query = df.writeStream()
                 .format("starrocks")
                 .outputMode(OutputMode.Append())
