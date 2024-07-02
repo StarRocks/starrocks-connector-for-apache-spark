@@ -19,15 +19,18 @@
 
 package com.starrocks.connector.spark.sql;
 
+import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
+import org.apache.spark.sql.functions;
 import org.apache.spark.sql.types.ArrayType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.DecimalType;
+import org.apache.spark.sql.types.MapType;
 import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -391,7 +394,7 @@ public class ReadWriteITTest extends ITTestBase {
                     "c5 LARGEINT," +
                     "c6 FLOAT," +
                     "c7 DOUBLE," +
-                    "c8 DECIMAL(20, 0)," +
+                    "c8 DECIMAL(20, 1)," +
                     "c9 CHAR(10)," +
                     "c10 VARCHAR(100)," +
                     "c11 STRING," +
@@ -423,7 +426,7 @@ public class ReadWriteITTest extends ITTestBase {
                 "5",
                 6.0f,
                 7.0,
-                BigDecimal.valueOf(8.0),
+                BigDecimal.valueOf(8.1),
                 "9",
                 "10",
                 "11",
@@ -442,7 +445,7 @@ public class ReadWriteITTest extends ITTestBase {
                 new StructField("c5", DataTypes.StringType, false, Metadata.empty()),
                 new StructField("c6", DataTypes.FloatType, false, Metadata.empty()),
                 new StructField("c7", DataTypes.DoubleType, false, Metadata.empty()),
-                new StructField("c8", new DecimalType(20, 0), false, Metadata.empty()),
+                new StructField("c8", new DecimalType(20, 1), false, Metadata.empty()),
                 new StructField("c9", DataTypes.StringType, false, Metadata.empty()),
                 new StructField("c10", DataTypes.StringType, false, Metadata.empty()),
                 new StructField("c11", DataTypes.StringType, false, Metadata.empty()),
@@ -466,7 +469,28 @@ public class ReadWriteITTest extends ITTestBase {
                 .options(options)
                 .save();
 
-        // TODO verify the result after read supports json
+        List<List<Object>> expectedData = new ArrayList<>();
+        expectedData.add(Arrays.asList(
+                true,
+                (byte) 1,
+                (short) 2,
+                3,
+                4L,
+                "5",
+                6.0f,
+                7.0,
+                BigDecimal.valueOf(8.1),
+                "9",
+                "10",
+                "11",
+                Date.valueOf("2022-01-01"),
+                Timestamp.valueOf("2023-01-01 00:00:00"),
+                "{\"key\": 1, \"value\": 2}"
+        ));
+
+
+        List<List<Object>> actualWriteData = scanTable(DB_CONNECTION, DB_NAME, tableName);
+        verifyResult(expectedData, actualWriteData);
 
         spark.stop();
     }
