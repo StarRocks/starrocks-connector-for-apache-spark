@@ -51,7 +51,7 @@ public abstract class ITTestBase {
     protected static String FE_JDBC;
     protected static String USER = "root";
     protected static String PASSWORD = "";
-    private static final boolean DEBUG_MODE = true;
+    private static final boolean DEBUG_MODE = false;
     protected static String DB_NAME;
 
     protected static Connection DB_CONNECTION;

@@ -29,7 +29,6 @@ import org.slf4j.LoggerFactory;
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 public class JSONRowStringConverter extends AbstractRowStringConverter {
@@ -56,36 +55,36 @@ public class JSONRowStringConverter extends AbstractRowStringConverter {
             throw new RuntimeException("Can't convert Row without schema");
         }
 
-        Map<String, Object> data = new HashMap<>();
-        Map<String, Object> jsonData = new HashMap<>();
+        Map<String, Object> nonJsonColumnData = new HashMap<>();
+        Map<String, Object> jsonColumnData = new HashMap<>();
         for (int i = 0; i < row.length(); i++) {
             StructField field = row.schema().apply(i);
             if (!(field.nullable() && row.isNullAt(i))) {
                 if (!isStarRocksJsonType[i]) {
-                    data.put(streamLoadColumnNames[i], valueConverters[i].apply(row.get(i)));
+                    nonJsonColumnData.put(streamLoadColumnNames[i], valueConverters[i].apply(row.get(i)));
                 } else {
-                    jsonData.put(streamLoadColumnNames[i], valueConverters[i].apply(row.get(i)));
+                    jsonColumnData.put(streamLoadColumnNames[i], valueConverters[i].apply(row.get(i)));
                 }
             }
         }
 
         try {
-            String tmp = mapper.writeValueAsString(data);
-            if (!jsonData.isEmpty()) {
+            String result = mapper.writeValueAsString(nonJsonColumnData);
+            if (!jsonColumnData.isEmpty()) {
                 StringBuilder builder = new StringBuilder();
-                builder.append(tmp.substring(0, tmp.length() - 1));
-                for (Map.Entry<String, Object> entry : jsonData.entrySet()) {
+                builder.append(result, 0, result.length() - 1);
+                for (Map.Entry<String, Object> entry : jsonColumnData.entrySet()) {
                     builder.append(",\"");
                     builder.append(entry.getKey());
                     builder.append("\":");
-                    builder.append(Objects.toString(entry.getValue()));
+                    builder.append(entry.getValue());
                 }
                 builder.append("}");
-                tmp = builder.toString();
+                result = builder.toString();
             }
-            return tmp;
+            return result;
         } catch (Exception e) {
-            LOG.error("Failed to serialize row to json, data: {}", data, e);
+            LOG.error("Failed to serialize row to json, data: {}", nonJsonColumnData, e);
             throw new RuntimeException(e);
         }
     }
