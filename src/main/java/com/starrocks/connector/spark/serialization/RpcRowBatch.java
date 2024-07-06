@@ -70,10 +70,10 @@ public class RpcRowBatch extends BaseRowBatch {
     private RootAllocator rootAllocator;
 
     public RpcRowBatch(TScanBatchResult nextResult, StarRocksSchema schema) throws StarRocksException {
-        this(nextResult, schema, ZoneId.systemDefault(), ZoneId.systemDefault());
+        this(nextResult, schema, ZoneId.systemDefault());
     }
 
-    public RpcRowBatch(TScanBatchResult nextResult, StarRocksSchema schema, ZoneId srTimeZoneId, ZoneId sparkTimeZoneId)
+    public RpcRowBatch(TScanBatchResult nextResult, StarRocksSchema schema, ZoneId srTimeZoneId)
             throws StarRocksException {
         super(schema, srTimeZoneId);
         this.rootAllocator = new RootAllocator(Integer.MAX_VALUE);
@@ -96,7 +96,7 @@ public class RpcRowBatch extends BaseRowBatch {
                 for (int i = 0; i < rowCountInOneBatch; ++i) {
                     rowBatch.add(new Row(fieldVectors.size()));
                 }
-                convertArrowToRowBatch(srTimeZoneId, sparkTimeZoneId);
+                convertArrowToRowBatch(srTimeZoneId);
                 readRowCount += root.getRowCount();
             }
         } catch (Exception e) {
@@ -107,7 +107,7 @@ public class RpcRowBatch extends BaseRowBatch {
         }
     }
 
-    public void convertArrowToRowBatch(ZoneId srTimeZoneId, ZoneId sparkTimeZoneId) {
+    public void convertArrowToRowBatch(ZoneId srTimeZoneId) {
         try {
             for (int col = 0; col < fieldVectors.size(); col++) {
                 FieldVector curFieldVector = fieldVectors.get(col);
@@ -261,12 +261,7 @@ public class RpcRowBatch extends BaseRowBatch {
                                     .withZone(srTimeZoneId);
                             LocalDateTime localDateTime = LocalDateTime.parse(value, srFormatter);
                             ZonedDateTime outputZone = ZonedDateTime.of(localDateTime, srTimeZoneId);
-                            DateTimeFormatter sparkFormatter = DateTimeFormatter
-                                    .ofPattern("yyyy-MM-dd HH:mm:ss")
-                                    .withZone(sparkTimeZoneId);
-                            String sparkDateTime = sparkFormatter.format(outputZone);
-                            System.out.println(sparkDateTime);
-                            addValueToRow(rowIndex, Timestamp.valueOf(sparkDateTime));
+                            addValueToRow(rowIndex, Timestamp.from(outputZone.toInstant()));
                         }
                         break;
                     case LARGEINT:

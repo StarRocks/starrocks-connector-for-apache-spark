@@ -59,10 +59,9 @@ public final class InferSchema {
                 starRocksFields.add(field);
             }
             if (!nonExistedColumns.isEmpty()) {
-                throw new StarRocksException(
-                        String.format("Can't find those columns %s in StarRocks table `%s`.`%s`. " +
-                                "Please check your configuration 'starrocks.columns' to make sure all columns exist in the table",
-                                nonExistedColumns, config.getDatabase(), config.getTable()));
+                throw new StarRocksException(String.format("Can't find those columns %s in StarRocks table `%s`.`%s`. "
+                                + "Please check your configuration 'starrocks.columns' to make sure all columns exist in the table",
+                        nonExistedColumns, config.getDatabase(), config.getTable()));
             }
         }
 
@@ -105,7 +104,7 @@ public final class InferSchema {
                 // mysql does not have boolean type, and starrocks `information_schema`.`COLUMNS` will return
                 // a "tinyint" data type for both StarRocks BOOLEAN and TINYINT type, We distinguish them by
                 // column size, and the size of BOOLEAN is null
-                return (field.getSize() == null || field.getSize() == 0) ? DataTypes.BooleanType : DataTypes.ByteType;
+                return field.getSize() == null ? DataTypes.BooleanType : DataTypes.ByteType;
             case "smallint":
                 return DataTypes.ShortType;
             case "int":
@@ -138,8 +137,9 @@ public final class InferSchema {
             case "boolean":
                 return DataTypes.BooleanType;
             default:
-                throw new UnsupportedOperationException(String.format(
-                        "Unsupported starrocks type, column name: %s, data type: %s", field.getName(), field.getType()));
+                throw new UnsupportedOperationException(
+                        String.format("Unsupported starrocks type, column name: %s, data type: %s", field.getName(),
+                                field.getType()));
         }
     }
 }

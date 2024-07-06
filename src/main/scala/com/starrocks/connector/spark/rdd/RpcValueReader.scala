@@ -46,17 +46,17 @@ class RpcValueReader(partition: RpcPartition, settings: Settings)
   extends BaseValueReader(partition, settings, null) {
   protected val logger = Logger.getLogger(classOf[RpcValueReader])
   protected val client = new BackendClient(new Routing(partition.getBeAddress), settings)
-  protected var offset = 0L
-  protected var eos: AtomicBoolean = new AtomicBoolean(false)
+  private var offset = 0L
+  private val eos: AtomicBoolean = new AtomicBoolean(false)
   // flag indicate if support deserialize Arrow to RowBatch asynchronously
-  protected var deserializeArrowToRowBatchAsync: Boolean = Try {
+  private var deserializeArrowToRowBatchAsync: Boolean = Try {
     settings.getProperty(STARROCKS_DESERIALIZE_ARROW_ASYNC, STARROCKS_DESERIALIZE_ARROW_ASYNC_DEFAULT.toString).toBoolean
   } getOrElse {
     logger.warn(ErrorMessages.PARSE_BOOL_FAILED_MESSAGE, STARROCKS_DESERIALIZE_ARROW_ASYNC, settings.getProperty(STARROCKS_DESERIALIZE_ARROW_ASYNC))
     STARROCKS_DESERIALIZE_ARROW_ASYNC_DEFAULT
   }
 
-  protected var rowBatchBlockingQueue: BlockingQueue[RpcRowBatch] = {
+  private var rowBatchBlockingQueue: BlockingQueue[RpcRowBatch] = {
     val blockingQueueSize = Try {
       settings.getProperty(STARROCKS_DESERIALIZE_QUEUE_SIZE, STARROCKS_DESERIALIZE_QUEUE_SIZE_DEFAULT.toString).toInt
     } getOrElse {
@@ -122,11 +122,11 @@ class RpcValueReader(partition: RpcPartition, settings: Settings)
     params
   }
 
-  protected val openResult: TScanOpenResult = client.openScanner(openParams)
-  protected val contextId: String = openResult.getContext_id
+  private val openResult: TScanOpenResult = client.openScanner(openParams)
+  private val contextId: String = openResult.getContext_id
   protected val schema: StarRocksSchema = SchemaUtils.convert(openResult.getSelected_columns)
 
-  protected val asyncThread: Thread = new Thread {
+  private val asyncThread: Thread = new Thread {
     override def run {
       val nextBatchParams = new TScanNextBatchParams
       nextBatchParams.setContext_id(contextId)
@@ -135,7 +135,7 @@ class RpcValueReader(partition: RpcPartition, settings: Settings)
         val nextResult = client.getNext(nextBatchParams)
         eos.set(nextResult.isEos)
         if (!eos.get) {
-          val rowBatch = new RpcRowBatch(nextResult, schema, srTimeZone, sparkTimeZone)
+          val rowBatch = new RpcRowBatch(nextResult, schema, srTimeZone)
           offset += rowBatch.getReadRowCount
           rowBatch.close
           rowBatchBlockingQueue.put(rowBatch)
@@ -144,7 +144,7 @@ class RpcValueReader(partition: RpcPartition, settings: Settings)
     }
   }
 
-  protected val asyncThreadStarted: Boolean = {
+  private val asyncThreadStarted: Boolean = {
     var started = false
     if (deserializeArrowToRowBatchAsync) {
       asyncThread.start
@@ -190,7 +190,7 @@ class RpcValueReader(partition: RpcPartition, settings: Settings)
         eos.set(nextResult.isEos)
         rowHasNext = nextResult.rows != null
         if (!eos.get) {
-          rowBatch = new RpcRowBatch(nextResult, schema, srTimeZone, sparkTimeZone)
+          rowBatch = new RpcRowBatch(nextResult, schema, srTimeZone)
         }
       }
       rowBatchHasNext = !eos.get

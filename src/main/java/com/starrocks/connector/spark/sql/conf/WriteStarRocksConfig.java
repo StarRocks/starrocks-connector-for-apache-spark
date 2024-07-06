@@ -26,7 +26,6 @@ import com.starrocks.data.load.stream.StreamLoadDataFormat;
 import com.starrocks.data.load.stream.StreamLoadUtils;
 import com.starrocks.data.load.stream.properties.StreamLoadProperties;
 import com.starrocks.data.load.stream.properties.StreamLoadTableProperties;
-import org.apache.arrow.util.VisibleForTesting;
 import org.apache.spark.sql.types.ArrayType;
 import org.apache.spark.sql.types.ByteType;
 import org.apache.spark.sql.types.DataType;
@@ -261,6 +260,7 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
                 .streamLoadDataFormat(dataFormat)
                 .chunkLimit(chunkLimit)
                 .maxBufferRows(bufferRows)
+                .addCommonProperties(properties)
                 .build();
 
         StreamLoadProperties.Builder builder = StreamLoadProperties.builder()

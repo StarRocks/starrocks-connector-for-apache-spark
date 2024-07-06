@@ -27,43 +27,23 @@ import com.starrocks.connector.spark.sql.schema.StarRocksSchema
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.read.{InputPartition, PartitionReader}
 
-import scala.collection.JavaConverters.asScalaBufferConverter
-
 abstract class AbstractStarRocksDecoder[Record <: StarRocksGenericRow](partition: InputPartition,
                                                                        settings: Settings,
                                                                        schema: StarRocksSchema)
   extends PartitionReader[Record]
-  with Logging {
+    with Logging {
   // the reader obtain data from StarRocks BE
   lazy val reader: BaseValueReader = {
     val baseValueReader = new RpcValueReader(partition.asInstanceOf[RpcPartition], settings)
     baseValueReader.init
     baseValueReader
   }
-  var rowOrder: Seq[String] = settings.getProperty(STARROCKS_READ_FIELD).split(",")
-  var currentRow: Array[Any] = Array.fill(rowOrder.size)(null)
-
-  def getNextRecord: AnyRef = {
-    if (!hasNext) {
-      return null
-    }
-    reader.rowBatch.next.asScala.zipWithIndex.foreach {
-      case (s, index) if index < currentRow.size => currentRow.update(index, s)
-      case _ => // nothing
-    }
-    currentRow
-  }
-
-  def hasNext: Boolean = {
-    reader.hasNext
-  }
+  private val rowOrder: Seq[String] = settings.getProperty(STARROCKS_READ_FIELD).split(",")
+  private val currentRow: Array[Any] = Array.fill(rowOrder.size)(null)
 
   def next(): Boolean = {
-    val hasNext = reader.rowBatchHasNext || reader.rowHasNext
-    if (hasNext) {
-      getNextRecord
-    }
-    reader.rowBatchHasNext || reader.rowHasNext
+    reader.fillRow(currentRow)
+    reader.notFinal
   }
 
   def get: Record = decode(currentRow)

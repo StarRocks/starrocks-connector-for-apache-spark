@@ -762,7 +762,7 @@ public class ReadWriteITTest extends ITTestBase {
         expectedData.add(Arrays.asList("gender", "male", "5"));
 
         String query = String.format("SELECT tagname, tagvalue, bitmap_to_string(userid) FROM `%s`.`%s`", DB_NAME, tableName);
-        ;
+
         List<List<Object>> actualWriteData = queryTable(DB_CONNECTION, query);
         verifyResult(expectedData, actualWriteData);
 
@@ -1149,7 +1149,6 @@ public class ReadWriteITTest extends ITTestBase {
                 "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
                 "  \"starrocks.user\"=\"%s\",\n" +
                 "  \"starrocks.write.properties.format\"=\"json\",\n" +
-                "  \"starrocks.write.properties.compression\"=\"lz4_frame\",\n" +
                 "  \"starrocks.password\"=\"%s\"\n" +
                 ")", String.join(".", DB_NAME, tableName), FE_HTTP, FE_JDBC, USER, PASSWORD);
         spark.sql(ddl);

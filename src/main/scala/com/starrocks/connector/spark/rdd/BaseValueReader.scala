@@ -37,8 +37,6 @@ import scala.collection.JavaConverters.asScalaBufferConverter
 class BaseValueReader(partition: InputPartition, settings: Settings, schema: StarRocksSchema) {
   protected val srTimeZone =
     ZoneId.of(settings.getProperty(STARROCKS_TIMEZONE, ZoneId.systemDefault().getId))
-  protected val sparkTimeZone =
-    ZoneId.of(settings.getProperty("spark.sql.session.timeZone", ZoneId.systemDefault().getId))
 
   var rowBatch: BaseRowBatch = _
   var rowHasNext: Boolean = true
@@ -52,6 +50,10 @@ class BaseValueReader(partition: InputPartition, settings: Settings, schema: Sta
     false
   }
 
+  def notFinal: Boolean = {
+    rowBatchHasNext || rowHasNext
+  }
+
   def getNextRecord: AnyRef = {
     currentRecord
   }
@@ -62,6 +64,17 @@ class BaseValueReader(partition: InputPartition, settings: Settings, schema: Sta
     }
     currentRecord = rowBatch.next.asScala.toList
     currentRecord
+  }
+
+  def fillRow(currentRow: Array[Any]): AnyRef = {
+    if (!hasNext) {
+      return null
+    }
+    rowBatch.next.asScala.zipWithIndex.foreach {
+      case (s, index) if (index < currentRow.size) => currentRow.update(index, s)
+      case _ => // nothing
+    }
+    currentRow
   }
 
   def close(): Unit = {}

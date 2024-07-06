@@ -20,13 +20,12 @@
 package com.starrocks.connector.spark.catalog
 
 import com.starrocks.connector.spark.sql.StarRocksDataSourceProvider.{addPrefixInStarRockConfig, getStarRocksSchema}
+import com.starrocks.connector.spark.sql.StarRocksTable
 import com.starrocks.connector.spark.sql.conf.SimpleStarRocksConfig
 import com.starrocks.connector.spark.sql.connect.StarRocksConnector
 import com.starrocks.connector.spark.sql.schema.InferSchema
-import com.starrocks.connector.spark.sql.{SchemaUtils, StarRocksTable}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.catalog._
-import org.apache.spark.sql.connector.catalog.functions.UnboundFunction
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -37,7 +36,6 @@ import scala.collection.convert.ImplicitConversions.{`collection AsScalaIterable
 
 class StarRocksCatalog extends TableCatalog
   with SupportsNamespaces
-  with FunctionCatalog
   with Logging {
 
   private var catalogName: String = _
@@ -95,8 +93,4 @@ class StarRocksCatalog extends TableCatalog
 
   override def dropNamespace(namespace: Array[String], cascade: Boolean): Boolean =
     throw new UnsupportedOperationException
-
-  override def listFunctions(namespace: Array[String]): Array[Identifier] = throw new UnsupportedOperationException
-
-  override def loadFunction(ident: Identifier): UnboundFunction = throw new UnsupportedOperationException
 }

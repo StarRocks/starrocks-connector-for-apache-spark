@@ -40,7 +40,6 @@ class StarRocksScanBuilder(tableName: String,
                            config: Settings) extends ScanBuilder
   with SupportsPushDownRequiredColumns
   // use filter pushdown v2
-  /*with SupportsPushDownFilters*/
   with SupportsPushDownV2Filters {
 
   import StarRocksScanBuilder._
@@ -50,11 +49,6 @@ class StarRocksScanBuilder(tableName: String,
   private lazy val dialect = JdbcDialects.get("")
   private lazy val sqlBuilder: V2ExpressionSQLBuilder = new V2ExpressionSQLBuilder
 
-  /*private lazy val inValueLengthLimit = min(
-    config.getProperty(STARROCKS_FILTER_QUERY_IN_MAX_COUNT, "100").toInt,
-    STARROCKS_FILTER_QUERY_IN_VALUE_UPPER_LIMIT
-  )*/
-
   override def pruneColumns(requiredSchema: StructType): Unit = {
     val requiredCols = requiredSchema.map(_.name)
     this.readSchema = StructType(readSchema.filter(field => requiredCols.contains(field.name)))
@@ -62,25 +56,6 @@ class StarRocksScanBuilder(tableName: String,
     // pass read column to BE
     config.setProperty(STARROCKS_READ_FIELD, readSchema.fieldNames.mkString(","))
   }
-
-  /*private var supportedFilters = Array.empty[Filter]
-
-  override def pushFilters(filters: Array[Filter]): Array[Filter] = {
-    val (supported, unsupported) = filters.partition(Utils.compileFilter(_, dialect, inValueLengthLimit).isDefined)
-
-    val filterWhereClause: String = supported
-      .flatMap(Utils.compileFilter(_, dialect, inValueLengthLimit))
-      .map(filter => s"($filter)")
-      .mkString(" and ")
-
-    // pass filter column to BE
-    config.setProperty(STARROCKS_FILTER_QUERY, filterWhereClause)
-
-    supportedFilters = supported
-    unsupported
-  }
-
-  override def pushedFilters(): Array[Filter] = supportedFilters*/
 
   private var supportedPredicates = Array.empty[Predicate]
 

@@ -23,6 +23,7 @@ import com.starrocks.connector.spark.exception.StarRocksException;
 import com.starrocks.connector.spark.sql.conf.StarRocksConfig;
 import com.starrocks.connector.spark.sql.schema.StarRocksField;
 import com.starrocks.connector.spark.sql.schema.StarRocksSchema;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,13 +44,13 @@ public class StarRocksConnector {
     private static Logger logger = LoggerFactory.getLogger(StarRocksConnector.class);
 
     private static final String TABLE_SCHEMA_QUERY =
-            "SELECT `COLUMN_NAME`, `ORDINAL_POSITION`, `COLUMN_KEY`, `DATA_TYPE`, `COLUMN_SIZE`, `DECIMAL_DIGITS` " +
-                    "FROM `information_schema`.`COLUMNS` WHERE `TABLE_SCHEMA`=? AND `TABLE_NAME`=?;";
+            "SELECT `COLUMN_NAME`, `ORDINAL_POSITION`, `COLUMN_KEY`, `DATA_TYPE`, `COLUMN_SIZE`, `DECIMAL_DIGITS` "
+                    + "FROM `information_schema`.`COLUMNS` WHERE `TABLE_SCHEMA`=? AND `TABLE_NAME`=?;";
     private static final String ALL_DBS_QUERY = "show databases;";
     private static final String LOAD_DB_QUERY =
-            "select SCHEMA_NAME from information_schema.schemata where SCHEMA_NAME in (?);";
-    private static final String ALL_TABLES_QUERY = "select TABLE_SCHEMA, TABLE_NAME from information_schema.tables " +
-            "where TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA in (?) ;";
+            "select SCHEMA_NAME from information_schema.schemata where SCHEMA_NAME in (?) AND CATALOG_NAME = 'def';";
+    private static final String ALL_TABLES_QUERY = "select TABLE_SCHEMA, TABLE_NAME from information_schema.tables "
+            + "where TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA in (?) ;";
 
     // Driver name for mysql connector 5.1 which is deprecated in 8.0
     private static final String MYSQL_51_DRIVER_NAME = "com.mysql.jdbc.Driver";
@@ -65,9 +66,7 @@ public class StarRocksConnector {
         List<StarRocksField> pks = new ArrayList<>();
         List<StarRocksField> columns = new ArrayList<>();
         for (Map<String, String> columnValue : columnValues) {
-            StarRocksField field = new StarRocksField(
-                    columnValue.get("COLUMN_NAME"),
-                    columnValue.get("DATA_TYPE"),
+            StarRocksField field = new StarRocksField(columnValue.get("COLUMN_NAME"), columnValue.get("DATA_TYPE"),
                     Integer.parseInt(columnValue.get("ORDINAL_POSITION")),
                     Optional.ofNullable(columnValue.get("COLUMN_SIZE")).map(Integer::parseInt).orElse(null),
                     Optional.ofNullable(columnValue.get("COLUMN_SIZE")).map(Integer::parseInt).orElse(null),
@@ -95,16 +94,21 @@ public class StarRocksConnector {
         return dbNames;
     }
 
-    public static Map<String, String> loadDatabase(StarRocksConfig config, List<String> dbNames) {
-        List<String> parameters = Arrays.asList(String.join(",", dbNames));
-        List<Map<String, String>> dbs = extractColumnValuesBySql(config, LOAD_DB_QUERY, parameters);
+    public static Map<String, String> loadDatabase(StarRocksConfig config, List<String> namespace) {
+        String fullName = StringUtils.join(namespace, ".");
+        if (namespace.size() != 1) {
+            throw new StarRocksException("namespace should only 1, " + fullName);
+        }
+        List<Map<String, String>> dbs =
+                extractColumnValuesBySql(config, LOAD_DB_QUERY, Arrays.asList(namespace.get(namespace.size() - 1)));
 
         for (Map<String, String> db : dbs) {
             String dbName = Optional.ofNullable(db.get("SCHEMA_NAME"))
                     .orElseThrow(() -> new StarRocksException("get Database SCHEMA_NAME error"));
             return new DatabaseSpec(dbName).toJavaMap();
         }
-        throw new StarRocksException("has no this database: " + config.getDatabase());
+
+        throw new StarRocksException("database(s) not found: " + fullName);
     }
 
     public static Map<String, String> getTables(StarRocksConfig config, List<String> dbNames) {
@@ -115,8 +119,8 @@ public class StarRocksConnector {
         for (Map<String, String> db : tables) {
             String dbName = Optional.ofNullable(db.get("TABLE_SCHEMA"))
                     .orElseThrow(() -> new StarRocksException("get table header error"));
-            String tableName = Optional.ofNullable(db.get("TABLE_NAME"))
-                    .orElseThrow(() -> new StarRocksException("get table header error"));
+            String tableName =
+                    Optional.ofNullable(db.get("TABLE_NAME")).orElseThrow(() -> new StarRocksException("get table header error"));
 
             table2Db.put(tableName, dbName);
         }
@@ -131,11 +135,11 @@ public class StarRocksConnector {
             try {
                 Class.forName(MYSQL_51_DRIVER_NAME);
             } catch (ClassNotFoundException ie) {
-                String msg = String.format("Can't find mysql jdbc driver, please download it and " +
-                        "put it in your classpath manually. Note that the connector does not include " +
-                        "the mysql driver since version 1.1.1 because of the limitation of GPL license " +
-                        "used by the driver. You can download it from MySQL site %s, or Maven Central %s",
-                        MYSQL_SITE_URL, MAVEN_CENTRAL_URL);
+                String msg = String.format("Can't find mysql jdbc driver, please download it and "
+                                + "put it in your classpath manually. Note that the connector does not include "
+                                + "the mysql driver since version 1.1.1 because of the limitation of GPL license "
+                                + "used by the driver. You can download it from MySQL site %s, or Maven Central %s", MYSQL_SITE_URL,
+                        MAVEN_CENTRAL_URL);
                 throw new StarRocksException(msg);
             }
         }
@@ -143,14 +147,11 @@ public class StarRocksConnector {
         return DriverManager.getConnection(jdbcUrl, username, password);
     }
 
-    private static List<Map<String, String>> extractColumnValuesBySql(StarRocksConfig config,
-                                                                      String sqlPattern,
-                                                                      List<String> parameters) {
+    private static List<Map<String, String>> extractColumnValuesBySql(StarRocksConfig config, String sqlPattern,
+            List<String> parameters) {
         List<Map<String, String>> columnValues = new ArrayList<>();
-        try (
-                Connection conn = createJdbcConnection(config.getFeJdbcUrl(), config.getUsername(), config.getPassword());
-                PreparedStatement ps = conn.prepareStatement(sqlPattern)
-        ) {
+        try (Connection conn = createJdbcConnection(config.getFeJdbcUrl(), config.getUsername(), config.getPassword());
+                PreparedStatement ps = conn.prepareStatement(sqlPattern)) {
             for (int i = 1; i <= parameters.size(); i++) {
                 ps.setObject(i, parameters.get(i - 1));
             }
@@ -171,11 +172,11 @@ public class StarRocksConnector {
         }
 
         if (columnValues.isEmpty()) {
-            String errMsg = String.format("Can't get schema of table [%s.%s] from StarRocks. The possible reasons: " +
-                            "1) The table does not exist. 2) The user does not have [SELECT] privilege on the " +
-                            "table, and can't read the schema. Please make sure that the table exists in StarRocks, " +
-                            "and grant [SELECT] privilege to the user. If you are loading data to the table, also need " +
-                            "to grant [INSERT] privilege to the user.", config.getDatabase(), config.getTable());
+            String errMsg = String.format("Can't get schema of table [%s.%s] from StarRocks. The possible reasons: "
+                    + "1) The table does not exist. 2) The user does not have [SELECT] privilege on the "
+                    + "table, and can't read the schema. Please make sure that the table exists in StarRocks, "
+                    + "and grant [SELECT] privilege to the user. If you are loading data to the table, also need "
+                    + "to grant [INSERT] privilege to the user.", config.getDatabase(), config.getTable());
             logger.error(errMsg);
         }
         return columnValues;
