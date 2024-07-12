@@ -57,6 +57,10 @@ public class StarRocksField {
         return scale;
     }
 
+    public boolean isJson() {
+        return "json".equalsIgnoreCase(type);
+    }
+
     public boolean isBitmap() {
         return "bitmap".equalsIgnoreCase(type);
     }
