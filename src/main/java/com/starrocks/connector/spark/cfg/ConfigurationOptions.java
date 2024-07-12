@@ -23,6 +23,8 @@ public interface ConfigurationOptions {
     // starrocks fe node address
     String STARROCKS_FENODES = "starrocks.fenodes";
 
+    String STARROCKS_BE_HOST_MAPPING_LIST = "starrocks.be.host.mapping.list";
+
     String STARROCKS_DEFAULT_CLUSTER = "default_cluster";
 
     String STARROCKS_TIMEZONE = "starrocks.timezone";

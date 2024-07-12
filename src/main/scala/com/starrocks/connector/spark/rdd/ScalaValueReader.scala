@@ -48,7 +48,7 @@ class ScalaValueReader(partition: PartitionDefinition, settings: Settings) {
   protected val logger = Logger.getLogger(classOf[ScalaValueReader])
 
   protected val timeZone = ZoneId.of(settings.getProperty(STARROCKS_TIMEZONE, ZoneId.systemDefault.toString))
-  protected val client = new BackendClient(new Routing(partition.getBeAddress), settings)
+  protected val client = new BackendClient(new Routing(partition.getBeAddress, settings), settings)
   protected var offset = 0
   protected var eos: AtomicBoolean = new AtomicBoolean(false)
   protected var rowBatch: RowBatch = _
