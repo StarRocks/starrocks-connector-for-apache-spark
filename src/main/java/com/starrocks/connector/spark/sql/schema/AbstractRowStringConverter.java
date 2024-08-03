@@ -49,8 +49,8 @@ public abstract class AbstractRowStringConverter implements RowStringConverter, 
     public AbstractRowStringConverter(StructType schema, ZoneId timeZone) {
         this.internalRowConverter = new InternalRowToRowFunction(schema);
         this.instantFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(timeZone);
-        this.valueConverters = (Function<Object, Object>[])new Function[schema.length()];
-        for(int i = 0; i < schema.size(); i ++) {
+        this.valueConverters = (Function<Object, Object>[]) new Function[schema.length()];
+        for (int i = 0; i < schema.size(); i++) {
             valueConverters[i] = convert(schema.fields()[i].dataType());
         }
     }
@@ -81,19 +81,19 @@ public abstract class AbstractRowStringConverter implements RowStringConverter, 
                 // otherwise a java.time.Instant
                 return new NullableWrapper(
                         arg -> {
-                                if (arg instanceof Timestamp) {
-                                    return (instantFormatter.format(((Timestamp) arg).toInstant()));
-                                } else {
-                                    return (instantFormatter.format((Instant) arg));
-                                }
+                            if (arg instanceof Timestamp) {
+                                return (instantFormatter.format(((Timestamp) arg).toInstant()));
+                            } else {
+                                return (instantFormatter.format((Instant) arg));
                             }
-                        );
+                        }
+                );
             } else if (dataType instanceof DecimalType) {
                 return new NullableWrapper(
-                            arg -> arg instanceof BigDecimal
-                                    ? arg
-                                    : ((Decimal) arg).toBigDecimal().bigDecimal()
-                        );
+                        arg -> arg instanceof BigDecimal
+                                ? arg
+                                : ((Decimal) arg).toBigDecimal().bigDecimal()
+                );
             } else if (dataType instanceof ArrayType) {
                 DataType elementType = ((ArrayType) dataType).elementType();
                 return new NullableWrapper(new ListDataConverter(convert(elementType)));

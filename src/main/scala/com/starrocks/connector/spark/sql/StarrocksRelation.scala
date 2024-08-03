@@ -21,8 +21,12 @@ package com.starrocks.connector.spark.sql
 
 import com.starrocks.connector.spark.cfg.ConfigurationOptions._
 import com.starrocks.connector.spark.cfg.{ConfigurationOptions, SparkSettings}
+import com.starrocks.connector.spark.read.ScalaStarRocksRowRDD
+import com.starrocks.connector.spark.rest.models.Schema
+import com.starrocks.connector.spark.sql.conf.StarRocksConfig
 import com.starrocks.connector.spark.sql.schema.InferSchema
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.jdbc.JdbcDialects
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.StructType
@@ -33,7 +37,7 @@ import scala.collection.mutable
 import scala.math.min
 
 
-private[sql] class StarrocksRelation(
+private[sql] class StarRocksRelation(
     val sqlContext: SQLContext, parameters: Map[String, String])
     extends BaseRelation with TableScan with PrunedScan with PrunedFilteredScan with InsertableRelation {
 
@@ -54,7 +58,7 @@ private[sql] class StarrocksRelation(
   override def schema: StructType = lazySchema
 
   override def unhandledFilters(filters: Array[Filter]): Array[Filter] = {
-    filters.filter(Utils.compileFilter(_, dialect, inValueLengthLimit).isEmpty)
+    filters.filter(DialectUtils.compileFilter(_, dialect, inValueLengthLimit).isEmpty)
   }
 
   // TableScan
@@ -69,17 +73,17 @@ private[sql] class StarrocksRelation(
 
     // filter where clause can be handled by StarRocks BE
     val filterWhereClause: String = {
-      filters.flatMap(Utils.compileFilter(_, dialect, inValueLengthLimit))
+      filters.flatMap(DialectUtils.compileFilter(_, dialect, inValueLengthLimit))
           .map(filter => s"($filter)").mkString(" and ")
     }
 
     // required columns for column pruner
     if (requiredColumns != null && requiredColumns.length > 0) {
       paramWithScan += (ConfigurationOptions.STARROCKS_READ_FIELD ->
-          requiredColumns.map(Utils.quote).mkString(","))
+          requiredColumns.map(DialectUtils.quote).mkString(","))
     } else {
       paramWithScan += (ConfigurationOptions.STARROCKS_READ_FIELD ->
-          lazySchema.fields.map(f => Utils.quote(f.name)).mkString(","))
+          lazySchema.fields.map(f => DialectUtils.quote(f.name)).mkString(","))
     }
 
     if (filters != null && filters.length > 0) {
@@ -90,7 +94,7 @@ private[sql] class StarrocksRelation(
       paramWithScan += (ConfigurationOptions.STARROCKS_FILTER_QUERY -> (filterWhereClause + userFilters))
     }
 
-    new ScalaStarrocksRowRDD(sqlContext.sparkContext, paramWithScan.toMap, lazySchema)
+    new ScalaStarRocksRowRDD(sqlContext.sparkContext, paramWithScan.toMap)
   }
 
   override def insert(data: DataFrame, overwrite: Boolean): Unit = {

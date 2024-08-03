@@ -19,11 +19,23 @@
 
 package com.starrocks.connector.spark.cfg;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+
+import static com.starrocks.connector.spark.sql.conf.StarRocksConfigBase.KEY_FE_HTTP;
+
+import com.google.common.collect.ImmutableSet;
+import org.apache.commons.lang3.StringUtils;
+
 public interface ConfigurationOptions {
-    // starrocks fe node address
+    // starrocks fe node address， for rest api
     String STARROCKS_FENODES = "starrocks.fenodes";
 
     String STARROCKS_DEFAULT_CLUSTER = "default_cluster";
+
+    String STARROCKS_DEFAULT_CATALOG = "default_catalog";
 
     String STARROCKS_TIMEZONE = "starrocks.timezone";
 
@@ -67,4 +79,30 @@ public interface ConfigurationOptions {
 
     String STARROCKS_DESERIALIZE_QUEUE_SIZE = "starrocks.deserialize.queue.size";
     int STARROCKS_DESERIALIZE_QUEUE_SIZE_DEFAULT = 64;
+
+    static Map<String, String> makeWriteCompatibleWithRead(Map<String, String> options) {
+        // user and password compatible
+        Map<String, String> configMap = new HashMap(options);
+        processSameCompatible(ImmutableSet.of(STARROCKS_USER, STARROCKS_REQUEST_AUTH_USER, "user"), configMap);
+        processSameCompatible(ImmutableSet.of(STARROCKS_PASSWORD, STARROCKS_REQUEST_AUTH_PASSWORD, "password"), configMap);
+        processSameCompatible(ImmutableSet.of(STARROCKS_FENODES, KEY_FE_HTTP), configMap);
+        return configMap;
+    }
+
+    static void processSameCompatible(Set<String> confCandidates, Map<String, String> options) {
+        String value = "";
+        for (String key : confCandidates) {
+            if (options.containsKey(key)) {
+                value = options.get(key);
+                if (StringUtils.isNotBlank(value)) {
+                    break;
+                }
+            }
+        }
+        if (!Objects.isNull(value)) {
+            for (String key : confCandidates) {
+                options.put(key, value);
+            }
+        }
+    }
 }

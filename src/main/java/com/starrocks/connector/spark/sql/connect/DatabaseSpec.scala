@@ -1,4 +1,4 @@
-// Modifications Copyright 2021 StarRocks Limited.
+// Copyright 2021-present StarRocks, Inc. All rights reserved.
 //
 // Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
@@ -17,22 +17,16 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.starrocks.connector.spark.rdd
+package com.starrocks.connector.spark.sql.connect
 
-import com.starrocks.connector.spark.cfg.ConfigurationOptions.{STARROCKS_FILTER_QUERY, STARROCKS_TABLE_IDENTIFIER}
+import java.util
+import scala.collection.JavaConverters._
 
-import org.apache.spark.SparkContext
-import org.apache.spark.rdd.RDD
+case class DatabaseSpec(name: String) {
 
-object StarRocksSpark {
-  def starrocksRDD(
-      sc: SparkContext,
-      tableIdentifier: Option[String] = None,
-      query: Option[String] = None,
-      cfg: Option[Map[String, String]] = None): RDD[AnyRef] = {
-    val params = collection.mutable.Map(cfg.getOrElse(Map.empty).toSeq: _*)
-    query.map { s => params += (STARROCKS_FILTER_QUERY -> s) }
-    tableIdentifier.map { s => params += (STARROCKS_TABLE_IDENTIFIER -> s) }
-    new ScalaStarRocksRDD[AnyRef](sc, params.toMap)
-  }
+  def toMap: Map[String, String] = Map(
+    "name" -> name
+  )
+
+  def toJavaMap: util.Map[String, String] = toMap.asJava
 }
