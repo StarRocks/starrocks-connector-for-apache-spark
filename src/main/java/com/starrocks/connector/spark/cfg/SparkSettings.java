@@ -21,18 +21,32 @@ package com.starrocks.connector.spark.cfg;
 
 import com.google.common.base.Preconditions;
 import org.apache.spark.SparkConf;
-
-import java.util.Properties;
-
 import scala.Option;
 import scala.Tuple2;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+
+import static com.starrocks.connector.spark.cfg.ConfigurationOptions.makeWriteCompatibleWithRead;
+
 public class SparkSettings extends Settings {
 
-    private final SparkConf cfg;
+    private SparkConf cfg;
+
+    public SparkSettings() {
+        this(new SparkConf(true));
+    }
 
     public SparkSettings(SparkConf cfg) {
         Preconditions.checkArgument(cfg != null, "non-null spark configuration expected.");
+        Map<String, String> srConfigMap = new HashMap<>();
+        for (Tuple2<String, String> tuple : cfg.getAllWithPrefix("spark.sql.catalog.")) {
+            srConfigMap.putIfAbsent(tuple._1.replace("spark.sql.catalog.", ""), tuple._2);
+        }
+        srConfigMap = makeWriteCompatibleWithRead(srConfigMap);
+        srConfigMap.forEach(cfg::setIfMissing);
+
         this.cfg = cfg;
     }
 

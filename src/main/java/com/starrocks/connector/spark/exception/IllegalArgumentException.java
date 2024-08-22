@@ -19,7 +19,7 @@
 
 package com.starrocks.connector.spark.exception;
 
-public class IllegalArgumentException extends StarrocksException {
+public class IllegalArgumentException extends StarRocksException {
     public IllegalArgumentException(String msg, Throwable cause) {
         super(msg, cause);
     }

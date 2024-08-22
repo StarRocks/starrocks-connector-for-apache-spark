@@ -21,7 +21,7 @@ package com.starrocks.connector
 
 import scala.language.implicitConversions
 
-import com.starrocks.connector.spark.rdd.StarrocksSpark
+import com.starrocks.connector.spark.rdd.StarRocksSpark
 import org.apache.spark.SparkContext
 
 package object spark {
@@ -32,6 +32,6 @@ package object spark {
         tableIdentifier: Option[String] = None,
         query: Option[String] = None,
         cfg: Option[Map[String, String]] = None) =
-      StarrocksSpark.starrocksRDD(sc, tableIdentifier, query, cfg)
+      StarRocksSpark.starrocksRDD(sc, tableIdentifier, query, cfg)
   }
 }

@@ -19,21 +19,26 @@
 
 package com.starrocks.connector.spark.sql.schema;
 
-public class StarRocksField {
+import java.io.Serializable;
 
-    public static final StarRocksField __OP = new StarRocksField("__op", "tinyint", Integer.MAX_VALUE, "3", null);
+public class StarRocksField implements Serializable {
+
+    public static final StarRocksField OP = new StarRocksField("__op", "tinyint", Integer.MAX_VALUE, 3, null,  null);
 
     private String name;
     private String type;
     private int ordinalPosition;
-    private String size;
-    private String scale;
+    private Integer size;
 
-    public StarRocksField(String name, String type, int ordinalPosition, String size, String scale) {
+    private Integer precision;
+    private Integer scale;
+
+    public StarRocksField(String name, String type, int ordinalPosition, Integer size, Integer precision, Integer scale) {
         this.name = name;
         this.type = type;
         this.ordinalPosition = ordinalPosition;
         this.size = size;
+        this.precision = precision;
         this.scale = scale;
     }
 
@@ -49,11 +54,15 @@ public class StarRocksField {
         return ordinalPosition;
     }
 
-    public String getSize() {
+    public Integer getSize() {
         return size;
     }
 
-    public String getScale() {
+    public Integer getPrecision() {
+        return precision;
+    }
+
+    public Integer getScale() {
         return scale;
     }
 

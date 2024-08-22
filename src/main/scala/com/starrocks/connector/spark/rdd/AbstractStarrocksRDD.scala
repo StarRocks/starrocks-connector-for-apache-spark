@@ -23,24 +23,24 @@ import scala.collection.JavaConversions._
 import scala.reflect.ClassTag
 
 import com.starrocks.connector.spark.cfg.SparkSettings
-import com.starrocks.connector.spark.rest.{PartitionDefinition, RestService}
+import com.starrocks.connector.spark.rest.{RpcPartition, RestService}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, SparkContext}
 
-private[spark] abstract class AbstractStarrocksRDD[T: ClassTag](
+private[spark] abstract class AbstractStarRocksRDD[T: ClassTag](
     @transient private var sc: SparkContext,
     val params: Map[String, String] = Map.empty)
     extends RDD[T](sc, Nil) {
 
   override def getPartitions: Array[Partition] = {
     starrocksPartitions.zipWithIndex.map { case (starrocksPartition, idx) =>
-      new StarrocksPartition(id, idx, starrocksPartition)
+      new StarRocksPartition(id, idx, starrocksPartition)
     }.toArray
   }
 
   override def getPreferredLocations(split: Partition): Seq[String] = {
-    val starrocksSplit = split.asInstanceOf[StarrocksPartition]
+    val starrocksSplit = split.asInstanceOf[StarRocksPartition]
     Seq(starrocksSplit.starrocksPartition.getBeAddress)
   }
 
@@ -61,7 +61,7 @@ private[spark] abstract class AbstractStarrocksRDD[T: ClassTag](
   }
 }
 
-private[spark] class StarrocksPartition(rddId: Int, idx: Int, val starrocksPartition: PartitionDefinition)
+private[spark] class StarRocksPartition(rddId: Int, idx: Int, val starrocksPartition: RpcPartition)
     extends Partition {
 
   override def hashCode(): Int = 31 * (31 * (31 + rddId) + idx) + starrocksPartition.hashCode()
