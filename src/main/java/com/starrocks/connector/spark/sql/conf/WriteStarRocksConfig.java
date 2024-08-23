@@ -38,8 +38,10 @@ import org.apache.spark.util.Utils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class WriteStarRocksConfig extends StarRocksConfigBase {
@@ -100,11 +102,18 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
 
     private String streamLoadColumnProperty;
     private String[] streamLoadColumnNames;
+    private final Set<String> starRocksJsonColumnNames;
 
     public WriteStarRocksConfig(Map<String, String> originOptions, StructType sparkSchema, StarRocksSchema starRocksSchema) {
         super(originOptions);
         load(sparkSchema);
         genStreamLoadColumns(sparkSchema, starRocksSchema);
+        this.starRocksJsonColumnNames = new HashSet<>();
+        for (StarRocksField column : starRocksSchema.getColumns()) {
+            if (column.isJson()) {
+                starRocksJsonColumnNames.add(column.getName());
+            }
+        }
     }
 
     private void load(StructType sparkSchema) {
@@ -229,6 +238,10 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
 
     public String[] getStreamLoadColumnNames() {
         return streamLoadColumnNames;
+    }
+
+    public Set<String> getStarRocksJsonColumnNames() {
+        return starRocksJsonColumnNames;
     }
 
     public boolean isPartialUpdate() {

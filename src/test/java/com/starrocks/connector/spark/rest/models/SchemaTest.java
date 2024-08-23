@@ -17,33 +17,26 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.starrocks.connector.spark.serialization;
-
-import static org.hamcrest.core.StringStartsWith.startsWith;
-
-import com.starrocks.connector.spark.exception.IllegalArgumentException;
+package com.starrocks.connector.spark.rest.models;
 
 import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 
-public class TestRouting {
+public class SchemaTest {
     @Rule
     public ExpectedException thrown = ExpectedException.none();
 
     @Test
-    public void testRouting() throws Exception {
-        Routing r1 = new Routing("10.11.12.13:1234");
-        Assert.assertEquals("10.11.12.13", r1.getHost());
-        Assert.assertEquals(1234, r1.getPort());
+    public void testPutGet() {
+        Schema ts = new Schema(1);
+        Field f = new Field();
+        ts.put(f);
+        Assert.assertEquals(f, ts.get(0));
 
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage(startsWith("argument "));
-        new Routing("10.11.12.13:wxyz");
-
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage(startsWith("Parse "));
-        new Routing("10.11.12.13");
+        IndexOutOfBoundsException exception = Assertions.assertThrows(IndexOutOfBoundsException.class, () -> ts.get(1));
+        Assertions.assertEquals(exception.getMessage(), "Index: 1, Fields size: 1");
     }
 }

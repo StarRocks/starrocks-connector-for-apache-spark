@@ -29,18 +29,24 @@ import org.slf4j.LoggerFactory;
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class JSONRowStringConverter extends AbstractRowStringConverter {
 
     private static final Logger LOG = LoggerFactory.getLogger(JSONRowStringConverter.class);
 
     private final String[] streamLoadColumnNames;
+    private final boolean[] isStarRocksJsonType;
     private final ObjectMapper mapper;
 
-    public JSONRowStringConverter(StructType schema, String[] streamLoadColumnNames, ZoneId timeZone) {
+    public JSONRowStringConverter(StructType schema, String[] streamLoadColumnNames, Set<String> jsonColumnNames, ZoneId timeZone) {
         super(schema, timeZone);
         this.streamLoadColumnNames = streamLoadColumnNames;
         this.mapper = new ObjectMapper();
+        this.isStarRocksJsonType = new boolean[streamLoadColumnNames.length];
+        for (int i = 0; i < streamLoadColumnNames.length; i++) {
+            isStarRocksJsonType[i] = jsonColumnNames.contains(streamLoadColumnNames[i]);
+        }
     }
 
     @Override
@@ -49,18 +55,36 @@ public class JSONRowStringConverter extends AbstractRowStringConverter {
             throw new RuntimeException("Can't convert Row without schema");
         }
 
-        Map<String, Object> data = new HashMap<>();
+        Map<String, Object> nonJsonColumnData = new HashMap<>();
+        Map<String, Object> jsonColumnData = new HashMap<>();
         for (int i = 0; i < row.length(); i++) {
             StructField field = row.schema().apply(i);
             if (!(field.nullable() && row.isNullAt(i))) {
-                data.put(streamLoadColumnNames[i], valueConverters[i].apply(row.get(i)));
+                if (!isStarRocksJsonType[i]) {
+                    nonJsonColumnData.put(streamLoadColumnNames[i], valueConverters[i].apply(row.get(i)));
+                } else {
+                    jsonColumnData.put(streamLoadColumnNames[i], valueConverters[i].apply(row.get(i)));
+                }
             }
         }
 
         try {
-            return mapper.writeValueAsString(data);
+            String result = mapper.writeValueAsString(nonJsonColumnData);
+            if (!jsonColumnData.isEmpty()) {
+                StringBuilder builder = new StringBuilder();
+                builder.append(result, 0, result.length() - 1);
+                for (Map.Entry<String, Object> entry : jsonColumnData.entrySet()) {
+                    builder.append(",\"");
+                    builder.append(entry.getKey());
+                    builder.append("\":");
+                    builder.append(entry.getValue());
+                }
+                builder.append("}");
+                result = builder.toString();
+            }
+            return result;
         } catch (Exception e) {
-            LOG.error("Failed to serialize row to json, data: {}", data, e);
+            LOG.error("Failed to serialize row to json, data: {}", nonJsonColumnData, e);
             throw new RuntimeException(e);
         }
     }

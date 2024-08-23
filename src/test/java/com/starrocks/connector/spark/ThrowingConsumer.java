@@ -1,4 +1,4 @@
-// Modifications Copyright 2021 StarRocks Limited.
+// Copyright 2021-present StarRocks, Inc. All rights reserved.
 //
 // Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
@@ -17,26 +17,30 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.starrocks.connector.spark.rest.models;
+package com.starrocks.connector.spark;
 
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.Rule;
-import org.junit.rules.ExpectedException;
+import java.util.function.Consumer;
 
-public class TestSchema {
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
+/**
+ * Throwing {@link Consumer}.
+ */
+@FunctionalInterface
+public interface ThrowingConsumer<T> extends Consumer<T> {
 
-    @Test
-    public void testPutGet() {
-        Schema ts = new Schema(1);
-        Field f = new Field();
-        ts.put(f);
-        Assert.assertEquals(f, ts.get(0));
-
-        thrown.expect(IndexOutOfBoundsException.class);
-        thrown.expectMessage("Index: 1, Fields size: 1");
-        ts.get(1);
+    @Override
+    default void accept(T t) {
+        try {
+            accept0(t);
+        } catch (Throwable ex) {
+            throw new RuntimeException(ex);
+        }
     }
+
+    /**
+     * Performs this operation on the given argument.
+     *
+     * @see #accept(Object)
+     */
+    void accept0(T t) throws Throwable;
+
 }

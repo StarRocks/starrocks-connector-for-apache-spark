@@ -20,21 +20,26 @@
 package com.starrocks.connector.spark.backend;
 
 import com.starrocks.connector.spark.cfg.ConfigurationOptions;
-import com.starrocks.connector.spark.exception.ConnectedFailedException;
-import com.starrocks.connector.spark.exception.StarrocksException;
-import com.starrocks.connector.spark.exception.StarrocksInternalException;
-import com.starrocks.connector.spark.util.ErrorMessages;
 import com.starrocks.connector.spark.cfg.Settings;
+import com.starrocks.connector.spark.exception.ConnectedFailedException;
+import com.starrocks.connector.spark.exception.StarRocksException;
+import com.starrocks.connector.spark.exception.StarRocksInternalException;
 import com.starrocks.connector.spark.serialization.Routing;
-
+import com.starrocks.connector.spark.util.ErrorMessages;
 import com.starrocks.shade.org.apache.thrift.TException;
 import com.starrocks.shade.org.apache.thrift.protocol.TBinaryProtocol;
 import com.starrocks.shade.org.apache.thrift.protocol.TProtocol;
 import com.starrocks.shade.org.apache.thrift.transport.TSocket;
 import com.starrocks.shade.org.apache.thrift.transport.TTransport;
 import com.starrocks.shade.org.apache.thrift.transport.TTransportException;
-import com.starrocks.thrift.*;
-
+import com.starrocks.thrift.TScanBatchResult;
+import com.starrocks.thrift.TScanCloseParams;
+import com.starrocks.thrift.TScanCloseResult;
+import com.starrocks.thrift.TScanNextBatchParams;
+import com.starrocks.thrift.TScanOpenParams;
+import com.starrocks.thrift.TScanOpenResult;
+import com.starrocks.thrift.TStarrocksExternalService;
+import com.starrocks.thrift.TStatusCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -152,7 +157,7 @@ public class BackendClient {
      * @return scan batch result
      * @throws ConnectedFailedException throw if cannot connect to StarRocks BE
      */
-    public TScanBatchResult getNext(TScanNextBatchParams nextBatchParams) throws StarrocksException {
+    public TScanBatchResult getNext(TScanNextBatchParams nextBatchParams) throws StarRocksException {
         logger.debug("GetNext to '{}', parameter is '{}'.", routing, nextBatchParams);
         if (!isConnected) {
             open();
@@ -181,7 +186,7 @@ public class BackendClient {
         if (result != null && (TStatusCode.OK != (result.getStatus().getStatus_code()))) {
             logger.error(ErrorMessages.STARROCKS_INTERNAL_FAIL_MESSAGE, routing, result.getStatus().getStatus_code(),
                     result.getStatus().getError_msgs());
-            throw new StarrocksInternalException(routing.toString(), result.getStatus().getStatus_code(),
+            throw new StarRocksInternalException(routing.toString(), result.getStatus().getStatus_code(),
                     result.getStatus().getError_msgs());
         }
         logger.error(ErrorMessages.CONNECT_FAILED_MESSAGE, routing);

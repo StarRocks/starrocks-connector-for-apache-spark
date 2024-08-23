@@ -17,14 +17,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.starrocks.connector.spark.sql
-
-import scala.collection.mutable.ArrayBuffer
+package com.starrocks.connector.spark.read
 
 import org.apache.spark.sql.Row
 
-private[spark] class ScalaStarrocksRow(rowOrder: Seq[String]) extends Row {
-   lazy val values: ArrayBuffer[Any] = ArrayBuffer.fill(rowOrder.size)(null)
+private[spark] class StarRocksRow(var values: Array[Any]) extends Row with StarRocksGenericRow {
 
   /** No-arg constructor for Kryo serialization. */
   def this() = this(null)
@@ -57,5 +54,5 @@ private[spark] class ScalaStarrocksRow(rowOrder: Seq[String]) extends Row {
 
   override def copy(): Row = this
 
-  override def toSeq = values.toSeq
+  override def toSeq = values
 }
