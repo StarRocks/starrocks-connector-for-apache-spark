@@ -21,12 +21,8 @@ package com.starrocks.connector.spark.sql.schema;
 
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.types.ArrayType;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.Decimal;
-import org.apache.spark.sql.types.DecimalType;
-import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
+import org.apache.spark.sql.types.*;
 import scala.collection.JavaConverters;
 
 import java.io.Serializable;
@@ -35,15 +31,14 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.function.Function;
 
 public abstract class AbstractRowStringConverter implements RowStringConverter, Serializable {
 
+    protected final Function<Object, Object>[] valueConverters;
     private final Function<InternalRow, Row> internalRowConverter;
     private final DateTimeFormatter instantFormatter;
-    protected final Function<Object, Object>[] valueConverters;
 
     @SuppressWarnings("unchecked")
     public AbstractRowStringConverter(StructType schema, ZoneId timeZone) {
@@ -97,6 +92,18 @@ public abstract class AbstractRowStringConverter implements RowStringConverter, 
             } else if (dataType instanceof ArrayType) {
                 DataType elementType = ((ArrayType) dataType).elementType();
                 return new NullableWrapper(new ListDataConverter(convert(elementType)));
+            } else if (dataType instanceof StructType) {
+                Map<String, Function<Object, Object>> fieldFunctionMapping = new LinkedHashMap<>();
+                StructField[] fields = ((StructType) dataType).fields();
+                if (Objects.nonNull(fields) && fields.length > 0) {
+                    for (StructField field : fields) {
+                        DataType colDataType = field.dataType();
+                        String colName = field.name();
+                        Function<Object, Object> colFunction = convert(colDataType);
+                        fieldFunctionMapping.put(colName, colFunction);
+                    }
+                }
+                return new NullableWrapper(new NestingStructTypeDataConverter(fieldFunctionMapping));
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -139,6 +146,36 @@ public abstract class AbstractRowStringConverter implements RowStringConverter, 
             }
             List<Object> result = new ArrayList<>(input.size());
             input.forEach(element -> result.add(elementConverter.apply(element)));
+            return result;
+        }
+    }
+
+    private static class NestingStructTypeDataConverter implements Function<Object, Object> {
+        private final Map<String, Function<Object, Object>> fieldFunctionMapping;
+
+        public NestingStructTypeDataConverter(Map<String, Function<Object, Object>> fieldFunctionMapping) {
+            this.fieldFunctionMapping = fieldFunctionMapping;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public Object apply(Object data) {
+            Map<Object, Object> result = new LinkedHashMap<>();
+            if (data instanceof GenericRowWithSchema) {
+                GenericRowWithSchema rowWithSchema = (GenericRowWithSchema) data;
+                StructType schema = rowWithSchema.schema();
+                Object[] values = rowWithSchema.values();
+                StructField[] fields = schema.fields();
+                for (int i = 0; i < fields.length; i++) {
+                    StructField field = fields[i];
+                    String k = field.name();
+                    Function<Object, Object> function = fieldFunctionMapping.getOrDefault(k, Object::toString);
+                    Object v = function.apply(values[i]);
+                    result.put(k, v);
+                }
+            } else {
+                return data;
+            }
             return result;
         }
     }
