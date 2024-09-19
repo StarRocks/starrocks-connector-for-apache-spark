@@ -27,7 +27,6 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.types.DecimalType;
 import org.apache.spark.sql.types.StructType;
-import scala.collection.JavaConverters;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -39,6 +38,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
+import scala.collection.JavaConverters;
+
 public abstract class AbstractRowStringConverter implements RowStringConverter, Serializable {
 
     private final Function<InternalRow, Row> internalRowConverter;
@@ -48,7 +49,7 @@ public abstract class AbstractRowStringConverter implements RowStringConverter, 
     @SuppressWarnings("unchecked")
     public AbstractRowStringConverter(StructType schema, ZoneId timeZone) {
         this.internalRowConverter = new InternalRowToRowFunction(schema);
-        this.instantFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(timeZone);
+        this.instantFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.SSSSSS]").withZone(timeZone);
         this.valueConverters = (Function<Object, Object>[])new Function[schema.length()];
         for(int i = 0; i < schema.size(); i ++) {
             valueConverters[i] = convert(schema.fields()[i].dataType());

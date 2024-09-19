@@ -51,11 +51,12 @@ import java.sql.Date;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.TimeZone;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -82,7 +83,7 @@ public class RowBatch {
     }
 
     private final SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd");
-    private final SimpleDateFormat dateTimeFormatter;
+    private final DateTimeFormatter dateTimeFormatter;
 
     // offset for iterate the rowBatch
     private int offsetInRowBatch = 0;
@@ -102,8 +103,7 @@ public class RowBatch {
 
     public RowBatch(TScanBatchResult nextResult, Schema schema, ZoneId timeZone) throws StarrocksException {
         this.schema = schema;
-        this.dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        dateTimeFormatter.setTimeZone(TimeZone.getTimeZone(timeZone));
+        this.dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.SSSSSS]").withZone(timeZone);
         this.fieldMap = schema.getProperties().stream()
                 .collect(
                         Collectors.toMap(
@@ -140,7 +140,7 @@ public class RowBatch {
             }
         } catch (Exception e) {
             logger.error("Read StarRocks Data failed because: ", e);
-            throw new StarrocksException(e.getMessage());
+            throw new StarrocksException(e);
         } finally {
             close();
         }
@@ -318,7 +318,7 @@ public class RowBatch {
                                 continue;
                             }
                             String value = new String(varCharVectorForDateTime.get(rowIndex));
-                            addValueToRow(rowIndex, new Timestamp(dateTimeFormatter.parse(value).getTime()));
+                            addValueToRow(rowIndex, Timestamp.from(ZonedDateTime.parse(value, dateTimeFormatter).toInstant()));
                         }
                         break;
                     case "LARGEINT":
