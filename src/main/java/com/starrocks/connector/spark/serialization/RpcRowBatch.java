@@ -101,7 +101,7 @@ public class RpcRowBatch extends BaseRowBatch {
             }
         } catch (Exception e) {
             logger.error("Read StarRocks Data failed because: ", e);
-            throw new StarRocksException(e.getMessage());
+            throw new StarRocksException(e);
         } finally {
             close();
         }
@@ -257,7 +257,7 @@ public class RpcRowBatch extends BaseRowBatch {
                             // sr timezone default zone ？
                             String value = new String(varCharVectorForDateTime.get(rowIndex));
                             DateTimeFormatter srFormatter = DateTimeFormatter
-                                    .ofPattern("yyyy-MM-dd HH:mm:ss")
+                                    .ofPattern("yyyy-MM-dd HH:mm:ss[.SSSSSS]")
                                     .withZone(srTimeZoneId);
                             LocalDateTime localDateTime = LocalDateTime.parse(value, srFormatter);
                             ZonedDateTime outputZone = ZonedDateTime.of(localDateTime, srTimeZoneId);
