@@ -48,7 +48,7 @@ public abstract class AbstractRowStringConverter implements RowStringConverter, 
     @SuppressWarnings("unchecked")
     public AbstractRowStringConverter(StructType schema, ZoneId timeZone) {
         this.internalRowConverter = new InternalRowToRowFunction(schema);
-        this.instantFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(timeZone);
+        this.instantFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.SSSSSS]").withZone(timeZone);
         this.valueConverters = (Function<Object, Object>[]) new Function[schema.length()];
         for (int i = 0; i < schema.size(); i++) {
             valueConverters[i] = convert(schema.fields()[i].dataType());

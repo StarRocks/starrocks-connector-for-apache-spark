@@ -1218,4 +1218,61 @@ public class ReadWriteITTest extends ITTestBase {
         executeSrSQL(createStarRocksTable);
     }
 
+    @Test
+    public void testTimestampTypeWithMilliseconds() throws Exception {
+        String tableName = "testTimestampTypeWithMilliseconds" + genRandomUuid();
+        prepareTimestampTypeWithMilliseconds(tableName);
+
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testTimestampTypeWithMilliseconds")
+                .getOrCreate();
+
+        String ddl = String.format("CREATE TABLE sr_table \n" +
+                " USING starrocks\n" +
+                "OPTIONS(\n" +
+                "  \"starrocks.table.identifier\"=\"%s\",\n" +
+                "  \"starrocks.fe.http.url\"=\"%s\",\n" +
+                "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
+                "  \"starrocks.user\"=\"%s\",\n" +
+                "  \"starrocks.password\"=\"%s\"\n" +
+                ")", String.join(".", DB_NAME, tableName), FE_HTTP, FE_JDBC, USER, PASSWORD);
+        spark.sql(ddl);
+        spark.sql("INSERT INTO sr_table VALUES " +
+                "(0, CAST(\"2024-09-19 14:00:00\" AS TIMESTAMP))," +
+                "(1, CAST(\"2024-09-19 14:01:00.123\" AS TIMESTAMP))," +
+                "(2, CAST(\"2024-09-19 14:02:00.123456\" AS TIMESTAMP))," +
+                "(3, CAST(\"2024-09-19 14:03:00.123456789\" AS TIMESTAMP))"
+            );
+
+        List<List<Object>> expectedData = new ArrayList<>();
+        expectedData.add(Arrays.asList(0, Timestamp.valueOf("2024-09-19 14:00:00")));
+        expectedData.add(Arrays.asList(1, Timestamp.valueOf("2024-09-19 14:01:00.123")));
+        expectedData.add(Arrays.asList(2, Timestamp.valueOf("2024-09-19 14:02:00.123456")));
+        expectedData.add(Arrays.asList(3, Timestamp.valueOf("2024-09-19 14:03:00.123456")));
+
+        List<List<Object>> actualWriteData = scanTable(DB_CONNECTION, DB_NAME, tableName);
+        verifyResult(expectedData, actualWriteData);
+
+        List<Row> readRows = spark.sql("SELECT * FROM sr_table").collectAsList();
+        verifyRows(expectedData, readRows);
+
+        spark.stop();
+    }
+
+    private void prepareTimestampTypeWithMilliseconds(String tableName) throws Exception {
+        String createStarRocksTable =
+                String.format("CREATE TABLE `%s`.`%s` (" +
+                                "c0 INT," +
+                                "c1 DATETIME" +
+                                ") ENGINE=OLAP " +
+                                "PRIMARY KEY(`c0`) " +
+                                "DISTRIBUTED BY HASH(`c0`) BUCKETS 2 " +
+                                "PROPERTIES (" +
+                                "\"replication_num\" = \"1\"" +
+                                ")",
+                        DB_NAME, tableName);
+        executeSrSQL(createStarRocksTable);
+    }
 }
