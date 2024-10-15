@@ -19,6 +19,22 @@
 
 package com.starrocks.connector.spark.sql;
 
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.RowFactory;
+import org.apache.spark.sql.SaveMode;
+import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
+import org.apache.spark.sql.types.ArrayType;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.DecimalType;
+import org.apache.spark.sql.types.Metadata;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
+import org.junit.Ignore;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Statement;
@@ -35,20 +51,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.RowFactory;
-import org.apache.spark.sql.SaveMode;
-import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
-import org.apache.spark.sql.types.ArrayType;
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.DecimalType;
-import org.apache.spark.sql.types.Metadata;
-import org.apache.spark.sql.types.StructField;
-import org.apache.spark.sql.types.StructType;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class ReadWriteITTest extends ITTestBase {
     @Test
@@ -1274,5 +1278,41 @@ public class ReadWriteITTest extends ITTestBase {
                                 ")",
                         DB_NAME, tableName);
         executeSrSQL(createStarRocksTable);
+    }
+
+    // To enable this test, need to inject response delay (>10s) on BE.
+    // Have verified this test manually
+    @Ignore
+    @org.junit.Test
+    public void testSocketTimeout() throws Exception {
+        String tableName = "testSocketTimeout" + genRandomUuid();
+        prepareScoreBoardTable(tableName);
+
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testSocketTimeout")
+                .getOrCreate();
+
+        String ddl = String.format("CREATE TABLE sr_table \n" +
+                " USING starrocks\n" +
+                "OPTIONS(\n" +
+                "  \"starrocks.table.identifier\"=\"%s\",\n" +
+                "  \"starrocks.fe.http.url\"=\"%s\",\n" +
+                "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
+                "  \"starrocks.write.max.retries\"=\"0\",\n" +
+                "  \"starrocks.write.socket.timeout.ms\"=\"10000\",\n" +
+                "  \"starrocks.user\"=\"%s\",\n" +
+                "  \"starrocks.password\"=\"%s\"\n" +
+                ")", String.join(".", DB_NAME, tableName), FE_HTTP, FE_JDBC, USER, PASSWORD);
+        spark.sql(ddl);
+        try {
+            spark.sql("INSERT INTO sr_table VALUES (1, \"2\", 3), (2, \"3\", 4)");
+            fail("Should throw exception");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("Read timed out"));
+        }
+
+        spark.stop();
     }
 }

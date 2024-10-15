@@ -51,6 +51,7 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
     public static final String WRITE_PREFIX = PREFIX + "write.";
     // The prefix of the stream load label. Available values are within [-_A-Za-z0-9]
     private static final String KEY_LABEL_PREFIX = WRITE_PREFIX + "label.prefix";
+    private static final String KEY_SOCKET_TIMEOUT = WRITE_PREFIX + "socket.timeout.ms";
     // Timeout in millisecond to wait for 100-continue response from FE
     private static final String KEY_WAIT_FOR_CONTINUE_TIMEOUT = WRITE_PREFIX + "wait-for-continue.timeout.ms";
     // Data chunk size in a http request for stream load
@@ -77,6 +78,7 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
     private static final String KEY_PARTITION_COLUMNS = WRITE_PREFIX + "partition.columns";
 
     private String labelPrefix = "spark";
+    private int socketTimeoutMs = -1;
     private int waitForContinueTimeoutMs = 30000;
     // Only support to write to one table, and one thread is enough
     private int ioThreadCount = 1;
@@ -118,6 +120,7 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
 
     private void load(StructType sparkSchema) {
         labelPrefix = get(KEY_LABEL_PREFIX, "spark");
+        socketTimeoutMs = getInt(KEY_SOCKET_TIMEOUT, -1);
         waitForContinueTimeoutMs = getInt(KEY_WAIT_FOR_CONTINUE_TIMEOUT, 30000);
         chunkLimit = Utils.byteStringAsBytes(get(KEY_CHUNK_LIMIT, "3g"));
         scanFrequencyInMs = getInt(KEY_SCAN_FREQUENCY, 50);
@@ -270,6 +273,7 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
                 .username(getUsername())
                 .password(getPassword())
                 .connectTimeout(getHttpRequestConnectTimeoutMs())
+                .socketTimeout(socketTimeoutMs)
                 .waitForContinueTimeoutMs(waitForContinueTimeoutMs)
                 .ioThreadCount(ioThreadCount)
                 .scanningFrequency(scanFrequencyInMs)
