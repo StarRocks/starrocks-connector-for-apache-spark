@@ -19,16 +19,19 @@
 
 package com.starrocks.connector.spark.sql.write;
 
+import com.starrocks.connector.spark.exception.NotSupportedOperationException;
+import com.starrocks.connector.spark.rest.models.PartitionType;
 import com.starrocks.connector.spark.sql.conf.WriteStarRocksConfig;
-import org.apache.spark.sql.connector.write.BatchWrite;
-import org.apache.spark.sql.connector.write.DataWriterFactory;
-import org.apache.spark.sql.connector.write.LogicalWriteInfo;
-import org.apache.spark.sql.connector.write.PhysicalWriteInfo;
-import org.apache.spark.sql.connector.write.WriterCommitMessage;
+import com.starrocks.connector.spark.sql.connect.StarRocksConnector;
+import org.apache.spark.sql.connector.write.*;
 import org.apache.spark.sql.connector.write.streaming.StreamingDataWriterFactory;
 import org.apache.spark.sql.connector.write.streaming.StreamingWrite;
+import org.apache.spark.sql.sources.AlwaysTrue;
+import org.apache.spark.sql.sources.Filter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Arrays;
 
 public class StarRocksWrite implements BatchWrite, StreamingWrite {
 
@@ -44,7 +47,44 @@ public class StarRocksWrite implements BatchWrite, StreamingWrite {
 
     @Override
     public DataWriterFactory createBatchWriterFactory(PhysicalWriteInfo info) {
+        createTemporaryPartitionOrTable(config);
         return new StarRocksWriterFactory(logicalInfo.schema(), config);
+    }
+
+    private boolean isOverwriteTable(Filter[] filters) {
+        return  filters.length == 0
+                || Arrays.stream(filters).allMatch(AlwaysTrue.class::isInstance);
+    }
+
+    private void createTemporaryPartitionOrTable(WriteStarRocksConfig config) {
+        if (!config.isOverwrite()) {
+            return;
+        }
+        String table = config.getTable();
+
+        Filter[] filters = config.getFilters();
+        if (isOverwriteTable(filters)
+            && config.getOverwriteTempPartitions().isEmpty()) {
+            String tempTable = table + WriteStarRocksConfig.TEMPORARY_TABLE_SUFFIX;
+            StarRocksConnector.createTempTable(config, tempTable);
+            config.setTempTableName(tempTable);
+        } else {
+            PartitionType partitionType = StarRocksConnector.getPartitionType(config);
+            if (PartitionType.NONE.equals(partitionType)) {
+                throw new NotSupportedOperationException("Overwriting partition only supports list/range partitioning," +
+                    " not support none partitioning table !!!");
+            }
+
+            if (PartitionType.EXPRESSION.equals(partitionType)) {
+                throw new NotSupportedOperationException("Overwriting partition only supports list/range partitioning," +
+                    " not support expression/automatic partitioning !!!");
+            }
+            config.getOverwriteTempPartitions().forEach((tempPartition, partitionExpr) -> {
+                String overwritePartition = config.getOverwriteTempPartitionMappings().get(tempPartition);
+                StarRocksConnector.dropAndCreatePartition(
+                    config, tempPartition, partitionExpr, partitionType, overwritePartition);
+            });
+        }
     }
 
     @Override
@@ -55,11 +95,35 @@ public class StarRocksWrite implements BatchWrite, StreamingWrite {
     @Override
     public void commit(WriterCommitMessage[] messages) {
         log.info("batch query `{}` commit", logicalInfo.queryId());
+        if (config.isOverwrite() && config.getTempTableName() != null) {
+            StarRocksConnector.swapTable(config, config.getTempTableName());
+            StarRocksConnector.dropTable(config, config.getTempTableName());
+        } else if (config.isOverwrite() && !config.getOverwritePartitions().isEmpty()) {
+            PartitionType partitionType = StarRocksConnector.getPartitionType(config);
+            boolean dynamicPartitionTable = StarRocksConnector.isDynamicPartitionTable(config);
+            if (!dynamicPartitionTable) {
+                config.getOverwritePartitions().forEach((partitionName, partitionValue) -> {
+                    StarRocksConnector.createPartition(config, partitionName, partitionValue, partitionType);
+                });
+            } else {
+                log.info("no need create partition for dynamic partition table");
+            }
+            config.getOverwriteTempPartitionMappings().forEach((tempPartitionName, partitionName) -> {
+                StarRocksConnector.replacePartition(config, partitionName, tempPartitionName);
+            });
+        }
     }
 
     @Override
     public void abort(WriterCommitMessage[] messages) {
         log.info("batch query `{}` abort", logicalInfo.queryId());
+        if (config.isOverwrite() && config.getTempTableName() != null) {
+            StarRocksConnector.dropTable(config, config.getTempTableName());
+        } else if (config.isOverwrite() && !config.getOverwritePartitions().isEmpty()) {
+            config.getOverwriteTempPartitions().keySet().forEach(tempPartition -> {
+                StarRocksConnector.dropTemporaryPartition(config, tempPartition);
+            });
+        }
     }
 
     @Override
