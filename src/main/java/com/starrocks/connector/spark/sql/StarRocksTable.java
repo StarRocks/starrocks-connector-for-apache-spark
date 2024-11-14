@@ -26,11 +26,7 @@ import com.starrocks.connector.spark.sql.conf.StarRocksConfig;
 import com.starrocks.connector.spark.sql.conf.WriteStarRocksConfig;
 import com.starrocks.connector.spark.sql.schema.StarRocksSchema;
 import com.starrocks.connector.spark.sql.write.StarRocksWriteBuilder;
-import org.apache.spark.sql.connector.catalog.Identifier;
-import org.apache.spark.sql.connector.catalog.SupportsRead;
-import org.apache.spark.sql.connector.catalog.SupportsWrite;
-import org.apache.spark.sql.connector.catalog.Table;
-import org.apache.spark.sql.connector.catalog.TableCapability;
+import org.apache.spark.sql.connector.catalog.*;
 import org.apache.spark.sql.connector.read.ScanBuilder;
 import org.apache.spark.sql.connector.write.LogicalWriteInfo;
 import org.apache.spark.sql.connector.write.WriteBuilder;
@@ -105,7 +101,8 @@ public class StarRocksTable implements Table, SupportsWrite, SupportsRead {
     }
 
     private static final Set<TableCapability> TABLE_CAPABILITY_SET = new HashSet<>(
-            Arrays.asList(TableCapability.BATCH_READ, TableCapability.BATCH_WRITE, TableCapability.STREAMING_WRITE));
+            Arrays.asList(TableCapability.BATCH_READ, TableCapability.BATCH_WRITE,
+                TableCapability.STREAMING_WRITE, TableCapability.OVERWRITE_BY_FILTER));
 
     @Override
     public ScanBuilder newScanBuilder(CaseInsensitiveStringMap options) {
