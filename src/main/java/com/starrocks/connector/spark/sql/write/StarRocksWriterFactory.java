@@ -39,7 +39,6 @@ public class StarRocksWriterFactory implements DataWriterFactory, StreamingDataW
         this.schema = schema;
         this.config = config;
     }
-
     @Override
     public DataWriter<InternalRow> createWriter(int partitionId, long taskId) {
         return createAndOpenWriter(partitionId, taskId, -1);

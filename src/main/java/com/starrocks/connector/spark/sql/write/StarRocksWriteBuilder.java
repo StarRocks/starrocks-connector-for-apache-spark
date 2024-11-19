@@ -20,6 +20,7 @@
 package com.starrocks.connector.spark.sql.write;
 
 import com.starrocks.connector.spark.sql.conf.WriteStarRocksConfig;
+import com.starrocks.connector.spark.sql.schema.StarRocksSchema;
 import org.apache.spark.sql.connector.distributions.Distribution;
 import org.apache.spark.sql.connector.distributions.Distributions;
 import org.apache.spark.sql.connector.expressions.Expression;
@@ -35,25 +36,27 @@ import org.apache.spark.sql.connector.write.streaming.StreamingWrite;
 public class StarRocksWriteBuilder implements WriteBuilder {
     private final LogicalWriteInfo info;
     private final WriteStarRocksConfig config;
-
-    public StarRocksWriteBuilder(LogicalWriteInfo info, WriteStarRocksConfig config) {
+    private final StarRocksSchema starRocksSchema;
+    public StarRocksWriteBuilder(LogicalWriteInfo info, WriteStarRocksConfig config, StarRocksSchema starRocksSchema) {
         this.info = info;
         this.config = config;
+        this.starRocksSchema = starRocksSchema;
     }
 
     @Override
     public Write build() {
-        return new StarRocksWriteImpl(info, config);
+        return new StarRocksWriteImpl(info, config, starRocksSchema);
     }
 
     private static class StarRocksWriteImpl implements Write, RequiresDistributionAndOrdering {
 
         private final LogicalWriteInfo info;
         private final WriteStarRocksConfig config;
-
-        public StarRocksWriteImpl(LogicalWriteInfo info, WriteStarRocksConfig config) {
+        private final StarRocksSchema starRocksSchema;
+        public StarRocksWriteImpl(LogicalWriteInfo info, WriteStarRocksConfig config, StarRocksSchema starRocksSchema) {
             this.info = info;
             this.config = config;
+            this.starRocksSchema = starRocksSchema;
         }
 
         @Override
@@ -63,12 +66,12 @@ public class StarRocksWriteBuilder implements WriteBuilder {
 
         @Override
         public BatchWrite toBatch() {
-            return new StarRocksWrite(info, config);
+            return new StarRocksWrite(info, config, starRocksSchema, true);
         }
 
         @Override
         public StreamingWrite toStreaming() {
-            return new StarRocksWrite(info, config);
+            return new StarRocksWrite(info, config, starRocksSchema, false);
         }
 
         @Override
@@ -100,5 +103,8 @@ public class StarRocksWriteBuilder implements WriteBuilder {
         public SortOrder[] requiredOrdering() {
             return new SortOrder[0];
         }
+
+
+
     }
 }

@@ -56,8 +56,8 @@ public class SimpleWrite {
     //      "replication_num" = "1"
     // );
 
-    private static final String FE_HTTP = "127.0.0.1:11901";
-    private static final String FE_JDBC = "jdbc:mysql://127.0.0.1:11903";
+    private static final String FE_HTTP = "127.0.0.1:8030";
+    private static final String FE_JDBC = "jdbc:mysql://127.0.0.1:9030";
     private static final String DB = "test";
     private static final String TABLE = "score_board";
     private static final String TABLE_ID = DB + "." + TABLE;
@@ -66,8 +66,8 @@ public class SimpleWrite {
 
     public static void main(String[] args) throws Exception {
         dataFrameBatchWrite();
-        dataFrameSteamingWrite();
-        sqlWrite();
+//        dataFrameSteamingWrite();
+//        sqlWrite();
     }
 
     // write using DataFrame in batch mode
@@ -82,8 +82,8 @@ public class SimpleWrite {
         // 2. create a source DataFrame from a list of data, and define
         // the schema which is mapped to the StarRocks table
         List<Row> data = Arrays.asList(
-                RowFactory.create(1, "row1", 1),
-                RowFactory.create(2, "row2", 2)
+                RowFactory.create(1, "row1666", 1),
+                RowFactory.create(2, "row27777", 2)
         );
         StructType schema = new StructType(new StructField[] {
                 new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
