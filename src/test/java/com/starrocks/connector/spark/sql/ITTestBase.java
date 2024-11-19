@@ -55,6 +55,7 @@ public abstract class ITTestBase {
 
     protected static String FE_HTTP = "10.37.42.50:8031";
     protected static String FE_JDBC = "jdbc:mysql://10.37.42.50:9031";
+
     protected static String USER = "root";
     protected static String PASSWORD = "";
     private static final boolean DEBUG_MODE = false;
@@ -65,10 +66,10 @@ public abstract class ITTestBase {
     @BeforeEach
     public void beforeClass() throws Exception {
         Properties props = loadConnProps();
-        FE_HTTP = props.getProperty("starrocks.fe.http.url", FE_HTTP);
-        FE_JDBC = props.getProperty("starrocks.fe.jdbc.url", FE_JDBC);
+        FE_HTTP = "127.0.0.1:8030";
+        FE_JDBC = "jdbc:mysql://127.0.0.1:9030";
         USER = props.getProperty("starrocks.user", USER);
-        PASSWORD = props.getProperty("starrocks.password", PASSWORD);
+        PASSWORD ="";
 
         try {
             DB_CONNECTION = DriverManager.getConnection(FE_JDBC, USER, PASSWORD);

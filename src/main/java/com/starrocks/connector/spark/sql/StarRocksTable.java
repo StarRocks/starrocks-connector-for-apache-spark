@@ -75,7 +75,7 @@ public class StarRocksTable implements Table, SupportsWrite, SupportsRead {
         WriteStarRocksConfig writeConfig = new WriteStarRocksConfig(properties.getPropertyMap(), schema, starRocksSchema);
         checkWriteParameter(writeConfig);
 
-        return new StarRocksWriteBuilder(info, writeConfig);
+        return new StarRocksWriteBuilder(info, writeConfig, starRocksSchema);
     }
 
     @Override
