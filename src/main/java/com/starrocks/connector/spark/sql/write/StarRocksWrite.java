@@ -65,6 +65,7 @@ public class StarRocksWrite implements BatchWrite, StreamingWrite {
             SimpleDateFormat format = new SimpleDateFormat("yyyyMMddHHmmss");
             String tempTable = table + WriteStarRocksConfig.TEMPORARY_PARTITION_SUFFIX + format.format(new Date());
             String createTempTableDDL = "CREATE TABLE " + database + "." + tempTable +" LIKE " + database + "." + table;
+            log.info("prepare to execute: " + createTempTableDDL);
             StarRocksConnector.createTableBySql(config, createTempTableDDL);
             config.setTempTableName(tempTable);
         } else if (config.isOverwrite() && !config.getOverwriteTempPartitions().isEmpty()) {
@@ -79,6 +80,7 @@ public class StarRocksWrite implements BatchWrite, StreamingWrite {
             config.getOverwriteTempPartitions().forEach((tempPartition, partitionExpr) -> {
                 String addTempPartitionDDL = getAddTemporaryPartitionDDL(config, tempPartition, partitionExpr, partitionType);
                 try {
+                    log.info("prepare to execute: " + addTempPartitionDDL);
                     StarRocksConnector.createTemporaryPartitionBySql(config, addTempPartitionDDL);
                 } catch (Exception e) {
                     if (e.getMessage().contains("Duplicate partition")) {
@@ -131,6 +133,7 @@ public class StarRocksWrite implements BatchWrite, StreamingWrite {
                         addPartitionDDL = String.format("ALTER TABLE `%s`.`%s` ADD PARTITION IF NOT EXISTS %s VALUES %s",
                             config.getDatabase(), config.getTable(), partitionName, partitionValue);
                     }
+                    log.info("prepare to execute: " + addPartitionDDL);
                     StarRocksConnector.createPartitionBySql(config, addPartitionDDL);
                 });
             } else {
@@ -140,6 +143,7 @@ public class StarRocksWrite implements BatchWrite, StreamingWrite {
                 String replacePartitionDDL = String.format(
                     "ALTER TABLE `%s`.`%s` REPLACE PARTITION (`%s`) WITH TEMPORARY PARTITION (`%s`)",
                     config.getDatabase(), config.getTable(), partitionName, tempPartitionName);
+                log.info("prepare to execute: " + replacePartitionDDL);
                 StarRocksConnector.replacePartitionBySql(config, replacePartitionDDL);
             });
         }

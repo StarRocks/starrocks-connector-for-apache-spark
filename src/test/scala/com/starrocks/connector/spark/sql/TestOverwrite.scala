@@ -27,6 +27,8 @@ import org.junit.jupiter.api.{Assertions, Test}
 import org.slf4j.LoggerFactory
 
 import java.sql.{Connection, ResultSet, Statement}
+import java.text.SimpleDateFormat
+import java.util.Date
 
 /**
  * test on local docker environment, spark version 3.3, 3.4, 3.5
@@ -273,6 +275,81 @@ class TestOverwrite extends ExpectedExceptionTest {
   }
 
   @Test
+  def testPartitionOverwriteViaSql(): Unit = {
+    val conn = StarRocksConnector.createJdbcConnection(STARROCKS_FE_JDBC_URL,
+      STARROCKS_FE_JDBC_USER, STARROCKS_FE_JDBC_PASSWORD)
+    val statement = conn.createStatement()
+    var rs: ResultSet = null
+    try {
+      statement.execute("CREATE DATABASE IF NOT EXISTS `test`")
+      statement.execute("DROP TABLE IF EXISTS `test`.`t_recharge_detail1`")
+      val createTableDDL =
+        """
+          |CREATE TABLE `test`.`t_recharge_detail1` (
+          |    id bigint,
+          |    user_id bigint,
+          |    city varchar(20) not null,
+          |    dt varchar(20) not null
+          |)
+          |DUPLICATE KEY(id)
+          |PARTITION BY LIST (city) (
+          |   PARTITION pLos_Angeles VALUES IN ("Los Angeles"),
+          |   PARTITION pSan_Francisco VALUES IN ("San Francisco")
+          |)
+          |DISTRIBUTED BY HASH(`id`);
+          |""".stripMargin
+      statement.execute(createTableDDL)
+      statement.execute("insert into `test`.`t_recharge_detail1` values (1, 1, 'Los Angeles', '20241107')," +
+        " (2, 2, 'San Francisco', '20241101')")
+      val spark = SparkSession.builder().master("local[2]").getOrCreate()
+      import spark.implicits._
+      // 1. Create a DataFrame from a sequence.
+      //
+      val data = Seq((3, 3, "Los Angeles", "20241107"), (2, 2, "Los Angeles", "20241106"))
+      val df = data.toDF("id", "user_id", "city", "dt")
+      val view = s"""
+        |CREATE OR REPLACE TEMPORARY VIEW `sr_connector_performance_test`
+        |USING starrocks
+        |OPTIONS(
+        |"starrocks.fe.http.url" = "${STARROCKS_FE_HTTP_URL}",
+        |"starrocks.fe.jdbc.url" = "${STARROCKS_FE_JDBC_URL}",
+        |"starrocks.table.identifier" = "test.t_recharge_detail1",
+        |"starrocks.user" = "${STARROCKS_FE_JDBC_USER}",
+        |"starrocks.password" = "${STARROCKS_FE_JDBC_PASSWORD}",
+        |"starrocks.write.overwrite.partitions.pLos_Angeles" = "(\\"Los Angeles\\")"
+        |);
+        |""".stripMargin
+      spark.sql(view)
+      // 2. Write to StarRocks by configuring the format as "starrocks" and the following options.
+      // You need to modify the options according your own environment.
+      df.registerTempTable("test123")
+      spark.sql("insert overwrite sr_connector_performance_test select * from test123")
+
+      rs = statement.executeQuery(
+        "select id, user_id, city, dt from test.t_recharge_detail1 where city = 'Los Angeles' order by id asc")
+      if (rs.next()) {
+        Assertions.assertEquals(2, rs.getInt("id"))
+        Assertions.assertEquals(2, rs.getInt("user_id"))
+        Assertions.assertEquals("Los Angeles", rs.getString("city"))
+        Assertions.assertEquals("20241106", rs.getString("dt"))
+      }
+
+      if (rs.next()) {
+        Assertions.assertEquals(3, rs.getInt("id"))
+        Assertions.assertEquals(3, rs.getInt("user_id"))
+        Assertions.assertEquals("Los Angeles", rs.getString("city"))
+        Assertions.assertEquals("20241107", rs.getString("dt"))
+      }
+    } finally {
+      try {
+        dropTable(statement, "test.t_recharge_detail1")
+      } finally {
+        releaseConn(conn, statement, rs)
+      }
+    }
+  }
+
+  @Test
   def testPartitionOverwriteMultiPartitions(): Unit = {
     val conn = StarRocksConnector.createJdbcConnection(STARROCKS_FE_JDBC_URL,
       STARROCKS_FE_JDBC_USER, STARROCKS_FE_JDBC_PASSWORD)
@@ -321,6 +398,95 @@ class TestOverwrite extends ExpectedExceptionTest {
         .option("starrocks.write.overwrite.partitions.pSan_Francisco", "(\"San Francisco\")")
         .mode("overwrite")
         .save()
+
+      rs = statement.executeQuery(
+        "select id, user_id, city, dt from test.t_recharge_detail1 where city = 'Los Angeles' order by id asc")
+      if (rs.next()) {
+        Assertions.assertEquals(2, rs.getInt("id"))
+        Assertions.assertEquals(2, rs.getInt("user_id"))
+        Assertions.assertEquals("Los Angeles", rs.getString("city"))
+        Assertions.assertEquals("20241106", rs.getString("dt"))
+      }
+
+      if (rs.next()) {
+        Assertions.assertEquals(3, rs.getInt("id"))
+        Assertions.assertEquals(3, rs.getInt("user_id"))
+        Assertions.assertEquals("Los Angeles", rs.getString("city"))
+        Assertions.assertEquals("20241107", rs.getString("dt"))
+      }
+
+      if (rs.next()) {
+        Assertions.assertEquals(5, rs.getInt("id"))
+        Assertions.assertEquals(5, rs.getInt("user_id"))
+        Assertions.assertEquals("San Francisco", rs.getString("city"))
+        Assertions.assertEquals("20241108", rs.getString("dt"))
+      }
+    } finally {
+      try {
+        dropTable(statement, "test.t_recharge_detail1")
+      } finally {
+        releaseConn(conn, statement, rs)
+      }
+    }
+  }
+
+  @Test
+  def testPartitionOverwriteMultiPartitionsViaSql(): Unit = {
+    val conn = StarRocksConnector.createJdbcConnection(STARROCKS_FE_JDBC_URL,
+      STARROCKS_FE_JDBC_USER, STARROCKS_FE_JDBC_PASSWORD)
+    val statement = conn.createStatement()
+    var rs: ResultSet = null
+    try {
+      statement.execute("CREATE DATABASE IF NOT EXISTS `test`")
+      statement.execute("DROP TABLE IF EXISTS `test`.`t_recharge_detail1`")
+      val createTableDDL =
+        """
+          |CREATE TABLE `test`.`t_recharge_detail1` (
+          |    id bigint,
+          |    user_id bigint,
+          |    city varchar(20) not null,
+          |    dt varchar(20) not null
+          |)
+          |DUPLICATE KEY(id)
+          |PARTITION BY LIST (city) (
+          |   PARTITION pLos_Angeles VALUES IN ("Los Angeles"),
+          |   PARTITION pSan_Francisco VALUES IN ("San Francisco")
+          |)
+          |DISTRIBUTED BY HASH(`id`);
+          |""".stripMargin
+      statement.execute(createTableDDL)
+      statement.execute("insert into `test`.`t_recharge_detail1` values (1, 1, 'Los Angeles', '20241107')," +
+        " (2, 2, 'San Francisco', '20241101')")
+      val spark = SparkSession.builder().master("local[2]").getOrCreate()
+      import spark.implicits._
+      // 1. Create a DataFrame from a sequence.
+      //
+      val data = Seq(
+        (3, 3, "Los Angeles", "20241107"),
+        (2, 2, "Los Angeles", "20241106"),
+        (5, 5, "San Francisco", "20241108"))
+      val df = data.toDF("id", "user_id", "city", "dt")
+
+      // 2. Write to StarRocks by configuring the format as "starrocks" and the following options.
+      // You need to modify the options according your own environment.
+      val view = s"""
+                    |CREATE OR REPLACE TEMPORARY VIEW `sr_connector_performance_test`
+                    |USING starrocks
+                    |OPTIONS(
+                    |"starrocks.fe.http.url" = "${STARROCKS_FE_HTTP_URL}",
+                    |"starrocks.fe.jdbc.url" = "${STARROCKS_FE_JDBC_URL}",
+                    |"starrocks.table.identifier" = "test.t_recharge_detail1",
+                    |"starrocks.user" = "${STARROCKS_FE_JDBC_USER}",
+                    |"starrocks.password" = "${STARROCKS_FE_JDBC_PASSWORD}",
+                    |"starrocks.write.overwrite.partitions.pLos_Angeles" = "(\\"Los Angeles\\")",
+                    |"starrocks.write.overwrite.partitions.pSan_Francisco" = "(\\"San Francisco\\")"
+                    |);
+                    |""".stripMargin
+      spark.sql(view)
+      // 2. Write to StarRocks by configuring the format as "starrocks" and the following options.
+      // You need to modify the options according your own environment.
+      df.registerTempTable("test123")
+      spark.sql("insert overwrite sr_connector_performance_test select * from test123")
 
       rs = statement.executeQuery(
         "select id, user_id, city, dt from test.t_recharge_detail1 where city = 'Los Angeles' order by id asc")
@@ -499,6 +665,92 @@ class TestOverwrite extends ExpectedExceptionTest {
   }
 
   @Test
+  def testPartitionOverwriteWithExistsTemporaryPartitionViaSql(): Unit = {
+    val conn = StarRocksConnector.createJdbcConnection(STARROCKS_FE_JDBC_URL,
+      STARROCKS_FE_JDBC_USER, STARROCKS_FE_JDBC_PASSWORD)
+    val statement = conn.createStatement()
+    var rs: ResultSet = null
+    try {
+      statement.execute("CREATE DATABASE IF NOT EXISTS `test`")
+      statement.execute("DROP TABLE IF EXISTS `test`.`t_recharge_detail1`")
+      val createTableDDL =
+        """
+          |CREATE TABLE `test`.`t_recharge_detail1` (
+          |    id bigint,
+          |    user_id bigint,
+          |    city varchar(20) not null,
+          |    dt varchar(20) not null
+          |)
+          |DUPLICATE KEY(id)
+          |PARTITION BY LIST (city) (
+          |   PARTITION pLos_Angeles VALUES IN ("Los Angeles"),
+          |   PARTITION pSan_Francisco VALUES IN ("San Francisco")
+          |)
+          |DISTRIBUTED BY HASH(`id`);
+          |""".stripMargin
+      statement.execute(createTableDDL)
+      statement.execute("insert into `test`.`t_recharge_detail1` values (1, 1, 'Los Angeles', '20241107')," +
+        " (2, 2, 'San Francisco', '20241101')")
+      statement.execute("ALTER TABLE `test`.`t_recharge_detail1` ADD TEMPORARY PARTITION pLos_Angeles" + WriteStarRocksConfig.TEMPORARY_PARTITION_SUFFIX
+        + System.currentTimeMillis() + " VALUES IN (\"Los Angeles\")")
+      val spark = SparkSession.builder().master("local[2]").getOrCreate()
+      import spark.implicits._
+      // 1. Create a DataFrame from a sequence.
+      //
+      val data = Seq((3, 3, "Los Angeles", "20241107"), (2, 2, "Los Angeles", "20241106"))
+      val df = data.toDF("id", "user_id", "city", "dt")
+      // 2. Write to StarRocks by configuring the format as "starrocks" and the following options.
+      // You need to modify the options according your own environment.
+      val view = s"""
+                    |CREATE OR REPLACE TEMPORARY VIEW `sr_connector_performance_test`
+                    |USING starrocks
+                    |OPTIONS(
+                    |"starrocks.fe.http.url" = "${STARROCKS_FE_HTTP_URL}",
+                    |"starrocks.fe.jdbc.url" = "${STARROCKS_FE_JDBC_URL}",
+                    |"starrocks.table.identifier" = "test.t_recharge_detail1",
+                    |"starrocks.user" = "${STARROCKS_FE_JDBC_USER}",
+                    |"starrocks.password" = "${STARROCKS_FE_JDBC_PASSWORD}",
+                    |"starrocks.write.overwrite.partitions.pLos_Angeles" = "(\\"Los Angeles\\")"
+                    |);
+                    |""".stripMargin
+      spark.sql(view)
+      // 2. Write to StarRocks by configuring the format as "starrocks" and the following options.
+      // You need to modify the options according your own environment.
+      df.registerTempTable("test123")
+      spark.sql("insert overwrite sr_connector_performance_test select * from test123")
+
+
+      rs = statement.executeQuery(
+        "select id, user_id, city, dt from test.t_recharge_detail1 where city = 'Los Angeles' order by id asc")
+      if (rs.next()) {
+        Assertions.assertEquals(2, rs.getInt("id"))
+        Assertions.assertEquals(2, rs.getInt("user_id"))
+        Assertions.assertEquals("Los Angeles", rs.getString("city"))
+        Assertions.assertEquals("20241106", rs.getString("dt"))
+      }
+
+      if (rs.next()) {
+        Assertions.assertEquals(3, rs.getInt("id"))
+        Assertions.assertEquals(3, rs.getInt("user_id"))
+        Assertions.assertEquals("Los Angeles", rs.getString("city"))
+        Assertions.assertEquals("20241107", rs.getString("dt"))
+      }
+    } finally {
+      try {
+        dropTable(statement, "test.t_recharge_detail1")
+      } finally {
+        releaseConn(conn, statement, rs)
+      }
+    }
+  }
+
+  private def parse(dt: Date) = {
+    val format = new SimpleDateFormat("yyyy-MM-dd")
+    val times = format.format(dt).split("-")
+    (times(0), times(1), times(2))
+  }
+
+  @Test
   def testPartitionOverwriteWithDynamicPartition(): Unit = {
     val conn = StarRocksConnector.createJdbcConnection(STARROCKS_FE_JDBC_URL,
       STARROCKS_FE_JDBC_USER, STARROCKS_FE_JDBC_PASSWORD)
@@ -507,8 +759,18 @@ class TestOverwrite extends ExpectedExceptionTest {
     try {
       statement.execute("CREATE DATABASE IF NOT EXISTS `test`")
       statement.execute("DROP TABLE IF EXISTS `test`.`site_access`")
+      val now = new Date()
+      val yes = new Date(now.getTime - 24 * 3600 * 1000)
+      val future = new Date(now.getTime + 24 * 3600 * 1000)
+      val yesm1 = new Date(now.getTime - 2 * 24 * 3600 * 1000)
+      val yesm2 = new Date(now.getTime - 3 * 24 * 3600 * 1000)
+      val (fy, fm, fd) = parse(future)
+      val (ny, nm, nd) = parse(now)
+      val (yesy, yesm, yesd) = parse(yes)
+      val (yesm1y, yesm1m, yesm1d) = parse(yesm1)
+      val (yesm2y, yesm2m, yesm2d) = parse(yesm2)
       val createTableDDL =
-        """
+        s"""
           |CREATE TABLE `test`.`site_access`(
           |    event_day DATE,
           |    site_id INT DEFAULT '10',
@@ -518,11 +780,10 @@ class TestOverwrite extends ExpectedExceptionTest {
           |)
           |DUPLICATE KEY(event_day, site_id, city_code, user_name)
           |PARTITION BY RANGE(event_day)(
-          |    PARTITION p20241111 VALUES LESS THAN ("2024-11-12"),
-          |    PARTITION p20241112 VALUES LESS THAN ("2024-11-13"),
-          |    PARTITION p20241113 VALUES LESS THAN ("2024-11-14"),
-          |    PARTITION p20241114 VALUES LESS THAN ("2024-11-15"),
-          |    PARTITION p20241115 VALUES LESS THAN ("2024-11-16")
+          |    PARTITION p${yesm2y}${yesm2m}${yesm2d} VALUES LESS THAN ("${yesm1y}-${yesm1m}-${yesm1d}"),
+          |    PARTITION p${yesm1y}${yesm1m}${yesm1d} VALUES LESS THAN ("${yesy}-${yesm}-${yesd}"),
+          |    PARTITION p${yesy}${yesm}${yesd} VALUES LESS THAN ("${ny}-${nm}-${nd}"),
+          |    PARTITION p${ny}${nm}${nd} VALUES LESS THAN ("${fy}-${fm}-${fd}")
           |)
           |DISTRIBUTED BY HASH(event_day, site_id)
           |PROPERTIES(
@@ -536,11 +797,11 @@ class TestOverwrite extends ExpectedExceptionTest {
           |);
           |""".stripMargin
       statement.execute(createTableDDL)
-      statement.execute("insert into `test`.`site_access`(event_day, site_id, city_code, user_name, pv) values ('2024-11-15', 1, 'Los Angeles', 'jack', 10)")
+      statement.execute(s"insert into `test`.`site_access`(event_day, site_id, city_code, user_name, pv) values ('${yesy}-${yesm}-${yesd}', 1, 'Los Angeles', 'jack', 10)")
       val spark = SparkSession.builder().master("local[2]").getOrCreate()
       import spark.implicits._
       // 1. Create a DataFrame from a sequence.
-      val data = Seq(("2024-11-15 12:12:23", 10, "Los Angeles", "jack", 30), ("2024-11-15 08:12:23", 20, "Los Angeles", "jack", 20))
+      val data = Seq((s"${yesy}-${yesm}-${yesd} 12:12:23", 10, "Los Angeles", "jack", 30), (s"${yesy}-${yesm}-${yesd} 08:12:23", 20, "Los Angeles", "jack", 20))
       var df = data.toDF("event_day", "site_id", "city_code", "user_name", "pv")
       df.createOrReplaceTempView("test_view")
       df = spark.sql("select cast(event_day as date) as event_day, site_id, city_code, user_name, pv from test_view")
@@ -552,14 +813,14 @@ class TestOverwrite extends ExpectedExceptionTest {
         .option("starrocks.user", STARROCKS_FE_JDBC_USER)
         .option("starrocks.password", STARROCKS_FE_JDBC_PASSWORD)
         .option("starrocks.table.identifier", "test.site_access")
-        .option("starrocks.write.overwrite.partitions.p20241115", "[(\"2024-11-15\"),(\"2024-11-16\"))")
+        .option(s"starrocks.write.overwrite.partitions.p${yesy}${yesm}${yesd}", s"[('${yesy}-${yesm}-${yesd}'),('${ny}-${nm}-${nd}'))")
         .mode("overwrite")
         .save()
 
       rs = statement.executeQuery(
         "select event_day, site_id, city_code, user_name, pv from test.site_access order by site_id asc")
       if (rs.next()) {
-        Assertions.assertEquals("2024-11-15", rs.getDate("event_day").toString)
+        Assertions.assertEquals(s"${yesy}-${yesm}-${yesd}", rs.getDate("event_day").toString)
         Assertions.assertEquals(10, rs.getInt("site_id"))
         Assertions.assertEquals("Los Angeles", rs.getString("city_code"))
         Assertions.assertEquals("jack", rs.getString("user_name"))
@@ -567,7 +828,108 @@ class TestOverwrite extends ExpectedExceptionTest {
       }
 
       if (rs.next()) {
-        Assertions.assertEquals("2024-11-15", rs.getDate("event_day").toString)
+        Assertions.assertEquals(s"${yesy}-${yesm}-${yesd}", rs.getDate("event_day").toString)
+        Assertions.assertEquals(20, rs.getInt("site_id"))
+        Assertions.assertEquals("Los Angeles", rs.getString("city_code"))
+        Assertions.assertEquals("jack", rs.getString("user_name"))
+        Assertions.assertEquals(20, rs.getInt("pv"))
+      }
+    } finally {
+      try {
+        dropTable(statement, "`test`.`site_access`")
+      } finally {
+        releaseConn(conn, statement, rs)
+      }
+    }
+  }
+
+  @Test
+  def testPartitionOverwriteWithDynamicPartitionViaSql(): Unit = {
+    val conn = StarRocksConnector.createJdbcConnection(STARROCKS_FE_JDBC_URL,
+      STARROCKS_FE_JDBC_USER, STARROCKS_FE_JDBC_PASSWORD)
+    val statement = conn.createStatement()
+    var rs: ResultSet = null
+    try {
+      statement.execute("CREATE DATABASE IF NOT EXISTS `test`")
+      statement.execute("DROP TABLE IF EXISTS `test`.`site_access`")
+      val now = new Date()
+      val yes = new Date(now.getTime - 24 * 3600 * 1000)
+      val future = new Date(now.getTime + 24 * 3600 * 1000)
+      val yesm1 = new Date(now.getTime - 2 * 24 * 3600 * 1000)
+      val yesm2 = new Date(now.getTime - 3 * 24 * 3600 * 1000)
+      val (fy, fm, fd) = parse(future)
+      val (ny, nm, nd) = parse(now)
+      val (yesy, yesm, yesd) = parse(yes)
+      val (yesm1y, yesm1m, yesm1d) = parse(yesm1)
+      val (yesm2y, yesm2m, yesm2d) = parse(yesm2)
+      val createTableDDL =
+        s"""
+           |CREATE TABLE `test`.`site_access`(
+           |    event_day DATE,
+           |    site_id INT DEFAULT '10',
+           |    city_code VARCHAR(100),
+           |    user_name VARCHAR(32) DEFAULT '',
+           |    pv BIGINT DEFAULT '0'
+           |)
+           |DUPLICATE KEY(event_day, site_id, city_code, user_name)
+           |PARTITION BY RANGE(event_day)(
+           |    PARTITION p${yesm2y}${yesm2m}${yesm2d} VALUES LESS THAN ("${yesm1y}-${yesm1m}-${yesm1d}"),
+           |    PARTITION p${yesm1y}${yesm1m}${yesm1d} VALUES LESS THAN ("${yesy}-${yesm}-${yesd}"),
+           |    PARTITION p${yesy}${yesm}${yesd} VALUES LESS THAN ("${ny}-${nm}-${nd}"),
+           |    PARTITION p${ny}${nm}${nd} VALUES LESS THAN ("${fy}-${fm}-${fd}")
+           |)
+           |DISTRIBUTED BY HASH(event_day, site_id)
+           |PROPERTIES(
+           |    "dynamic_partition.enable" = "true",
+           |    "dynamic_partition.time_unit" = "DAY",
+           |    "dynamic_partition.start" = "-3",
+           |    "dynamic_partition.end" = "3",
+           |    "dynamic_partition.prefix" = "p",
+           |    "dynamic_partition.buckets" = "32",
+           |    "dynamic_partition.history_partition_num" = "0"
+           |);
+           |""".stripMargin
+      statement.execute(createTableDDL)
+      statement.execute(s"insert into `test`.`site_access`(event_day, site_id, city_code, user_name, pv) values ('${yesy}-${yesm}-${yesd}', 1, 'Los Angeles', 'jack', 10)")
+      val spark = SparkSession.builder().master("local[2]").getOrCreate()
+      import spark.implicits._
+      // 1. Create a DataFrame from a sequence.
+      val data = Seq((s"${yesy}-${yesm}-${yesd} 12:12:23", 10, "Los Angeles", "jack", 30), (s"${yesy}-${yesm}-${yesd} 08:12:23", 20, "Los Angeles", "jack", 20))
+      var df = data.toDF("event_day", "site_id", "city_code", "user_name", "pv")
+      df.createOrReplaceTempView("test_view")
+      df = spark.sql("select cast(event_day as date) as event_day, site_id, city_code, user_name, pv from test_view")
+      // 2. Write to StarRocks by configuring the format as "starrocks" and the following options.
+      // You need to modify the options according your own environment.
+      val view = s"""
+                    |CREATE OR REPLACE TEMPORARY VIEW `sr_connector_performance_test`
+                    |USING starrocks
+                    |OPTIONS(
+                    |"starrocks.fe.http.url" = "${STARROCKS_FE_HTTP_URL}",
+                    |"starrocks.fe.jdbc.url" = "${STARROCKS_FE_JDBC_URL}",
+                    |"starrocks.table.identifier" = "test.site_access",
+                    |"starrocks.user" = "${STARROCKS_FE_JDBC_USER}",
+                    |"starrocks.password" = "${STARROCKS_FE_JDBC_PASSWORD}",
+                    |"starrocks.write.overwrite.partitions.p${yesy}${yesm}${yesd}" = "[('${yesy}-${yesm}-${yesd}'),('${ny}-${nm}-${nd}'))"
+                    |);
+                    |""".stripMargin
+      spark.sql(view)
+      // 2. Write to StarRocks by configuring the format as "starrocks" and the following options.
+      // You need to modify the options according your own environment.
+      df.registerTempTable("test123")
+      spark.sql("insert overwrite sr_connector_performance_test select * from test123")
+
+      rs = statement.executeQuery(
+        "select event_day, site_id, city_code, user_name, pv from test.site_access order by site_id asc")
+      if (rs.next()) {
+        Assertions.assertEquals(s"${yesy}-${yesm}-${yesd}", rs.getDate("event_day").toString)
+        Assertions.assertEquals(10, rs.getInt("site_id"))
+        Assertions.assertEquals("Los Angeles", rs.getString("city_code"))
+        Assertions.assertEquals("jack", rs.getString("user_name"))
+        Assertions.assertEquals(30, rs.getInt("pv"))
+      }
+
+      if (rs.next()) {
+        Assertions.assertEquals(s"${yesy}-${yesm}-${yesd}", rs.getDate("event_day").toString)
         Assertions.assertEquals(20, rs.getInt("site_id"))
         Assertions.assertEquals("Los Angeles", rs.getString("city_code"))
         Assertions.assertEquals("jack", rs.getString("user_name"))

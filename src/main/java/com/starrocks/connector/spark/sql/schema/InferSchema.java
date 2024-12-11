@@ -127,6 +127,7 @@ public final class InferSchema {
                 return DataTypes.createDecimalType(field.getPrecision(), field.getScale());
             case "char":
             case "varchar":
+            case "varbinary":
             case "string":
             case "json":
                 return DataTypes.StringType;

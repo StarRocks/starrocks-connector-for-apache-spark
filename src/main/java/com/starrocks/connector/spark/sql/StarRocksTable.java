@@ -101,7 +101,7 @@ public class StarRocksTable implements Table, SupportsWrite, SupportsRead {
     }
 
     private static final Set<TableCapability> TABLE_CAPABILITY_SET = new HashSet<>(
-            Arrays.asList(TableCapability.BATCH_READ, TableCapability.BATCH_WRITE,
+            Arrays.asList(TableCapability.BATCH_READ, TableCapability.BATCH_WRITE, TableCapability.OVERWRITE_DYNAMIC,
                 TableCapability.STREAMING_WRITE, TableCapability.OVERWRITE_BY_FILTER));
 
     @Override

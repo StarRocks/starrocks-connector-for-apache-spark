@@ -27,9 +27,14 @@ import org.apache.spark.sql.connector.expressions.Expressions;
 import org.apache.spark.sql.connector.expressions.SortOrder;
 import org.apache.spark.sql.connector.write.*;
 import org.apache.spark.sql.connector.write.streaming.StreamingWrite;
+import org.apache.spark.sql.sources.AlwaysTrue;
 import org.apache.spark.sql.sources.Filter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class StarRocksWriteBuilder implements WriteBuilder, SupportsOverwrite {
+public class StarRocksWriteBuilder implements WriteBuilder, SupportsOverwrite, SupportsDynamicOverwrite {
+
+    private Logger logger = LoggerFactory.getLogger(getClass());
     private final LogicalWriteInfo info;
     private final WriteStarRocksConfig config;
 
@@ -45,8 +50,17 @@ public class StarRocksWriteBuilder implements WriteBuilder, SupportsOverwrite {
 
     @Override
     public WriteBuilder overwrite(Filter[] filters) {
+        logger.info("invoke overwrite ....");
         config.setOverwrite(true);
         config.setFilters(filters);
+        return this;
+    }
+
+    @Override
+    public WriteBuilder overwriteDynamicPartitions() {
+        logger.info("invoke overwriteDynamicPartitions ....");
+        config.setOverwrite(true);
+        config.setFilters(new Filter[]{new AlwaysTrue()});
         return this;
     }
 
