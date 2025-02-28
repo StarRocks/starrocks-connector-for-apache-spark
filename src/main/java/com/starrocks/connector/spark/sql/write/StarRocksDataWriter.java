@@ -47,6 +47,9 @@ public class StarRocksDataWriter implements DataWriter<InternalRow>, Serializabl
     private final RowStringConverter converter;
     private final StreamLoadManager manager;
 
+    private final String database;
+    private final String table;
+
     public StarRocksDataWriter(WriteStarRocksConfig config,
                                StructType schema,
                                int partitionId,
@@ -65,6 +68,9 @@ public class StarRocksDataWriter implements DataWriter<InternalRow>, Serializabl
             throw new RuntimeException("Unsupported format " + config.getFormat());
         }
         this.manager = new StreamLoadManagerV2(config.toStreamLoadProperties(), true);
+        this.database = config.getDatabase();
+        this.table = (config.isOverwrite() && config.getTempTableName() != null ?
+            config.getTempTableName(): config.getTable());
     }
 
     public void open() {
@@ -76,8 +82,7 @@ public class StarRocksDataWriter implements DataWriter<InternalRow>, Serializabl
     @Override
     public void write(InternalRow internalRow) throws IOException {
         String data = converter.fromRow(internalRow);
-        manager.write(null, config.getDatabase(), config.getTable(), data);
-
+        manager.write(null, this.database, this.table, data);
         log.debug("partitionId: {}, taskId: {}, epochId: {}, receive raw row: {}",
                 partitionId, taskId, epochId, internalRow);
         log.debug("partitionId: {}, taskId: {}, epochId: {}, receive converted row: {}",
