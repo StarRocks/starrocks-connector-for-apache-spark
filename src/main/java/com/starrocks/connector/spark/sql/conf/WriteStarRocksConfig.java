@@ -73,6 +73,7 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
     private static final String KEY_PROPS_FORMAT = PROPS_PREFIX + "format";
     private static final String KEY_PROPS_ROW_DELIMITER = PROPS_PREFIX + "row_delimiter";
     private static final String KEY_PROPS_COLUMN_SEPARATOR = PROPS_PREFIX + "column_separator";
+    private static final String KEY_USE_BITMAP_HASH64 = WRITE_PREFIX + "use_bitmap_hash64";
 
     private static final String KEY_NUM_PARTITIONS = WRITE_PREFIX + "num.partitions";
     private static final String KEY_PARTITION_COLUMNS = WRITE_PREFIX + "partition.columns";
@@ -218,6 +219,8 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
             || dataType instanceof IntegerType
             || dataType instanceof LongType) {
             return "to_bitmap";
+        } else if (Boolean.parseBoolean(originOptions.getOrDefault(KEY_USE_BITMAP_HASH64, "false"))) {
+            return "bitmap_hash64";
         } else {
             return "bitmap_hash";
         }
