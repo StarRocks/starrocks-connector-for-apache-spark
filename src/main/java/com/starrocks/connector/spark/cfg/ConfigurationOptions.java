@@ -79,7 +79,7 @@ public interface ConfigurationOptions {
 
     String STARROCKS_DESERIALIZE_QUEUE_SIZE = "starrocks.deserialize.queue.size";
     int STARROCKS_DESERIALIZE_QUEUE_SIZE_DEFAULT = 64;
-
+    String STARROCKS_TEMP_DBNAME="temp_db";
     static Map<String, String> makeWriteCompatibleWithRead(Map<String, String> options) {
         // user and password compatible
         Map<String, String> configMap = new HashMap(options);

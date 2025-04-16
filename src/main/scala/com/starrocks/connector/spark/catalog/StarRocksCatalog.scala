@@ -93,4 +93,5 @@ class StarRocksCatalog extends TableCatalog
 
   override def dropNamespace(namespace: Array[String], cascade: Boolean): Boolean =
     throw new UnsupportedOperationException
+
 }
