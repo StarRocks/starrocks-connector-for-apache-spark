@@ -68,6 +68,7 @@ public class SimpleWrite {
         dataFrameBatchWrite();
         dataFrameSteamingWrite();
         sqlWrite();
+        sqlWriteThroughCatalog();
     }
 
     // write using DataFrame in batch mode
@@ -191,6 +192,30 @@ public class SimpleWrite {
 
         // 4. select the data
         spark.sql("SELECT * FROM starrocks_table").show();
+
+        spark.stop();
+    }
+
+    private static void sqlWriteThroughCatalog() {
+        // 1. create a spark session
+        SparkSession spark = SparkSession
+                .builder()
+                .config(new SparkConf()
+                        .set("spark.sql.catalog.sr", "com.starrocks.connector.spark.catalog.StarRocksCatalog")
+                        .set("spark.sql.catalog.sr.starrocks.fe.http.url", FE_HTTP)
+                        .set("spark.sql.catalog.sr.starrocks.fe.jdbc.url", FE_JDBC)
+                        .set("spark.sql.catalog.sr.starrocks.user", "root")
+                        .set("spark.sql.catalog.sr.starrocks.password", "")
+                        )
+                .master("local[1]")
+                .appName("sqlWriteThroughCatalog")
+                .getOrCreate();
+
+        // 2. insert two rows into the table
+        spark.sql("INSERT INTO sr.starrocks_table VALUES (5, \"row5\", 5), (6, \"row6\", 6)");
+
+        // 3. select the data
+        spark.sql("SELECT * FROM sr.starrocks_table").show();
 
         spark.stop();
     }

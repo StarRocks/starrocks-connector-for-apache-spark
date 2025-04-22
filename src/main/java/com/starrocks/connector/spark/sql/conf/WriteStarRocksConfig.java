@@ -169,7 +169,6 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
         supportTransactionStreamLoad = StreamLoadUtils.isStarRocksSupportTransactionLoad(
                 Arrays.asList(getFeHttpUrls()), getHttpRequestConnectTimeoutMs(), getUsername(), getPassword());
     }
-
     private void genStreamLoadColumns(StructType sparkSchema, StarRocksSchema starRocksSchema) {
         streamLoadColumnNames = new String[sparkSchema.length()];
         List<String> expressions = new ArrayList<>();
