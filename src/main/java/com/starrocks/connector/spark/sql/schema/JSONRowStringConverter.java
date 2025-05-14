@@ -20,6 +20,7 @@
 package com.starrocks.connector.spark.sql.schema;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.starrocks.connector.spark.util.JsonUtils;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -42,7 +43,7 @@ public class JSONRowStringConverter extends AbstractRowStringConverter {
     public JSONRowStringConverter(StructType schema, String[] streamLoadColumnNames, Set<String> jsonColumnNames, ZoneId timeZone) {
         super(schema, timeZone);
         this.streamLoadColumnNames = streamLoadColumnNames;
-        this.mapper = new ObjectMapper();
+        this.mapper = JsonUtils.createObjectMapper();
         this.isStarRocksJsonType = new boolean[streamLoadColumnNames.length];
         for (int i = 0; i < streamLoadColumnNames.length; i++) {
             isStarRocksJsonType[i] = jsonColumnNames.contains(streamLoadColumnNames[i]);

@@ -32,6 +32,7 @@ import com.starrocks.connector.spark.exception.StarrocksException;
 import com.starrocks.connector.spark.rest.models.QueryPlan;
 import com.starrocks.connector.spark.rest.models.Schema;
 import com.starrocks.connector.spark.rest.models.Tablet;
+import com.starrocks.connector.spark.util.JsonUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpStatus;
 import org.apache.http.auth.AuthenticationException;
@@ -242,7 +243,7 @@ public class RestService implements Serializable {
     @VisibleForTesting
     public static Schema parseSchema(String response, Logger logger) throws StarrocksException {
         logger.trace("Parse response '{}' to schema.", response);
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = JsonUtils.createObjectMapper();
         Schema schema;
         try {
             schema = mapper.readValue(response, Schema.class);
@@ -322,7 +323,7 @@ public class RestService implements Serializable {
      */
     @VisibleForTesting
     static QueryPlan getQueryPlan(String response, Logger logger) throws StarrocksException {
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = JsonUtils.createObjectMapper();
         QueryPlan queryPlan;
         try {
             queryPlan = mapper.readValue(response, QueryPlan.class);
