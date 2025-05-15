@@ -33,7 +33,6 @@ import org.apache.spark.sql.connector.write.WriterCommitMessage;
 import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.io.Serializable;
 
@@ -46,7 +45,6 @@ public class StarRocksDataWriter implements DataWriter<InternalRow>, Serializabl
     private final long epochId;
     private final RowStringConverter converter;
     private final StreamLoadManager manager;
-
     public StarRocksDataWriter(WriteStarRocksConfig config,
                                StructType schema,
                                int partitionId,
@@ -75,6 +73,7 @@ public class StarRocksDataWriter implements DataWriter<InternalRow>, Serializabl
 
     @Override
     public void write(InternalRow internalRow) throws IOException {
+
         String data = converter.fromRow(internalRow);
         manager.write(null, config.getDatabase(), config.getTable(), data);
 
@@ -82,11 +81,13 @@ public class StarRocksDataWriter implements DataWriter<InternalRow>, Serializabl
                 partitionId, taskId, epochId, internalRow);
         log.debug("partitionId: {}, taskId: {}, epochId: {}, receive converted row: {}",
                 partitionId, taskId, epochId, data);
+
     }
 
     @Override
     public WriterCommitMessage commit() throws IOException {
         log.info("partitionId: {}, taskId: {}, epochId: {} commit", partitionId, taskId, epochId);
+
         try {
             manager.flush();
             return new StarRocksWriterCommitMessage(partitionId, taskId, epochId, null);
@@ -121,4 +122,8 @@ public class StarRocksDataWriter implements DataWriter<InternalRow>, Serializabl
         log.info("partitionId: {}, taskId: {}, epochId: {} close", partitionId, taskId, epochId);
         manager.close();
     }
+
+
+
+
 }

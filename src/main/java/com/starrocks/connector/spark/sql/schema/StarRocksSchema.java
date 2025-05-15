@@ -43,7 +43,9 @@ public class StarRocksSchema implements Serializable {
     public StarRocksSchema(List<StarRocksField> columns, List<StarRocksField> keyColumns) {
         this(columns, keyColumns, null);
     }
-
+    public List<StarRocksField> getPrimaryKeys() {
+        return keyColumns;
+    }
     public StarRocksSchema(List<StarRocksField> columns,
                            List<StarRocksField> keyColumns,
                            Long tableId) {
