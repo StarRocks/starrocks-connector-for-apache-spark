@@ -10,6 +10,7 @@ StarRocks provides a self-developed connector named StarRocks Connector for Apac
 
 | Spark connector | Spark            | StarRocks     | Java | Scala |
 |-----------------| ---------------- | ------------- | ---- | ----- |
+| 1.1.3           | 3.2, 3.3, 3.4, 3.5 | 2.5 and later   | 8    | 2.12  |
 | 1.1.2           | 3.2, 3.3, 3.4, 3.5 | 2.5 and later   | 8    | 2.12  |
 | 1.1.1           | 3.2, 3.3, or 3.4 | 2.5 and later | 8    | 2.12  |
 | 1.1.0           | 3.2, 3.3, or 3.4 | 2.5 and later | 8    | 2.12  |
@@ -108,6 +109,8 @@ Directly download the corresponding version of the Spark connector JAR from the 
 | starrocks.write.num.partitions                 | NO       | None          | The number of partitions into which Spark can write data in parallel. When the data volume is small, you can reduce the number of partitions to lower the loading concurrency and frequency. The default value for this parameter is determined by Spark. However, this method may cause Spark Shuffle cost. |
 | starrocks.write.partition.columns              | NO       | None          | The partitioning columns in Spark. The parameter takes effect only when `starrocks.write.num.partitions` is specified. If this parameter is not specified, all columns being written are used for partitioning. |
 | starrocks.timezone                             | NO       | Default timezone of JVM | Supported since 1.1.1. The timezone used to convert Spark `TimestampType` to StarRocks `DATETIME`. The default is the timezone of JVM returned by `ZoneId#systemDefault()`. The format can be a timezone name such as `Asia/Shanghai`, or a zone offset such as `+08:00`. |
+| starrocks.write.socket.timeout.ms              | NO       | -1                      | Supported since version 1.1.3. The time duration for which the HTTP client waits for data. Unit: ms. The default value `-1` means there is no timeout.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| starrocks.write.properties.compression         | NO       | NONE                    | Supported since version 1.1.3. The compression algorithm used for Stream Load. Valid values: `lz4_frame`. Compression for json format needs StarRocks v3.2.7 or later. Compression for csv format has no requirement for StarRocks version.                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 ## Data type mapping between Spark and StarRocks
 
