@@ -19,6 +19,7 @@
 
 package com.starrocks.connector.spark.sql.conf;
 
+import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +42,8 @@ import static com.starrocks.connector.spark.rest.RestService.parseIdentifier;
 public abstract class StarRocksConfigBase implements StarRocksConfig {
 
     private static final Logger LOG = LoggerFactory.getLogger(StarRocksConfigBase.class);
+
+    private static final Map<String, String> TRANSFORM_OPTIONS = ImmutableMap.of();
 
     // reuse some configurations in ConfigurationOptions
     public static final String KEY_FE_HTTP = PREFIX + "fe.http.url";
@@ -79,8 +82,23 @@ public abstract class StarRocksConfigBase implements StarRocksConfig {
     private ZoneId timeZone;
 
     public StarRocksConfigBase(Map<String, String> options) {
-        this.originOptions = new HashMap<>(options);
+        this.originOptions = compatibleWithDoris(options);
         load();
+    }
+
+    private Map<String, String> compatibleWithDoris(Map<String, String> options) {
+        Map<String, String> properties = new HashMap<>();
+        for (Map.Entry<String, String> entry : options.entrySet()) {
+            String key = entry.getKey();
+            if (key.startsWith(DORIS_PREFIX)) {
+                key = key.replace(DORIS_PREFIX, PREFIX);
+            }
+            if (TRANSFORM_OPTIONS.containsKey(key)) {
+                key = TRANSFORM_OPTIONS.get(key);
+            }
+            properties.put(key, entry.getValue());
+        }
+        return properties;
     }
 
     private void load() {
