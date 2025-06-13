@@ -39,7 +39,7 @@ public final class InferSchema {
 
     public static StructType inferSchema(Map<String, String> options) {
         SimpleStarRocksConfig config = new SimpleStarRocksConfig(options);
-        StarRocksSchema starrocksSchema = StarRocksConnector.getSchema(config);
+        StarRocksSchema starrocksSchema = StarRocksConnector.getSchema(config, null);
         return inferSchema(starrocksSchema, config);
     }
 

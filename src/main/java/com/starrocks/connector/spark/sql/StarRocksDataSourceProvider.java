@@ -106,7 +106,7 @@ public class StarRocksDataSourceProvider implements RelationProvider,
         Map<String, String> options = makeWriteCompatibleWithRead(config.getOriginOptions());
         options.forEach(properties::setProperty);
 
-        StarRocksSchema schema = StarRocksConnector.getSchema(config);
+        StarRocksSchema schema = StarRocksConnector.getSchema(config, tbIdentifier);
         return schema;
     }
 
