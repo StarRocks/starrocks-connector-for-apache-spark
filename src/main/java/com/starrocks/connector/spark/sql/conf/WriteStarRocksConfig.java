@@ -36,12 +36,7 @@ import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.util.Utils;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class WriteStarRocksConfig extends StarRocksConfigBase {
@@ -65,6 +60,7 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
     private static final String KEY_BUFFER_SIZE = WRITE_PREFIX + "buffer.size";
     // The number of rows buffered before sending to StarRocks.
     private static final String KEY_BUFFER_ROWS = WRITE_PREFIX + "buffer.rows";
+
     // Flush interval of the row batch in millisecond
     private static final String KEY_FLUSH_INTERVAL = WRITE_PREFIX + "flush.interval.ms";
     private static final String KEY_MAX_RETIES = WRITE_PREFIX + "max.retries";
@@ -77,6 +73,17 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
 
     private static final String KEY_NUM_PARTITIONS = WRITE_PREFIX + "num.partitions";
     private static final String KEY_PARTITION_COLUMNS = WRITE_PREFIX + "partition.columns";
+    // start use stage mode or not, if not stage mode will never use
+    //decide stageMode when to use  always,auto,never
+    private static final String STAGE_MODE_USE = WRITE_PREFIX + "stage.use";
+    // stage config header
+    private static final String STAGE_CONFIG = WRITE_PREFIX + "stage.";
+
+    public enum StageUse {
+        ALWAYS,
+        AUTO,
+        NEVER
+    }
 
     private String labelPrefix = "spark";
     private int socketTimeoutMs = -1;
@@ -96,7 +103,13 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
     private String rowDelimiter = "\n";
     private String columnSeparator = "\t";
     private boolean supportTransactionStreamLoad = true;
+    private StageUse stageUse = StageUse.NEVER;
+    private Map<String, String> stageConfig;
 
+    //starrocks.write.stage.columns.update.ratio
+    // a rough number describe the ratio of row ro be updated 1-100
+
+    //if any column in stageUpdateColumn to be updated use stage mode default ""
     // According to Spark RequiresDistributionAndOrdering#requiredNumPartitions(),
     // any value less than 1 mean no requirement
     private int numPartitions = 0;
@@ -105,11 +118,17 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
 
     private String streamLoadColumnProperty;
     private String[] streamLoadColumnNames;
-    private final Set<String> starRocksJsonColumnNames;
+    private  Set<String> starRocksJsonColumnNames;
+    private StructType sparkSchema;
+
+    public StructType getSparkSchema() {
+        return sparkSchema;
+    }
 
     public WriteStarRocksConfig(Map<String, String> originOptions, StructType sparkSchema, StarRocksSchema starRocksSchema) {
         super(originOptions);
         load(sparkSchema);
+        this.sparkSchema = sparkSchema;
         genStreamLoadColumns(sparkSchema, starRocksSchema);
         this.starRocksJsonColumnNames = new HashSet<>();
         for (StarRocksField column : starRocksSchema.getColumns()) {
@@ -131,6 +150,16 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
         flushInterval = getInt(KEY_FLUSH_INTERVAL, 300000);
         maxRetries = getInt(KEY_MAX_RETIES, 3);
         retryIntervalInMs = getInt(KEY_RETRY_INTERVAL_MS, 10000);
+        stageConfig= originOptions.entrySet().stream()
+                .filter(entry -> entry.getKey().startsWith(STAGE_CONFIG))
+                .collect(
+                        Collectors.toMap(
+                                entry -> entry.getKey().replaceFirst(STAGE_CONFIG, ""),
+                                Map.Entry::getValue
+                        )
+                );
+
+        stageUse =StageUse.valueOf(get(STAGE_MODE_USE, "never").toUpperCase());
 
         properties = originOptions.entrySet().stream()
                 .filter(entry -> entry.getKey().startsWith(PROPS_PREFIX))
@@ -168,6 +197,39 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
         partitionColumns = getArray(KEY_PARTITION_COLUMNS, null);
         supportTransactionStreamLoad = StreamLoadUtils.isStarRocksSupportTransactionLoad(
                 Arrays.asList(getFeHttpUrls()), getHttpRequestConnectTimeoutMs(), getUsername(), getPassword());
+    }
+    private WriteStarRocksConfig() {
+        super();
+    }
+    public WriteStarRocksConfig copy(String dataBase, String table, List<String> excludeStreamLoadProperties) {
+        WriteStarRocksConfig copyConfig = new WriteStarRocksConfig();
+
+        super.copy(copyConfig);
+        copyConfig.database = dataBase;
+        copyConfig.table = table;
+        copyConfig.labelPrefix = labelPrefix;
+        copyConfig.waitForContinueTimeoutMs = waitForContinueTimeoutMs;
+        copyConfig.ioThreadCount = ioThreadCount;
+        copyConfig.chunkLimit = chunkLimit;
+        copyConfig.scanFrequencyInMs = scanFrequencyInMs;
+        copyConfig.enableTransactionStreamLoad = enableTransactionStreamLoad;
+        copyConfig.bufferSize = bufferSize;
+        copyConfig.bufferRows = bufferRows;
+        copyConfig.flushInterval = flushInterval;
+        copyConfig.maxRetries = maxRetries;
+        copyConfig.retryIntervalInMs = retryIntervalInMs;
+        copyConfig.properties = new HashMap<>(properties);
+        excludeStreamLoadProperties.forEach(copyConfig.properties::remove);
+        copyConfig.format = format;
+        copyConfig.rowDelimiter = rowDelimiter;
+        copyConfig.columnSeparator = columnSeparator;
+        copyConfig.supportTransactionStreamLoad = supportTransactionStreamLoad;
+        copyConfig.numPartitions = numPartitions;
+        copyConfig.partitionColumns = partitionColumns;
+        copyConfig.streamLoadColumnProperty = streamLoadColumnProperty;
+        copyConfig.streamLoadColumnNames = streamLoadColumnNames;
+
+        return copyConfig;
     }
 
     private void genStreamLoadColumns(StructType sparkSchema, StarRocksSchema starRocksSchema) {
@@ -226,6 +288,15 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
         }
     }
 
+
+    public StageUse getStageUse() {
+        return stageUse;
+    }
+
+
+    public Map<String, String> getStageConfig() {
+        return stageConfig;
+    }
     public String getFormat() {
         return format;
     }
@@ -250,11 +321,18 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
         return starRocksJsonColumnNames;
     }
 
+
+
+
+
     public boolean isPartialUpdate() {
         String val = properties.get("partial_update");
         return val != null && val.equalsIgnoreCase("true");
     }
-
+    public boolean isPartialUpdateColumnMode() {
+        String val = properties.get("partial_update_mode");
+        return val != null && val.equalsIgnoreCase("column");
+    }
     public StreamLoadProperties toStreamLoadProperties() {
         StreamLoadDataFormat dataFormat = "json".equalsIgnoreCase(format) ?
                 StreamLoadDataFormat.JSON : new StreamLoadDataFormat.CSVFormat(rowDelimiter);

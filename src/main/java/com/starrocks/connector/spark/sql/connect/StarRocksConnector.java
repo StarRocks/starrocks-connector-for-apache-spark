@@ -19,6 +19,9 @@
 
 package com.starrocks.connector.spark.sql.connect;
 
+import com.starrocks.connector.spark.catalog.SRColumn;
+import com.starrocks.connector.spark.catalog.SRTable;
+import com.starrocks.connector.spark.exception.CatalogException;
 import com.starrocks.connector.spark.exception.StarRocksException;
 import com.starrocks.connector.spark.sql.conf.StarRocksConfig;
 import com.starrocks.connector.spark.sql.schema.StarRocksField;
@@ -26,32 +29,33 @@ import com.starrocks.connector.spark.sql.schema.StarRocksSchema;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 public class StarRocksConnector {
-    private static Logger logger = LoggerFactory.getLogger(StarRocksConnector.class);
+    private static final Logger logger = LoggerFactory.getLogger(StarRocksConnector.class);
 
     private static final String TABLE_SCHEMA_QUERY =
             "SELECT `COLUMN_NAME`, `ORDINAL_POSITION`, `COLUMN_KEY`, `DATA_TYPE`, `COLUMN_SIZE`, `DECIMAL_DIGITS` "
                     + "FROM `information_schema`.`COLUMNS` WHERE `TABLE_SCHEMA`=? AND `TABLE_NAME`=?;";
     private static final String ALL_DBS_QUERY = "show databases;";
+
     private static final String LOAD_DB_QUERY =
             "select SCHEMA_NAME from information_schema.schemata where SCHEMA_NAME in (?) AND CATALOG_NAME = 'def';";
+
     private static final String ALL_TABLES_QUERY = "select TABLE_SCHEMA, TABLE_NAME from information_schema.tables "
             + "where TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA in (?) ;";
-
+    private static final String DB_EXISTS =
+            "select SCHEMA_NAME from information_schema.schemata where SCHEMA_NAME =? AND CATALOG_NAME = 'def';";
+    private static final String Table_COLUMNS_QUERY=
+            "select COLUMN_NAME,ORDINAL_POSITION,DATA_TYPE,COLUMN_SIZE,DECIMAL_DIGITS,COLUMN_DEFAULT,IS_NULLABLE,COLUMN_COMMENT from INFORMATION_SCHEMA.columns where TABLE_SCHEMA=? and TABLE_NAME=?";
+    private static final String TABLES_QUERY =
+            "select TABLE_SCHEMA,TABLE_NAME,TABLE_COMMENT from INFORMATION_SCHEMA.tables where TABLE_SCHEMA=? AND TABLE_NAME = ?";
+    private static final String TABLE_CONFIG_QUERY="select TABLE_MODEL,PRIMARY_KEY,DISTRIBUTE_KEY,DISTRIBUTE_BUCKET,PROPERTIES from INFORMATION_SCHEMA.tables_config where TABLE_SCHEMA=? AND TABLE_NAME = ?";
     // Driver name for mysql connector 5.1 which is deprecated in 8.0
     private static final String MYSQL_51_DRIVER_NAME = "com.mysql.jdbc.Driver";
     // Driver name for mysql connector 8.0
@@ -110,12 +114,11 @@ public class StarRocksConnector {
 
         throw new StarRocksException("database(s) not found: " + fullName);
     }
-
+//only get tables of one db
     public static Map<String, String> getTables(StarRocksConfig config, List<String> dbNames) {
-        List<String> parameters = Arrays.asList(String.join(",", dbNames));
+        List<String> parameters = Arrays.asList(java.lang.String.join(",", dbNames));
         List<Map<String, String>> tables = extractColumnValuesBySql(config, ALL_TABLES_QUERY, parameters);
         Map<String, String> table2Db = new HashMap<>();
-
         for (Map<String, String> db : tables) {
             String dbName = Optional.ofNullable(db.get("TABLE_SCHEMA"))
                     .orElseThrow(() -> new StarRocksException("get table header error"));
@@ -128,14 +131,111 @@ public class StarRocksConnector {
         return table2Db;
     }
 
-    private static Connection createJdbcConnection(String jdbcUrl, String username, String password) throws Exception {
+public static boolean dbExists(StarRocksConfig config, String dbName) {
+
+    List<Map<String, String>> res = extractColumnValuesBySql(config, DB_EXISTS, Arrays.asList(dbName));
+    return !res.isEmpty();
+}
+
+
+ public static  SRTable getSRTable(StarRocksConfig config, String dbName, String tableName) {
+
+     Map<String, String> tableConfig = getTableConfig(config, dbName, tableName);
+     List<SRColumn> srColumns = getSRColumns(config, dbName, tableName);
+     List<Map<String, String>> maps = extractColumnValuesBySql(config, TABLES_QUERY, Arrays.asList(dbName, tableName));
+     if (maps.isEmpty()) {
+         throw new StarRocksException("table does not exist: " + dbName + "." + tableName);
+     }
+
+     Map<String, String> tables = maps.get(0);
+     String db_name = tables.get("TABLE_SCHEMA");
+     String table_name = tables.get("TABLE_NAME");
+     String table_comment = tables.get("TABLE_COMMENT");
+     String table_type = tableConfig.get("TABLE_MODEL");
+     String[] arr = tableConfig.get("PRIMARY_KEY").replace("`","").split(",");
+     String[] trimmedArr = Arrays.stream(arr)
+             .map(String::trim)
+             .toArray(String[]::new);
+     List<String> primary_key = Arrays.asList(trimmedArr);
+     int num_buckets = Integer.parseInt(tableConfig.get("DISTRIBUTE_BUCKET"));
+     String[] distributeKeys = tableConfig.get("DISTRIBUTE_KEY").replace("`","").split(",");
+     String[] trimmedDistributeKeys = Arrays.stream(distributeKeys)
+             .map(String::trim)
+             .toArray(String[]::new);
+     List<String> distribution_keys = Arrays.asList(trimmedDistributeKeys);
+
+     String proper = tableConfig.get("PROPERTIES");
+    proper=proper.trim().replaceAll("[{}]","");
+     String[] entries = proper.split(",");
+     Map<String, String> table_properties = new HashMap<>();
+     for (String entry : entries) {
+         String[] keyValue = entry.split(":");
+         table_properties.put(keyValue[0].replace("\"", "").trim(), keyValue[1].replace("\"", "").trim());
+     }
+     SRTable res=new SRTable.Builder()
+             .setTableName(table_name)
+             .setComment(table_comment)
+             .setColumns(srColumns)
+             .setTableKeys(primary_key)
+             .setDatabaseName(db_name)
+             .setNumBuckets(num_buckets)
+             .setTableType(table_type)
+             .setTableProperties(table_properties)
+             .setDistributionKeys(distribution_keys)
+             .build();
+     return res;
+ }
+
+    public static Map<String, String> getTableConfig(StarRocksConfig config, String dbName, String tableName) {
+        List<Map<String, String>> res = extractColumnValuesBySql(config, TABLE_CONFIG_QUERY, Arrays.asList(dbName, tableName));
+        if (!res.isEmpty()) {
+            return res.get(0);
+        }
+        else
+        {
+            throw new StarRocksException("table does not exist: " + dbName + "." + tableName);
+        }
+    }
+
+    public static List<SRColumn> getSRColumns(StarRocksConfig config, String dbName, String tableName) {
+     ArrayList<SRColumn> srColumns = new ArrayList<>();
+     List<Map<String, String>> res = extractColumnValuesBySql(config, Table_COLUMNS_QUERY, Arrays.asList(dbName, tableName));
+     if (!res.isEmpty()) {
+
+         for (Map<String, String> columnMap : res) {
+             String columnSize = columnMap.get("COLUMN_SIZE");
+             Integer size=null;
+             if (columnSize != null) {
+                  size = Integer.parseInt(columnSize);
+             }
+             SRColumn column = new SRColumn.Builder()
+                     .setColumnName(columnMap.get("COLUMN_NAME"))
+                     .setOrdinalPosition(Integer.parseInt(columnMap.get("ORDINAL_POSITION")))
+                     .setDataType(columnMap.get("DATA_TYPE"),size)
+                     .setNullable(columnMap.get("IS_NULLABLE"))
+                     .setDefaultValue(columnMap.get("COLUMN_DEFAULT"))
+                     .setColumnSize(size)
+                     .setDecimalDigits((columnMap.get("DECIMAL_DIGITS")))
+                     .setColumnComment(columnMap.get("COLUMN_COMMENT"))
+                     .build();
+             srColumns.add(column);
+         }
+     }
+     else
+     {
+         throw new CatalogException("table does not exist: " + dbName + "." + tableName);
+     }
+     return srColumns;
+ }
+
+    public static Connection createJdbcConnection(String jdbcUrl, String username, String password) throws Exception {
         try {
             Class.forName(MYSQL_80_DRIVER_NAME);
         } catch (ClassNotFoundException e) {
             try {
                 Class.forName(MYSQL_51_DRIVER_NAME);
             } catch (ClassNotFoundException ie) {
-                String msg = String.format("Can't find mysql jdbc driver, please download it and "
+                String msg = java.lang.String.format("Can't find mysql jdbc driver, please download it and "
                                 + "put it in your classpath manually. Note that the connector does not include "
                                 + "the mysql driver since version 1.1.1 because of the limitation of GPL license "
                                 + "used by the driver. You can download it from MySQL site %s, or Maven Central %s", MYSQL_SITE_URL,
@@ -172,7 +272,7 @@ public class StarRocksConnector {
         }
 
         if (columnValues.isEmpty()) {
-            String errMsg = String.format("Can't get schema of table [%s.%s] from StarRocks. The possible reasons: "
+            String errMsg = java.lang.String.format("Can't get schema of table [%s.%s] from StarRocks. The possible reasons: "
                     + "1) The table does not exist. 2) The user does not have [SELECT] privilege on the "
                     + "table, and can't read the schema. Please make sure that the table exists in StarRocks, "
                     + "and grant [SELECT] privilege to the user. If you are loading data to the table, also need "

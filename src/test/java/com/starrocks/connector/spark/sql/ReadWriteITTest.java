@@ -19,22 +19,6 @@
 
 package com.starrocks.connector.spark.sql;
 
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.RowFactory;
-import org.apache.spark.sql.SaveMode;
-import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
-import org.apache.spark.sql.types.ArrayType;
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.DecimalType;
-import org.apache.spark.sql.types.Metadata;
-import org.apache.spark.sql.types.StructField;
-import org.apache.spark.sql.types.StructType;
-import org.junit.Ignore;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Statement;
@@ -51,8 +35,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.RowFactory;
+import org.apache.spark.sql.SaveMode;
+import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
+import org.apache.spark.sql.types.ArrayType;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.DecimalType;
+import org.apache.spark.sql.types.Metadata;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class ReadWriteITTest extends ITTestBase {
     @Test
@@ -1279,40 +1275,216 @@ public class ReadWriteITTest extends ITTestBase {
                         DB_NAME, tableName);
         executeSrSQL(createStarRocksTable);
     }
+    @Test
+    public void TestStageWrite() throws Exception {
+        String tableName = "testStageWrite" + genRandomUuid();
+        prepareStageTest(tableName);
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("TestStageWrite")
+                .getOrCreate();
+        //test always mode
+        StructType schema = new StructType(new StructField[]{
+                new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
+                new StructField("c3_double", DataTypes.DoubleType, true, Metadata.empty()),
+                new StructField("c4_float", DataTypes.FloatType, true, Metadata.empty()),
+                new StructField("c5_int", DataTypes.IntegerType, true, Metadata.empty()),
+                new StructField("c6_largeint", DataTypes.LongType, true, Metadata.empty()), // 对应 LARGEINT，使用 LongType
+                new StructField("c7_smallint", DataTypes.ShortType, true, Metadata.empty()),
+                new StructField("c8_tinyint", DataTypes.ByteType, true, Metadata.empty()),
+                new StructField("c9_date", DataTypes.DateType, true, Metadata.empty()),
+                new StructField("c10_datetime", DataTypes.TimestampType, true, Metadata.empty()),
+                new StructField("c11_char", DataTypes.StringType, true, Metadata.empty()),
+        });
+        List<Row> data = new ArrayList<>();
+        data.add(RowFactory.create(1, 12345.12, 12345.12f, 123456, 987654321012345671L, (short) 1234, (byte) 123, Date.valueOf("2024-01-01"), Timestamp.valueOf("2024-01-01 12:34:56"), "char_value_11"));
+        data.add(RowFactory.create(2, 23456.23, 23456.23f, 234567, 887654321012345672L, (short) 2345, (byte) 234, Date.valueOf("2024-02-02"), Timestamp.valueOf("2024-02-02 12:34:56"), "char_value_22"));
+        data.add(RowFactory.create(3, 34567.34, 34567.34f, 345678, 787654321012345673L, (short) 3456, (byte) 345, Date.valueOf("2024-03-03"), Timestamp.valueOf("2024-03-03 12:34:56"), "char_value_33"));
+        Dataset<Row> df = spark.createDataFrame(data, schema);
+        Map<String, String> options = new HashMap<>();
+        options.put("starrocks.fe.http.url", FE_HTTP);
+        options.put("starrocks.fe.jdbc.url", FE_JDBC);
+        options.put("starrocks.table.identifier", String.join(".", DB_NAME, tableName));
+        options.put("starrocks.user", USER);
+        options.put("starrocks.password", PASSWORD);
+        options.put("starrocks.write.stage.mode", "true");
+        options.put("starrocks.write.properties.partial_update_mode", "column");
+        options.put("starrocks.write.properties.partial_update", "true");
+        options.put("starrocks.write.stage.session.query.timeout", "309");
+        options.put("starrocks.write.stage.session.query.mem.limit", "100000000");
+        options.put("starrocks.write.stage.session.exec.mem.limit", "8589934592");
+        options.put("starrocks.write.stage.columns.update.ratio", "20");
 
-    // To enable this test, need to inject response delay (>10s) on BE.
-    // Have verified this test manually
-    @Ignore
-    @org.junit.Test
-    public void testSocketTimeout() throws Exception {
-        String tableName = "testSocketTimeout" + genRandomUuid();
-        prepareScoreBoardTable(tableName);
+        options.put("starrocks.write.stage.use", "always");
+        options.put("starrocks.columns", "id,c3_double,c4_float,c5_int,c6_largeint,c7_smallint,c8_tinyint,c9_date,c10_datetime,c11_char");
+        df.write().format("starrocks")
+                .mode(SaveMode.Append)
+                .options(options)
+                .save();
+        List<List<Object>> expectedData = Arrays.asList(
+                Arrays.asList(1, 12345.12, 12345.12f, 123456, 987654321012345671L, (short) 1234, (byte) 123, Date.valueOf("2024-01-01"), Timestamp.valueOf("2024-01-01 12:34:56"), "char_value_11"),
+                Arrays.asList(2, 23456.23, 23456.23f, 234567, 887654321012345672L, (short) 2345, (byte) 234, Date.valueOf("2024-02-02"), Timestamp.valueOf("2024-02-02 12:34:56"), "char_value_22"),
+                Arrays.asList(3, 34567.34, 34567.34f, 345678, 787654321012345673L, (short) 3456, (byte) 345, Date.valueOf("2024-03-03"), Timestamp.valueOf("2024-03-03 12:34:56"), "char_value_33")
+        );
+        String selectSql = String.format("SELECT id,c3_double,c4_float,c5_int,c6_largeint,c7_smallint,c8_tinyint,c9_date,c10_datetime,c11_char FROM %s.%s where id between 1 and 3 ", DB_NAME, tableName);
+        List<List<Object>> actual = queryTable(DB_CONNECTION, selectSql);
+        verifyResult(expectedData, actual);
+        //test auto mode
+        List<Row> data1 = Arrays.asList(
+                RowFactory.create(1, 101L, false, new BigDecimal("111.1")),
+                RowFactory.create(2, 102L, true, new BigDecimal("111.2")),
+                RowFactory.create(3, 103L, false, new BigDecimal("111.3")),
+                RowFactory.create(4, 104L, true, new BigDecimal("111.4"))
+        );
+        StructType schema1 = new StructType(new StructField[]{
+                new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
+                new StructField("c0_bigint", DataTypes.LongType, true, Metadata.empty()),
+                new StructField("c1_boolean", DataTypes.BooleanType, true, Metadata.empty()),
+                new StructField("c2_decimal", DataTypes.createDecimalType(10, 1), true, Metadata.empty()),
+
+        });
+        Dataset<Row> df1 = spark.createDataFrame(data1, schema1);
+        options.put("starrocks.write.stage.use", "auto");
+        options.put("starrocks.columns", "id,c0_bigint,c1_boolean,c2_decimal");
+        options.put("starrocks.write.stage.columns.update.ratio", "60");
+        df1.write().format("starrocks")
+                .mode(SaveMode.Append)
+                .options(options)
+                .save();
+        String selectSql1 = String.format("SELECT id,c0_bigint,c1_boolean,c2_decimal FROM %s.%s where id between 1 and 4 ", DB_NAME, tableName);
+        List<List<Object>> actual1 = queryTable(DB_CONNECTION, selectSql1);
+        List<List<Object>> expectedData1 = Arrays.asList(
+                Arrays.asList(1, 101L, false, new BigDecimal("111.1")),
+                Arrays.asList(2, 102L, true, new BigDecimal("111.2")),
+                Arrays.asList(3, 103L, false, new BigDecimal("111.3")),
+                Arrays.asList(4, 104L, true, new BigDecimal("111.4"))
+        );
+        verifyResult(expectedData1, actual1);
+
+//test never mode
+        List<Row> data2 = Arrays.asList(
+                RowFactory.create(1, 102L, false, new BigDecimal("111.1")),
+                RowFactory.create(2, 103L, true, new BigDecimal("111.2")),
+                RowFactory.create(3, 104L, false, new BigDecimal("111.3")),
+                RowFactory.create(4, 105L, true, new BigDecimal("111.4"))
+        );
+        List<List<Object>> expectedData2 = Arrays.asList(
+                Arrays.asList(1, 102L, false, new BigDecimal("111.1")),
+                Arrays.asList(2, 103L, true, new BigDecimal("111.2")),
+                Arrays.asList(3, 104L, false, new BigDecimal("111.3")),
+                Arrays.asList(4, 105L, true, new BigDecimal("111.4"))
+        );
+        options.put("starrocks.write.stage.use", "never");
+        Dataset<Row> df2 = spark.createDataFrame(data2, schema1);
+        df2.write().format("starrocks")
+                .mode(SaveMode.Append)
+                .options(options)
+                .save();
+        List<List<Object>> actual2 = queryTable(DB_CONNECTION, selectSql1);
+        verifyResult(expectedData2,actual2);
+        spark.stop();
+
+    }
+
+
+
+
+
+    private void prepareStageTest(String tableName) throws Exception {
+        String createStarRocksTable =
+                String.format("CREATE TABLE %s.%s (" +
+                                "id INT," +                        // 主键
+                                "c0_bigint BIGINT," +
+                                "c1_boolean BOOLEAN," +
+                                "c2_decimal DECIMAL(10, 1)," +
+                                "c3_double DOUBLE," +
+                                "c4_float FLOAT," +
+                                "c5_int INT," +
+                                "c6_largeint LARGEINT," +
+                                "c7_smallint SMALLINT," +
+                                "c8_tinyint TINYINT," +
+                                "c9_date DATE," +
+                                "c10_datetime DATETIME," +
+                                "c11_char CHAR(50)," +
+                                "c12_string STRING," +
+                                "c13_varchar VARCHAR(255)" +
+                                ") ENGINE=OLAP " +
+                                "PRIMARY KEY(id) " +
+                                "DISTRIBUTED BY HASH(id) BUCKETS 2 " +
+                                "PROPERTIES (" +
+                                "\"replication_num\" = \"1\"" +
+                                ")",
+                        DB_NAME, tableName);
+
+        executeSrSQL(createStarRocksTable);
 
         SparkSession spark = SparkSession
                 .builder()
                 .master("local[1]")
-                .appName("testSocketTimeout")
+                .appName("prepareTestStage")
                 .getOrCreate();
 
-        String ddl = String.format("CREATE TABLE sr_table \n" +
-                " USING starrocks\n" +
-                "OPTIONS(\n" +
-                "  \"starrocks.table.identifier\"=\"%s\",\n" +
-                "  \"starrocks.fe.http.url\"=\"%s\",\n" +
-                "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
-                "  \"starrocks.write.max.retries\"=\"0\",\n" +
-                "  \"starrocks.write.socket.timeout.ms\"=\"10000\",\n" +
-                "  \"starrocks.user\"=\"%s\",\n" +
-                "  \"starrocks.password\"=\"%s\"\n" +
-                ")", String.join(".", DB_NAME, tableName), FE_HTTP, FE_JDBC, USER, PASSWORD);
-        spark.sql(ddl);
-        try {
-            spark.sql("INSERT INTO sr_table VALUES (1, \"2\", 3), (2, \"3\", 4)");
-            fail("Should throw exception");
-        } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Read timed out"));
-        }
+        StructType schema = new StructType(new StructField[]{
+                new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
+                new StructField("c0_bigint", DataTypes.LongType, true, Metadata.empty()),
+                new StructField("c1_boolean", DataTypes.BooleanType, true, Metadata.empty()),
+                new StructField("c2_decimal", DataTypes.createDecimalType(10, 1), true, Metadata.empty()),
+                new StructField("c3_double", DataTypes.DoubleType, true, Metadata.empty()),
+                new StructField("c4_float", DataTypes.FloatType, true, Metadata.empty()),
+                new StructField("c5_int", DataTypes.IntegerType, true, Metadata.empty()),
+                new StructField("c6_largeint", DataTypes.LongType, true, Metadata.empty()), // 对应 LARGEINT，使用 LongType
+                new StructField("c7_smallint", DataTypes.ShortType, true, Metadata.empty()),
+                new StructField("c8_tinyint", DataTypes.ByteType, true, Metadata.empty()),
+                new StructField("c9_date", DataTypes.DateType, true, Metadata.empty()),
+                new StructField("c10_datetime", DataTypes.TimestampType, true, Metadata.empty()),
+                new StructField("c11_char", DataTypes.StringType, true, Metadata.empty()),
+                new StructField("c12_string", DataTypes.StringType, true, Metadata.empty()),
+                new StructField("c13_varchar", DataTypes.StringType, true, Metadata.empty())
+        });
 
-        spark.stop();
+
+        List<Row> data = new ArrayList<>();
+        data.add(RowFactory.create(1, 1234567890123L, true, new BigDecimal("12345.6"), 12345.67, 12345.67f, 12345, 987654321012345678L, (short) 123, (byte) 12, Date.valueOf("2023-01-01"), Timestamp.valueOf("2023-01-01 12:34:56"), "char_value_1", "string_value_1", "varchar_value_1"));
+        data.add(RowFactory.create(2, 2234567890123L, false, new BigDecimal("23456.7"), 23456.78, 23456.78f, 23456, 887654321012345678L, (short) 234, (byte) 23, Date.valueOf("2023-02-02"), Timestamp.valueOf("2023-02-02 12:34:56"), "char_value_2", "string_value_2", "varchar_value_2"));
+        data.add(RowFactory.create(3, 3234567890123L, true, new BigDecimal("34567.8"), 34567.89, 34567.89f, 34567, 787654321012345678L, (short) 345, (byte) 34, Date.valueOf("2023-03-03"), Timestamp.valueOf("2023-03-03 12:34:56"), "char_value_3", "string_value_3", "varchar_value_3"));
+        data.add(RowFactory.create(4, 4234567890123L, false, new BigDecimal("45678.9"), 45678.90, 45678.90f, 45678, 687654321012345678L, (short) 456, (byte) 45, Date.valueOf("2023-04-04"), Timestamp.valueOf("2023-04-04 12:34:56"), "char_value_4", "string_value_4", "varchar_value_4"));
+        data.add(RowFactory.create(5, 5234567890123L, true, new BigDecimal("56789.0"), 56789.01, 56789.01f, 56789, 587654321012345678L, (short) 567, (byte) 56, Date.valueOf("2023-05-05"), Timestamp.valueOf("2023-05-05 12:34:56"), "char_value_5", "string_value_5", "varchar_value_5"));
+        data.add(RowFactory.create(6, 6234567890123L, false, new BigDecimal("67890.1"), 67890.12, 67890.12f, 67890, 487654321012345678L, (short) 678, (byte) 67, Date.valueOf("2023-06-06"), Timestamp.valueOf("2023-06-06 12:34:56"), "char_value_6", "string_value_6", "varchar_value_6"));
+        data.add(RowFactory.create(7, 7234567890123L, true, new BigDecimal("78901.2"), 78901.23, 78901.23f, 78901, 387654321012345678L, (short) 789, (byte) 78, Date.valueOf("2023-07-07"), Timestamp.valueOf("2023-07-07 12:34:56"), "char_value_7", "string_value_7", "varchar_value_7"));
+        data.add(RowFactory.create(8, 8234567890123L, false, new BigDecimal("89012.3"), 89012.34, 89012.34f, 89012, 287654321012345678L, (short) 890, (byte) 89, Date.valueOf("2023-08-08"), Timestamp.valueOf("2023-08-08 12:34:56"), "char_value_8", "string_value_8", "varchar_value_8"));
+        data.add(RowFactory.create(9, 9234567890123L, true, new BigDecimal("90123.4"), 90123.45, 90123.45f, 90123, 187654321012345678L, (short) 901, (byte) 90, Date.valueOf("2023-09-09"), Timestamp.valueOf("2023-09-09 12:34:56"), "char_value_9", "string_value_9", "varchar_value_9"));
+        data.add(RowFactory.create(10, 10234567890123L, false, new BigDecimal("01234.5"), 01234.56, 01234.56f, 1234, 98765432101234567L, (short) 12, (byte) 1, Date.valueOf("2023-10-10"), Timestamp.valueOf("2023-10-10 12:34:56"), "char_value_10", "string_value_10", "varchar_value_10"));
+
+        Dataset<Row> df = spark.createDataFrame(data, schema);
+
+        df.write()
+                .format("starrocks")
+                .option("starrocks.fe.http.url", FE_HTTP)
+                .option("starrocks.fe.jdbc.url", FE_JDBC)
+                .option("starrocks.user", USER)
+                .option("starrocks.password", PASSWORD)
+                .option("starrocks.table.identifier", DB_NAME + "." + tableName)
+                .mode(SaveMode.Append)
+                .save();
+
+        String selectSql = String.format("SELECT * FROM %s.%s", DB_NAME, tableName);
+
+        List<List<Object>> actualRows = queryTable(DB_CONNECTION, selectSql);
+
+        List<List<Object>> expectedData = Arrays.asList(
+                Arrays.asList(1, 1234567890123L, true, new BigDecimal("12345.6"), 12345.67, 12345.67f, 12345, 987654321012345678L, (short) 123, (byte) 12, Date.valueOf("2023-01-01"), Timestamp.valueOf("2023-01-01 12:34:56"), "char_value_1", "string_value_1", "varchar_value_1"),
+                Arrays.asList(2, 2234567890123L, false, new BigDecimal("23456.7"), 23456.78, 23456.78f, 23456, 887654321012345678L, (short) 234, (byte) 23, Date.valueOf("2023-02-02"), Timestamp.valueOf("2023-02-02 12:34:56"), "char_value_2", "string_value_2", "varchar_value_2"),
+                Arrays.asList(3, 3234567890123L, true, new BigDecimal("34567.8"), 34567.89, 34567.89f, 34567, 787654321012345678L, (short) 345, (byte) 34, Date.valueOf("2023-03-03"), Timestamp.valueOf("2023-03-03 12:34:56"), "char_value_3", "string_value_3", "varchar_value_3"),
+                Arrays.asList(4, 4234567890123L, false, new BigDecimal("45678.9"), 45678.90, 45678.90f, 45678, 687654321012345678L, (short) 456, (byte) 45, Date.valueOf("2023-04-04"), Timestamp.valueOf("2023-04-04 12:34:56"), "char_value_4", "string_value_4", "varchar_value_4"),
+                Arrays.asList(5, 5234567890123L, true, new BigDecimal("56789.0"), 56789.01, 56789.01f, 56789, 587654321012345678L, (short) 567, (byte) 56, Date.valueOf("2023-05-05"), Timestamp.valueOf("2023-05-05 12:34:56"), "char_value_5", "string_value_5", "varchar_value_5"),
+                Arrays.asList(6, 6234567890123L, false, new BigDecimal("67890.1"), 67890.12, 67890.12f, 67890, 487654321012345678L, (short) 678, (byte) 67, Date.valueOf("2023-06-06"), Timestamp.valueOf("2023-06-06 12:34:56"), "char_value_6", "string_value_6", "varchar_value_6"),
+                Arrays.asList(7, 7234567890123L, true, new BigDecimal("78901.2"), 78901.23, 78901.23f, 78901, 387654321012345678L, (short) 789, (byte) 78, Date.valueOf("2023-07-07"), Timestamp.valueOf("2023-07-07 12:34:56"), "char_value_7", "string_value_7", "varchar_value_7"),
+                Arrays.asList(8, 8234567890123L, false, new BigDecimal("89012.3"), 89012.34, 89012.34f, 89012, 287654321012345678L, (short) 890, (byte) 89, Date.valueOf("2023-08-08"), Timestamp.valueOf("2023-08-08 12:34:56"), "char_value_8", "string_value_8", "varchar_value_8"),
+                Arrays.asList(9, 9234567890123L, true, new BigDecimal("90123.4"), 90123.45, 90123.45f, 90123, 187654321012345678L, (short) 901, (byte) 90, Date.valueOf("2023-09-09"), Timestamp.valueOf("2023-09-09 12:34:56"), "char_value_9", "string_value_9", "varchar_value_9"),
+                Arrays.asList(10, 10234567890123L, false, new BigDecimal("01234.5"), 01234.56, 01234.56f, 1234, 98765432101234567L, (short) 12, (byte) 1, Date.valueOf("2023-10-10"), Timestamp.valueOf("2023-10-10 12:34:56"), "char_value_10", "string_value_10", "varchar_value_10")
+        );
+        verifyResult(expectedData, actualRows);
+
     }
 }
