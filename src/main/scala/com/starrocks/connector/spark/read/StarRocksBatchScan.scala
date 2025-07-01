@@ -68,9 +68,12 @@ class StarRocksScanBuilder(tableName: String,
       .mkString(" and ")
     // only for test
     predicateWhereClauseForTest = predicateWhereClause
-
+    val mySqlDialect = JdbcDialects.get("jdbc:mysql")
+    val filterWhereClause: String = {
+      predicates.flatMap(mySqlDialect.compileExpression(_)).map(p => s"($p)").mkString(" AND ")
+    }
     // pass filter column to BE
-    config.setProperty(STARROCKS_FILTER_QUERY, predicateWhereClause)
+    config.setProperty(STARROCKS_FILTER_QUERY, filterWhereClause)
 
     supportedPredicates = supported
     supported
