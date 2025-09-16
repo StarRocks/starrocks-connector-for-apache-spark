@@ -51,7 +51,6 @@ jobs:
           echo "== Workspace ==" && pwd
           echo "== Disk Usage ==" && df -hT .
           echo "== OS Timezone ==" && timedatectl || date
-          echo "== JVM Timezone ==" && java -XshowSettings:properties -version 2>&1 | grep "user.timezone" || echo "JVM timezone: $(java -Duser.timezone -version 2>&1 | head -1)"
       - name: Docker Info
         shell: bash
         run: |
