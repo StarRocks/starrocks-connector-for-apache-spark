@@ -18,7 +18,18 @@
 
 name: CI Pipeline
 
-on: [push, pull_request]
+on:
+  pull_request:
+      types:
+        - opened
+        - synchronize
+
+      branches:
+        - main
+
+concurrency:
+  group: ${{ github.event.number }}
+  cancel-in-progress: true
 
 jobs:
   build:
