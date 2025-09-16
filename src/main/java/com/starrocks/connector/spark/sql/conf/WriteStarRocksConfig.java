@@ -26,26 +26,19 @@ import com.starrocks.data.load.stream.StreamLoadDataFormat;
 import com.starrocks.data.load.stream.StreamLoadUtils;
 import com.starrocks.data.load.stream.properties.StreamLoadProperties;
 import com.starrocks.data.load.stream.properties.StreamLoadTableProperties;
-import org.apache.spark.sql.types.ArrayType;
-import org.apache.spark.sql.types.ByteType;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.IntegerType;
-import org.apache.spark.sql.types.LongType;
-import org.apache.spark.sql.types.ShortType;
-import org.apache.spark.sql.types.StructField;
-import org.apache.spark.sql.types.StructType;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.spark.sql.sources.Filter;
+import org.apache.spark.sql.types.*;
 import org.apache.spark.util.Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class WriteStarRocksConfig extends StarRocksConfigBase {
 
+    private static final Logger LOG = LoggerFactory.getLogger(WriteStarRocksConfig.class);
     private static final long serialVersionUID = 1L;
 
     public static final String WRITE_PREFIX = PREFIX + "write.";
@@ -78,6 +71,8 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
     private static final String KEY_NUM_PARTITIONS = WRITE_PREFIX + "num.partitions";
     private static final String KEY_PARTITION_COLUMNS = WRITE_PREFIX + "partition.columns";
 
+    private static final String KEY_OVERWRITE_PARTITION_PREFIX = WRITE_PREFIX + "overwrite.partitions.";
+
     private String labelPrefix = "spark";
     private int socketTimeoutMs = -1;
     private int waitForContinueTimeoutMs = 30000;
@@ -106,6 +101,56 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
     private String streamLoadColumnProperty;
     private String[] streamLoadColumnNames;
     private final Set<String> starRocksJsonColumnNames;
+
+    private boolean overwrite;
+    private Filter[] filters;
+    private String tempTableName;
+
+    // <partition_name, partition_value>
+    private Map<String, String> overwritePartitions;
+
+    // <temp_partition_name, partition_name>
+    private Map<String, String> overwriteTempPartitionMappings;
+    // <temp_partition_name, partition_value>
+    private Map<String, String> overwriteTempPartitions;
+
+    public static final String TEMPORARY_PARTITION_SUFFIX = "_created_by_sr_spark_connector_";
+
+    public Map<String, String> getOverwritePartitions() {
+        return overwritePartitions;
+    }
+
+    public Map<String, String> getOverwriteTempPartitionMappings() {
+        return overwriteTempPartitionMappings;
+    }
+
+    public Map<String, String> getOverwriteTempPartitions() {
+        return overwriteTempPartitions;
+    }
+
+    public void setTempTableName(String tempTableName) {
+        this.tempTableName = tempTableName;
+    }
+
+    public String getTempTableName() {
+        return tempTableName;
+    }
+
+    public void setOverwrite(boolean overwrite) {
+        this.overwrite = overwrite;
+    }
+
+    public void setFilters(Filter[] filters) {
+        this.filters = filters;
+    }
+
+    public Filter[] getFilters() {
+        return filters;
+    }
+
+    public boolean isOverwrite() {
+        return overwrite;
+    }
 
     public WriteStarRocksConfig(Map<String, String> originOptions, StructType sparkSchema, StarRocksSchema starRocksSchema) {
         super(originOptions);
@@ -140,6 +185,40 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
                                 Map.Entry::getValue
                         )
                 );
+        overwritePartitions = originOptions.entrySet().stream()
+            .filter(entry -> entry.getKey().startsWith(KEY_OVERWRITE_PARTITION_PREFIX))
+            .peek(entry -> {
+                if (StringUtils.isEmpty(entry.getValue())) {
+                    throw new IllegalArgumentException("value of `"+ entry.getKey() +"` cannot be empty !!!");
+                }
+            })
+            .collect(
+                Collectors.toMap(
+                    entry -> entry.getKey().replaceFirst(KEY_OVERWRITE_PARTITION_PREFIX, ""),
+                    Map.Entry::getValue
+                )
+            );
+        overwriteTempPartitionMappings = overwritePartitions.entrySet().stream()
+            .collect(
+                Collectors.toMap(
+                    entry -> entry.getKey() + TEMPORARY_PARTITION_SUFFIX + System.currentTimeMillis(),
+                    Map.Entry::getKey
+                )
+            );
+        overwriteTempPartitions = overwriteTempPartitionMappings.entrySet().stream()
+            .collect(Collectors.toMap(
+                Map.Entry::getKey,
+                entry -> overwritePartitions.get(entry.getValue())
+            ));
+        if (!overwritePartitions.isEmpty()) {
+            String temporaryPartitionsList = String.join(",", overwriteTempPartitionMappings.keySet());
+            String temporaryPartitions = "temporary_partitions";
+            String oldSetting = properties.get(temporaryPartitions);
+            if (StringUtils.isNotEmpty(oldSetting)) {
+                LOG.warn("replace temporary_partitions value({}) with {}", oldSetting, temporaryPartitionsList);
+            }
+            properties.put(temporaryPartitions, temporaryPartitionsList);
+        }
         format = originOptions.getOrDefault(KEY_PROPS_FORMAT, "CSV");
         rowDelimiter = DelimiterParser.convertDelimiter(
                 originOptions.getOrDefault(KEY_PROPS_ROW_DELIMITER, "\n"));
@@ -258,10 +337,15 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
     public StreamLoadProperties toStreamLoadProperties() {
         StreamLoadDataFormat dataFormat = "json".equalsIgnoreCase(format) ?
                 StreamLoadDataFormat.JSON : new StreamLoadDataFormat.CSVFormat(rowDelimiter);
-
+        String table;
+        if (isOverwrite() && getTempTableName() != null) {
+            table = getTempTableName();
+        } else {
+            table = getTable();
+        }
         StreamLoadTableProperties tableProperties = StreamLoadTableProperties.builder()
                 .database(getDatabase())
-                .table(getTable())
+                .table(table)
                 .columns(streamLoadColumnProperty)
                 .streamLoadDataFormat(dataFormat)
                 .chunkLimit(chunkLimit)
