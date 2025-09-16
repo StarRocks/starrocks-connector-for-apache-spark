@@ -26,6 +26,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -141,6 +144,8 @@ public abstract class ITTestBase {
     }
 
     private static final SimpleDateFormat DATETIME_FORMATTER = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter LOCAL_DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter LOCAL_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     protected static void printRows(List<Row> rows) {
         if (CollectionUtils.isEmpty(rows)) {
@@ -195,6 +200,10 @@ public abstract class ITTestBase {
             result = joiner.toString();
         } else if (object instanceof Timestamp) {
             result = DATETIME_FORMATTER.format((Timestamp) object);
+        } else if (object instanceof LocalDateTime) {
+            result = LOCAL_DATETIME_FORMATTER.format((LocalDateTime) object);
+        } else if (object instanceof LocalDate) {
+            result = LOCAL_DATE_FORMATTER.format((LocalDate) object);
         } else {
             result = object == null ? "null" : object.toString();
         }

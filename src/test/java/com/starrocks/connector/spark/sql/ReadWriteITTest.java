@@ -678,8 +678,8 @@ public class ReadWriteITTest extends ITTestBase {
                         DB_NAME, tableName);
         executeSrSQL(createStarRocksTable);
 
-        String sparkTimeZone = "+08:00";
-        String starrocksTimeZone = "+00:00";
+        String sparkTimeZone = "+09:00";
+        String starrocksTimeZone = "+02:00";
         SparkSession spark = SparkSession
                 .builder()
                 .config("spark.sql.session.timeZone", sparkTimeZone)
@@ -702,9 +702,9 @@ public class ReadWriteITTest extends ITTestBase {
                 "CAST(\"2023-07-16 06:00:00\" AS TIMESTAMP))");
 
         List<List<Object>> actualWriteData = scanTable(DB_CONNECTION, DB_NAME, tableName);
-        verifyResult(Collections.singletonList(Arrays.asList(1, "2023-07-16", "2023-07-15 22:00:00")), actualWriteData);
+        verifyResult(Collections.singletonList(Arrays.asList(1, "2023-07-16", "2023-07-15 23:00:00")), actualWriteData);
 
-        List<Row> readRows = spark.sql("SELECT * FROM sr_table").collectAsList();
+        List<Row> readRows = spark.sql("SELECT id, cast(dt as string), cast(dtt as string) FROM sr_table").collectAsList();
         verifyRows(Collections.singletonList(Arrays.asList(1, "2023-07-16", "2023-07-16 06:00:00")), readRows);
 
         String dropTable = String.format("DROP TABLE sr_table");
@@ -716,18 +716,6 @@ public class ReadWriteITTest extends ITTestBase {
     @Test
     public void testWritePkBitmapWitCsv() throws Exception {
         testWritePkBitmapBase(false);
-    }
-
-    @Test
-    public void testDate() throws Exception {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.of("+00:00"));
-        String value = "2023-07-15 22:00:00";
-        LocalDateTime localDateTime = LocalDateTime.parse(value, formatter);
-        ZonedDateTime inputZone = ZonedDateTime.of(localDateTime, ZoneId.of("+00:00"));
-        ZonedDateTime outZone = ZonedDateTime.of(localDateTime, ZoneId.of("+08:00"));
-
-        System.out.println(formatter.format(inputZone));
-        System.out.println(formatter.format(outZone));
     }
 
     @Test
