@@ -50,6 +50,7 @@ jobs:
           echo "== Memory ==" && free -h || true
           echo "== Workspace ==" && pwd
           echo "== Disk Usage ==" && df -hT .
+          echo "== OS Timezone ==" && timedatectl || date
       - name: Docker Info
         shell: bash
         run: |

@@ -19,19 +19,6 @@
 
 package com.starrocks.connector.spark.serialization;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.sql.Date;
-import java.sql.Timestamp;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Optional;
-
 import com.google.common.base.Preconditions;
 import com.starrocks.connector.spark.exception.StarRocksException;
 import com.starrocks.connector.spark.rest.models.FieldType;
@@ -57,6 +44,17 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.spark.sql.types.Decimal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.sql.Date;
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * row batch data container.
@@ -96,7 +94,7 @@ public class RpcRowBatch extends BaseRowBatch {
                 for (int i = 0; i < rowCountInOneBatch; ++i) {
                     rowBatch.add(new Row(fieldVectors.size()));
                 }
-                convertArrowToRowBatch(srTimeZoneId);
+                convertArrowToRowBatch();
                 readRowCount += root.getRowCount();
             }
         } catch (Exception e) {
@@ -107,7 +105,7 @@ public class RpcRowBatch extends BaseRowBatch {
         }
     }
 
-    public void convertArrowToRowBatch(ZoneId srTimeZoneId) {
+    public void convertArrowToRowBatch() {
         try {
             for (int col = 0; col < fieldVectors.size(); col++) {
                 FieldVector curFieldVector = fieldVectors.get(col);
@@ -254,14 +252,9 @@ public class RpcRowBatch extends BaseRowBatch {
                                 addValueToRow(rowIndex, null);
                                 continue;
                             }
-                            // sr timezone default zone ？
                             String value = new String(varCharVectorForDateTime.get(rowIndex));
-                            DateTimeFormatter srFormatter = DateTimeFormatter
-                                    .ofPattern("yyyy-MM-dd HH:mm:ss[.SSSSSS]")
-                                    .withZone(srTimeZoneId);
-                            LocalDateTime localDateTime = LocalDateTime.parse(value, srFormatter);
-                            ZonedDateTime outputZone = ZonedDateTime.of(localDateTime, srTimeZoneId);
-                            addValueToRow(rowIndex, Timestamp.from(outputZone.toInstant()));
+                            ZonedDateTime zonedDateTime = ZonedDateTime.parse(value, dateTimeFormatter);
+                            addValueToRow(rowIndex, Timestamp.from(zonedDateTime.toInstant()));
                         }
                         break;
                     case LARGEINT:

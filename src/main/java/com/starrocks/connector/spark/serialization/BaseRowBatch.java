@@ -73,7 +73,7 @@ public class BaseRowBatch implements AutoCloseable {
     }
 
     public BaseRowBatch(StarRocksSchema schema, ZoneId timeZone) throws StarRocksException {
-        this.dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(timeZone);
+        this.dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.SSSSSS]").withZone(timeZone);
         this.dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(timeZone);
         this.schema = schema;
         this.zoneId = timeZone;
