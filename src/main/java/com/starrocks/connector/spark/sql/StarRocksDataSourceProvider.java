@@ -62,7 +62,7 @@ public class StarRocksDataSourceProvider implements RelationProvider,
     public BaseRelation createRelation(SQLContext sqlContext,
                                        scala.collection.immutable.Map<String, String> parameters) {
         Map<String, String> mutableParams = new HashMap<>();
-        scala.collection.immutable.Map<String, String> transParameters = DialectUtils.params(parameters, LOG);
+        scala.collection.immutable.Map<String, String> transParameters = DialectUtils$.MODULE$.params(parameters, LOG);
         transParameters.toStream().foreach(key -> mutableParams.put(key._1, key._2));
         SimpleStarRocksConfig config = new SimpleStarRocksConfig(makeWriteCompatibleWithRead(mutableParams));
         starrocksSchema = getStarRocksSchema(config);

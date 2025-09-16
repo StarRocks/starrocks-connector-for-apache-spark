@@ -19,10 +19,5 @@
 
 package com.starrocks.connector.spark.sql;
 
-import org.junit.Rule;
-import org.junit.rules.ExpectedException;
-
 public class ExpectedExceptionTest {
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
 }

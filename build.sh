@@ -18,46 +18,38 @@
 # specific language governing permissions and limitations
 # under the License.
 
-##############################################################
-# This script is used to compile Spark StarRocks Connector
-# Usage:
-#    sh build.sh <spark_version>
-#    spark version options: 2 or 3
-##############################################################
+source "$(dirname "$0")"/common.sh
 
-set -eo pipefail
-
-# check maven
-MVN_CMD=mvn
-if [[ ! -z ${CUSTOM_MVN} ]]; then
-    MVN_CMD=${CUSTOM_MVN}
-fi
-if ! ${MVN_CMD} --version; then
-    echo "Error: mvn is not found"
-    exit 1
-fi
-export MVN_CMD
-
-supported_spark_version=("3.2" "3.3" "3.4" "3.5")
-version_msg=$(IFS=, ; echo "${supported_spark_version[*]}")
 if [ ! $1 ]
 then
     echo "Usage:"
     echo "   sh build.sh <spark_version>"
-    echo "   supported spark version: ${version_msg}"
+    echo "   supported spark version: ${VERSION_MESSAGE}"
+    echo "Options:"
+    echo "  --run-tests        Run mvn tests (by default tests are skipped)"
     exit 1
 fi
 
 spark_version=$1
-if [[ " ${supported_spark_version[*]} " == *" $spark_version "* ]];
-then
-    echo "Compiling connector for spark version $spark_version"
-else
-    echo "Error: only support spark version: ${version_msg}"
+check_spark_version_supported $spark_version
+
+# control whether to run tests (default: skip tests)
+skip_tests=true
+if [ "$2" = "--run-tests" ]; then
+    skip_tests=false
+elif [ -n "$2" ]; then
+    echo "Unknown option: $2"
+    echo "Use --run-tests to enable tests."
     exit 1
 fi
 
-${MVN_CMD} clean package -DskipTests -Pspark-${spark_version}
+if [ "$skip_tests" = true ]; then
+  mvn_skip_flag="-DskipTests"
+else
+  mvn_skip_flag="-DskipTests=false"
+fi
+
+${MVN_CMD} clean package ${mvn_skip_flag} -Pspark-${spark_version}
 
 echo "*********************************************************************"
 echo "Successfully build Spark StarRocks Connector for Spark $spark_version"

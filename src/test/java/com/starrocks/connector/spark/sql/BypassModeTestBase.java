@@ -118,10 +118,17 @@ public class BypassModeTestBase extends ITTestBase {
     }
 
     protected static void clean() throws Exception {
+        // Skip when DB connection is not initialized (e.g., ITs are assumed/skipped)
+        if (DB_CONNECTION == null) {
+            return;
+        }
         clean(BooleanUtils.TRUE.equalsIgnoreCase(System.getenv(ENV_FORCE_CLEAN)));
     }
 
     protected static void clean(boolean forcible) throws Exception {
+        if (DB_CONNECTION == null) {
+            return;
+        }
         String forceTag = forcible ? "FORCE" : "";
         try {
             executeSrSQL(String.format("CREATE DATABASE IF NOT EXISTS %s", DB_NAME));
