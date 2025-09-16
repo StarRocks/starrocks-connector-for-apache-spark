@@ -28,7 +28,7 @@ jobs:
       fail-fast: true
       max-parallel: 3
       matrix:
-        spark: ['3.2','3.3','3.4','3.5']
+        spark: ['3.3','3.4','3.5']
     env:
       CUSTOM_MVN: mvn -B -ntp
     steps:
