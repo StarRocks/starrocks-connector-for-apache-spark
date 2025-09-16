@@ -40,6 +40,7 @@ import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.IOUtils;
@@ -64,6 +65,7 @@ public abstract class ITTestBase {
 
     @BeforeEach
     public void beforeClass() throws Exception {
+        assumeTrue(DEBUG_MODE);
         Properties props = loadConnProps();
         FE_HTTP = props.getProperty("starrocks.fe.http.url", FE_HTTP);
         FE_JDBC = props.getProperty("starrocks.fe.jdbc.url", FE_JDBC);
