@@ -19,14 +19,19 @@
 package com.starrocks.connector.spark.sql;
 
 import com.starrocks.connector.spark.ThrowingConsumer;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.spark.sql.SparkSession;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
+
+import static java.util.Objects.requireNonNull;
 
 public class BypassModeTestBase extends ITTestBase {
 
@@ -115,6 +120,14 @@ public class BypassModeTestBase extends ITTestBase {
 
     protected static String loadSql(String tableName) throws IOException {
         return String.format(loadSqlTemplate("sql/" + tableName + ".sql"), DB_NAME, tableName);
+    }
+
+    protected static String loadSqlTemplate(String filepath) throws IOException {
+        try (InputStream inputStream = ITTestBase.class.getClassLoader().getResourceAsStream(filepath)) {
+            return IOUtils.toString(
+                    requireNonNull(inputStream, "null input stream when load '" + filepath + "'"),
+                    StandardCharsets.UTF_8);
+        }
     }
 
     protected static void clean() throws Exception {

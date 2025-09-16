@@ -19,9 +19,6 @@
 
 package com.starrocks.connector.spark.sql;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -33,17 +30,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.Properties;
 import java.util.StringJoiner;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.spark.sql.Row;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,24 +48,31 @@ public abstract class ITTestBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(ITTestBase.class);
 
-    protected static String FE_HTTP = "10.37.42.50:8031";
-    protected static String FE_JDBC = "jdbc:mysql://10.37.42.50:9031";
+    private static final boolean DEBUG_MODE = false;
+    protected static String FE_HTTP = "127.0.0.1:8030";
+    protected static String FE_JDBC = "jdbc:mysql://127.0.0.1:9030";
     protected static String USER = "root";
     protected static String PASSWORD = "";
-    private static final boolean DEBUG_MODE = false;
-    protected static final String DB_NAME = "sr_spark_test_db";
-
+    protected static String DB_NAME;
     protected static Connection DB_CONNECTION;
 
     @BeforeEach
     public void beforeClass() throws Exception {
-        assumeTrue(DEBUG_MODE);
-        Properties props = loadConnProps();
-        FE_HTTP = props.getProperty("starrocks.fe.http.url", FE_HTTP);
-        FE_JDBC = props.getProperty("starrocks.fe.jdbc.url", FE_JDBC);
-        USER = props.getProperty("starrocks.user", USER);
-        PASSWORD = props.getProperty("starrocks.password", PASSWORD);
-
+        if (!DEBUG_MODE) {
+            try {
+                StarRocksTestEnvironment env = StarRocksTestEnvironment.getInstance();
+                env.startIfNeeded();
+                FE_HTTP = env.getHttpAddress();
+                FE_JDBC = env.getJdbcUrl();
+                USER = env.getUsername();
+                PASSWORD = env.getPassword();
+            } catch (Throwable t) {
+                LOG.warn("Failed to start StarRocks container, ITs may be skipped if no external cluster is provided.", t);
+            }
+        }
+        assertTrue(FE_HTTP != null && FE_JDBC != null);
+ 
+        DB_NAME = "sr_test_" + genRandomUuid();
         try {
             DB_CONNECTION = DriverManager.getConnection(FE_JDBC, USER, PASSWORD);
             LOG.info("Success to create db connection via jdbc {}", FE_JDBC);
@@ -86,23 +87,6 @@ public abstract class ITTestBase {
         } catch (Exception e) {
             LOG.error("Failed to create database {}", DB_NAME, e);
             throw e;
-        }
-    }
-
-    protected static Properties loadConnProps() throws IOException {
-        try (InputStream inputStream = ITTestBase.class.getClassLoader()
-                .getResourceAsStream("starrocks_conn.properties")) {
-            Properties props = new Properties();
-            props.load(inputStream);
-            return props;
-        }
-    }
-
-    protected static String loadSqlTemplate(String filepath) throws IOException {
-        try (InputStream inputStream = ITTestBase.class.getClassLoader().getResourceAsStream(filepath)) {
-            return IOUtils.toString(
-                    requireNonNull(inputStream, "null input stream when load '" + filepath + "'"),
-                    StandardCharsets.UTF_8);
         }
     }
 
