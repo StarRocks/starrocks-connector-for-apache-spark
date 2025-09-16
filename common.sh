@@ -18,24 +18,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
-source "$(dirname "$0")"/common.sh
+set -eo pipefail
 
-if [ ! $1 ]
-then
-    echo "Usage:"
-    echo "   sh build.sh <spark_version>"
-    echo "   supported spark version: ${VERSION_MESSAGE}"
+# check maven
+MVN_CMD=mvn
+if [[ ! -z ${CUSTOM_MVN} ]]; then
+    MVN_CMD=${CUSTOM_MVN}
+fi
+if ! ${MVN_CMD} --version; then
+    echo "Error: mvn is not found"
     exit 1
 fi
+export MVN_CMD
 
-spark_version=$1
-check_spark_version_supported $spark_version
+SUPPORTED_SPARK_VERSIONS=("3.3" "3.4" "3.5")
+VERSION_MESSAGE=$(IFS=, ; echo "${SUPPORTED_SPARK_VERSIONS[*]}")
 
-${MVN_CMD} clean package -DskipTests -Pspark-${spark_version}
-
-echo "*********************************************************************"
-echo "Successfully build Spark StarRocks Connector for Spark $spark_version"
-echo "You can find the connector jar under the \"target\" directory"
-echo "*********************************************************************"
-
-exit 0
+function check_spark_version_supported() {
+  local SPARK_VERSION=$1
+  if [[ " ${SUPPORTED_SPARK_VERSIONS[*]} " != *" $SPARK_VERSION "* ]];
+  then
+      echo "Error: only support spark version: ${VERSION_MESSAGE}"
+      exit 1
+  fi
+}

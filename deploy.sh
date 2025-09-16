@@ -18,44 +18,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-##############################################################
-# This script is used to deploy Spark StarRocks Connector
-# Usage:
-#    sh deploy.sh <spark_version>
-#    spark version options: 2 or 3
-##############################################################
+source "$(dirname "$0")"/common.sh
 
-set -eo pipefail
-
-# check maven
-MVN_CMD=mvn
-if [[ ! -z ${CUSTOM_MVN} ]]; then
-    MVN_CMD=${CUSTOM_MVN}
-fi
-if ! ${MVN_CMD} --version; then
-    echo "Error: mvn is not found"
-    exit 1
-fi
-export MVN_CMD
-
-supported_spark_version=("3.2" "3.3" "3.4" "3.5")
-version_msg=$(IFS=, ; echo "${supported_spark_version[*]}")
 if [ ! $1 ]
 then
     echo "Usage:"
-    echo "   sh deploy.sh <spark_version>"
-    echo "   supported spark version: ${version_msg}"
+    echo "   sh build.sh <spark_version>"
+    echo "   supported spark version: ${VERSION_MESSAGE}"
     exit 1
 fi
 
 spark_version=$1
-if [[ " ${supported_spark_version[*]} " == *" $spark_version "* ]];
-then
-    echo "Compiling connector for spark version $spark_version"
-else
-    echo "Error: only support spark version: ${version_msg}"
-    exit 1
-fi
+check_spark_version_supported $spark_version
 
 ${MVN_CMD} clean deploy -DskipTests -Pspark-${spark_version}
 
