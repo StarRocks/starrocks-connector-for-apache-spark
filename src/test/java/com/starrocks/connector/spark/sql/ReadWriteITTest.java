@@ -31,8 +31,8 @@ import org.apache.spark.sql.types.DecimalType;
 import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
-import org.junit.Ignore;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -51,8 +51,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class ReadWriteITTest extends ITTestBase {
     @Test
@@ -1282,8 +1282,8 @@ public class ReadWriteITTest extends ITTestBase {
 
     // To enable this test, need to inject response delay (>10s) on BE.
     // Have verified this test manually
-    @Ignore
-    @org.junit.Test
+    @Disabled
+    @org.junit.jupiter.api.Test
     public void testSocketTimeout() throws Exception {
         String tableName = "testSocketTimeout" + genRandomUuid();
         prepareScoreBoardTable(tableName);
