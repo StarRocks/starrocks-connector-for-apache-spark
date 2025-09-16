@@ -25,13 +25,31 @@ then
     echo "Usage:"
     echo "   sh build.sh <spark_version>"
     echo "   supported spark version: ${VERSION_MESSAGE}"
+    echo "Options:"
+    echo "  --run-tests        Run mvn tests (by default tests are skipped)"
     exit 1
 fi
 
 spark_version=$1
 check_spark_version_supported $spark_version
 
-${MVN_CMD} clean package -DskipTests -Pspark-${spark_version}
+# control whether to run tests (default: skip tests)
+skip_tests=true
+if [ "$2" = "--run-tests" ]; then
+    skip_tests=false
+elif [ -n "$2" ]; then
+    echo "Unknown option: $2"
+    echo "Use --run-tests to enable tests."
+    exit 1
+fi
+
+if [ "$skip_tests" = true ]; then
+  mvn_skip_flag="-DskipTests"
+else
+  mvn_skip_flag="-DskipTests=false"
+fi
+
+${MVN_CMD} clean package ${mvn_skip_flag} -Pspark-${spark_version}
 
 echo "*********************************************************************"
 echo "Successfully build Spark StarRocks Connector for Spark $spark_version"
