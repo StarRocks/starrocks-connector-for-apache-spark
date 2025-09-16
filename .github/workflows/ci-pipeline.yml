@@ -57,4 +57,4 @@ jobs:
       - name: Build Spark ${{ matrix.spark }} Connector
         run: |
           chmod +x build.sh
-          ./build.sh ${{ matrix.spark }}
+          ./build.sh ${{ matrix.spark }} --run-tests
