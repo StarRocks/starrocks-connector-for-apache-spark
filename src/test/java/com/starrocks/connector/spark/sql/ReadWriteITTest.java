@@ -1389,8 +1389,7 @@ public class ReadWriteITTest extends ITTestBase {
                                 ")",
                         DB_NAME, tableName);
         executeSrSQL(createStarRocksTable);
-
-
+        
         try (Statement statement = DB_CONNECTION.createStatement()) {
             statement.execute("insert into " + DB_NAME + "." + tableName + " VALUES (1, 'Tom', 3, '2025-07-02 07:35:58'), (2, 'Jerry', 4, '2025-06-02 07:35:58')");
         }
