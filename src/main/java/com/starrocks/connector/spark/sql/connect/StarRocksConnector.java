@@ -24,6 +24,7 @@ import com.starrocks.connector.spark.sql.conf.StarRocksConfig;
 import com.starrocks.connector.spark.sql.schema.StarRocksField;
 import com.starrocks.connector.spark.sql.schema.StarRocksSchema;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.spark.sql.connector.catalog.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +40,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class StarRocksConnector {
     private static Logger logger = LoggerFactory.getLogger(StarRocksConnector.class);
@@ -59,10 +61,12 @@ public class StarRocksConnector {
     private static final String MYSQL_SITE_URL = "https://dev.mysql.com/downloads/connector/j/";
     private static final String MAVEN_CENTRAL_URL = "https://repo1.maven.org/maven2/mysql/mysql-connector-java/";
 
-    public static StarRocksSchema getSchema(StarRocksConfig config) {
-        List<String> parameters = Arrays.asList(config.getDatabase(), config.getTable());
+    public static StarRocksSchema getSchema(StarRocksConfig config, Identifier tbIdentifier) {
+        String database = tbIdentifier == null ? config.getDatabase() : Arrays.stream(tbIdentifier.namespace()).collect(
+                Collectors.joining("."));
+        String table =  tbIdentifier == null ? config.getTable() : tbIdentifier.name();
+        List<String> parameters = Arrays.asList(database, table);
         List<Map<String, String>> columnValues = extractColumnValuesBySql(config, TABLE_SCHEMA_QUERY, parameters);
-
         List<StarRocksField> pks = new ArrayList<>();
         List<StarRocksField> columns = new ArrayList<>();
         for (Map<String, String> columnValue : columnValues) {

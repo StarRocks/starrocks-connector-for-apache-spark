@@ -19,6 +19,7 @@
 
 package com.starrocks.connector.spark.sql;
 
+import org.apache.spark.SparkConf;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
@@ -1302,5 +1303,71 @@ public class ReadWriteITTest extends ITTestBase {
         }
 
         spark.stop();
+    }
+
+    @Test
+    public void testReadWriteTroughCatalog() throws Exception {
+        String tableName = "testSql_" + genRandomUuid();
+
+        String createStarRocksTable =
+                String.format("CREATE TABLE `%s`.`%s` (" +
+                                "id INT," +
+                                "name STRING," +
+                                "score INT" +
+                                ") ENGINE=OLAP " +
+                                "PRIMARY KEY(`id`) " +
+                                "DISTRIBUTED BY HASH(`id`) BUCKETS 2 " +
+                                "PROPERTIES (" +
+                                "\"replication_num\" = \"1\"" +
+                                ")",
+                        DB_NAME, tableName);
+        executeSrSQL(createStarRocksTable);
+
+
+        try (Statement statement = DB_CONNECTION.createStatement()) {
+            statement.execute("insert into " + DB_NAME + "." + tableName + " VALUES (1, 'Tom', 3), (2, 'Jerry', 4)");
+        }
+
+        SparkSession spark = SparkSession
+                .builder()
+                .config(new SparkConf()
+                        .set("spark.sql.catalog.sr", "com.starrocks.connector.spark.catalog.StarRocksCatalog")
+                        .set("spark.sql.catalog.sr.starrocks.fe.http.url", FE_HTTP)
+                        .set("spark.sql.catalog.sr.starrocks.fe.jdbc.url", FE_JDBC)
+                        .set("spark.sql.catalog.sr.starrocks.user", USER)
+                        .set("spark.sql.catalog.sr.starrocks.password", PASSWORD)
+                )
+                .master("local[1]")
+                .appName("testReadWriteTroughCatalog")
+                .getOrCreate();
+
+        String insertSql = String.format(
+                "insert into sr.%s.%s select 3 as id, 'David' as name, 5 as score",
+                DB_NAME, tableName
+        );
+
+        spark.sql(insertSql);
+
+        String querySql = String.format(
+                "select id, name from sr.%s.%s where id > 1 order by id",
+                DB_NAME, tableName
+        );
+
+        List<Row> rows = spark.sql(querySql)
+                .collectAsList();
+        Assertions.assertEquals(2, rows.size());
+
+        Assertions.assertEquals(2, rows.get(0).get(0));
+        Assertions.assertEquals("Jerry", rows.get(0).get(1));
+
+        Assertions.assertEquals(3, rows.get(1).get(0));
+        Assertions.assertEquals("David", rows.get(1).get(1));
+
+        GenericRowWithSchema row = (GenericRowWithSchema) rows.get(0);
+        Assertions.assertEquals(0, row.schema().fieldIndex("id"));
+        Assertions.assertEquals(1, row.schema().fieldIndex("name"));
+
+        spark.stop();
+
     }
 }
