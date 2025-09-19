@@ -46,7 +46,7 @@ class StarRocksScanBuilder(tableName: String,
 
   private var readSchema: StructType = schema
 
-  private lazy val dialect = JdbcDialects.get("")
+  private lazy val dialect = JdbcDialects.get("jdbc:mysql")
   private lazy val sqlBuilder: V2ExpressionSQLBuilder = new V2ExpressionSQLBuilder
 
   override def pruneColumns(requiredSchema: StructType): Unit = {
@@ -68,12 +68,9 @@ class StarRocksScanBuilder(tableName: String,
       .mkString(" and ")
     // only for test
     predicateWhereClauseForTest = predicateWhereClause
-    val mySqlDialect = JdbcDialects.get("jdbc:mysql")
-    val filterWhereClause: String = {
-      predicates.flatMap(mySqlDialect.compileExpression(_)).map(p => s"($p)").mkString(" AND ")
-    }
+
     // pass filter column to BE
-    config.setProperty(STARROCKS_FILTER_QUERY, filterWhereClause)
+    config.setProperty(STARROCKS_FILTER_QUERY, predicateWhereClause)
 
     supportedPredicates = supported
     supported
@@ -100,7 +97,7 @@ class StarRocksScanBuilder(tableName: String,
       case _: AlwaysFalse => "false"
       case _ =>
         try {
-          sqlBuilder.build(predicate)
+          dialect.compileExpression(predicate).get
         }
         catch {
           case _: Throwable => null
