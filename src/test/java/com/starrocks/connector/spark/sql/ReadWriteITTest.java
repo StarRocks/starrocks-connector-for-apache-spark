@@ -40,10 +40,7 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Statement;
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -1367,6 +1364,65 @@ public class ReadWriteITTest extends ITTestBase {
         Assertions.assertEquals(0, row.schema().fieldIndex("id"));
         Assertions.assertEquals(1, row.schema().fieldIndex("name"));
 
+        spark.stop();
+
+    }
+
+    @Test
+    public void testSqlWithDatetimePredicate() throws Exception {
+        String tableName = "testSql_" + genRandomUuid();
+
+        String createStarRocksTable =
+                String.format("CREATE TABLE `%s`.`%s` (" +
+                                "id INT," +
+                                "name STRING," +
+                                "score INT," +
+                                "modified_time DATETIME" +
+                                ") ENGINE=OLAP " +
+                                "PRIMARY KEY(`id`) " +
+                                "DISTRIBUTED BY HASH(`id`) BUCKETS 2 " +
+                                "PROPERTIES (" +
+                                "\"replication_num\" = \"1\"" +
+                                ")",
+                        DB_NAME, tableName);
+        executeSrSQL(createStarRocksTable);
+        
+        try (Statement statement = DB_CONNECTION.createStatement()) {
+            statement.execute("insert into " + DB_NAME + "." + tableName + " VALUES (1, 'Tom', 3, '2025-07-02 07:35:58'), (2, 'Jerry', 4, '2025-06-02 07:35:58')");
+        }
+
+        SparkSession spark = SparkSession
+                .builder()
+                .config(new SparkConf()
+                        .set("spark.sql.catalog.sr", "com.starrocks.connector.spark.catalog.StarRocksCatalog")
+                        .set("spark.sql.catalog.sr.starrocks.fe.http.url", FE_HTTP)
+                        .set("spark.sql.catalog.sr.starrocks.fe.jdbc.url", FE_JDBC)
+                        .set("spark.sql.catalog.sr.starrocks.user", USER)
+                        .set("spark.sql.catalog.sr.starrocks.password", PASSWORD)
+                )
+                .master("local[1]")
+                .appName("testSqlWithDatetimePredicate")
+                .getOrCreate();
+
+        String querySql = String.format(
+                "select id, name, score, modified_time from sr.%s.%s where modified_time > '2025-07-02 00:00:00'",
+                DB_NAME, tableName
+        );
+
+        List<Row> readRows = spark.sql(querySql)
+                .collectAsList();
+        Assertions.assertEquals(1, readRows.size());
+
+        GenericRowWithSchema row = (GenericRowWithSchema) readRows.get(0);
+        Assertions.assertEquals(0, row.schema().fieldIndex("id"));
+        Assertions.assertEquals(1, row.schema().fieldIndex("name"));
+        Assertions.assertEquals(2, row.schema().fieldIndex("score"));
+        Assertions.assertEquals(3, row.schema().fieldIndex("modified_time"));
+
+        List<List<Object>> expectedData = new ArrayList<>();
+        expectedData.add(Arrays.asList(1, "Tom", 3, Timestamp.valueOf("2025-07-02 07:35:58")));
+
+        verifyRows(expectedData, readRows);
         spark.stop();
 
     }

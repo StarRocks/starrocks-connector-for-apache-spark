@@ -46,8 +46,7 @@ class StarRocksScanBuilder(tableName: String,
 
   private var readSchema: StructType = schema
 
-  private lazy val dialect = JdbcDialects.get("")
-  private lazy val sqlBuilder: V2ExpressionSQLBuilder = new V2ExpressionSQLBuilder
+  private lazy val dialect = JdbcDialects.get("jdbc:mysql")
 
   override def pruneColumns(requiredSchema: StructType): Unit = {
     val requiredCols = requiredSchema.map(_.name)
@@ -97,7 +96,7 @@ class StarRocksScanBuilder(tableName: String,
       case _: AlwaysFalse => "false"
       case _ =>
         try {
-          sqlBuilder.build(predicate)
+          dialect.compileExpression(predicate).get
         }
         catch {
           case _: Throwable => null
