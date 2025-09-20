@@ -1,10 +1,10 @@
 # Load data using Spark connector
 
-StarRocks provides a self-developed connector named StarRocks Connector for Apache Spark™ (Spark connector for short) to help you load data into a StarRocks table by using Spark. The basic principle is to accumulate the data and then load it all at a time into StarRocks through [STREAM LOAD](https://docs.starrocks.io/en-us/latest/sql-reference/sql-statements/data-manipulation/STREAM%20LOAD). The Spark connector is implemented based on Spark DataSource V2. A DataSource can be created by using Spark DataFrames or Spark SQL. And both batch and structured streaming modes are supported.
+StarRocks provides a self-developed connector named StarRocks Connector for Apache Spark™ (Spark connector for short) to help you load data into a StarRocks table by using Spark. The basic principle is to accumulate the data and then load it all at a time into StarRocks through [STREAM LOAD](https://docs.starrocks.io/docs/sql-reference/sql-statements/data-manipulation/STREAM_LOAD). The Spark connector is implemented based on Spark DataSource V2. A DataSource can be created by using Spark DataFrames or Spark SQL. And both batch and structured streaming modes are supported.
 
 > **NOTICE**
 >
-> Loading data into StarRocks tables with Spark connector needs SELECT and INSERT privileges. If you do not have these privileges, follow the instructions provided in [GRANT](https://docs.starrocks.io/en-us/latest/sql-reference/sql-statements/account-management/GRANT) to grant these privileges to the user that you use to connect to your StarRocks cluster.
+> Loading data into StarRocks tables with Spark connector needs SELECT and INSERT privileges. If you do not have these privileges, follow the instructions provided in [GRANT](https://docs.starrocks.io/docs/sql-reference/sql-statements/account-management/GRANT) to grant these privileges to the user that you use to connect to your StarRocks cluster.
 
 ## Version requirements
 
@@ -93,7 +93,7 @@ Directly download the corresponding version of the Spark connector JAR from the 
 | starrocks.user                                 | YES      | None          | The username of your StarRocks cluster account.              |
 | starrocks.password                             | YES      | None          | The password of your StarRocks cluster account.              |
 | starrocks.write.label.prefix                   | NO       | spark-        | The label prefix used by Stream Load.                        |
-| starrocks.write.enable.transaction-stream-load | NO       | TRUE          | Whether to use [Stream Load transaction interface](https://docs.starrocks.io/en-us/latest/loading/Stream_Load_transaction_interface) to load data. It requires StarRocks v2.5 or later. This feature can load more data in a transaction with less memory usage, and improve performance. <br/> **NOTICE:** Since 1.1.1, this parameter takes effect only when the value of `starrocks.write.max.retries` is non-positive because Stream Load transaction interface does not support retry.                                                                                                                                                                                                                                 |
+| starrocks.write.enable.transaction-stream-load | NO       | TRUE          | Whether to use [Stream Load transaction interface](https://docs.starrocks.io/docs/loading/Stream_Load_transaction_interface) to load data. It requires StarRocks v2.5 or later. This feature can load more data in a transaction with less memory usage, and improve performance. <br/> **NOTICE:** Since 1.1.1, this parameter takes effect only when the value of `starrocks.write.max.retries` is non-positive because Stream Load transaction interface does not support retry.                                                                                                                                                                                                                                 |
 | starrocks.write.buffer.size                    | NO       | 104857600     | The maximum size of data that can be accumulated in memory before being sent to StarRocks at a time. Setting this parameter to a larger value can improve loading performance but may increase loading latency. |
 | starrocks.write.buffer.rows                    | NO       | Integer.MAX_VALUE | Supported since version 1.1.1. The maximum number of rows that can be accumulated in memory before being sent to StarRocks at a time. |
 | starrocks.write.flush.interval.ms              | NO       | 300000        | The interval at which data is sent to StarRocks. This parameter is used to control the loading latency. |
@@ -102,7 +102,7 @@ Directly download the corresponding version of the Spark connector JAR from the 
 | starrocks.write.use_bitmap_hash64              | NO       | false                   | Supported since version 1.1.3. Whether to use the 64-bit hash function to generate bitmap. The default is to use 32-bit hash function.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | starrocks.columns                              | NO       | None          | The StarRocks table column into which you want to load data. You can specify multiple columns, which must be separated by commas (,), for example, `"col0,col1,col2"`. |
 | starrocks.column.types                         | NO       | None          | Supported since version 1.1.1. Customize the column data types for Spark instead of using the defaults inferred from the StarRocks table and the [default mapping](#data-type-mapping-between-spark-and-starrocks). The parameter value is a schema in DDL format same as the output of Spark [StructType#toDDL](https://github.com/apache/spark/blob/master/sql/api/src/main/scala/org/apache/spark/sql/types/StructType.scala#L449) , such as `col0 INT, col1 STRING, col2 BIGINT`. Note that you only need to specify columns that need customization. One use case is to load data into columns of [BITMAP](#load-data-into-columns-of-bitmap-type) or [HLL](#load-data-into-columns-of-HLL-type) type.|
-| starrocks.write.properties.*                   | NO       | None          | The parameters that are used to control Stream Load behavior.  For example, the parameter `starrocks.write.properties.format` specifies the format of the data to be loaded, such as CSV or JSON. For a list of supported parameters and their descriptions, see [STREAM LOAD](https://docs.starrocks.io/en-us/latest/sql-reference/sql-statements/data-manipulation/STREAM%20LOAD). |
+| starrocks.write.properties.*                   | NO       | None          | The parameters that are used to control Stream Load behavior.  For example, the parameter `starrocks.write.properties.format` specifies the format of the data to be loaded, such as CSV or JSON. For a list of supported parameters and their descriptions, see [STREAM LOAD](https://docs.starrocks.io/docs/sql-reference/sql-statements/data-manipulation/STREAM_LOAD). |
 | starrocks.write.properties.format              | NO       | CSV           | The file format based on which the Spark connector transforms each batch of data before the data is sent to StarRocks. Valid values: CSV and JSON. |
 | starrocks.write.properties.row_delimiter       | NO       | \n            | The row delimiter for CSV-formatted data.                    |
 | starrocks.write.properties.column_separator    | NO       | \t            | The column separator for CSV-formatted data.                 |
@@ -389,7 +389,7 @@ The following example explains how to load data with Spark SQL by using the `INS
 ### Load data to primary key table
 
 This section will show how to load data to StarRocks primary key table to achieve partial update, and conditional update.
-You can see [Change data through loading](https://docs.starrocks.io/en-us/latest/loading/Load_to_Primary_Key_tables) for the introduction of those features.
+You can see [Change data through loading](https://docs.starrocks.io/docs/loading/Load_to_Primary_Key_tables) for the introduction of those features.
 These examples use Spark SQL.
 
 #### Preparations
@@ -521,7 +521,7 @@ takes effect only when the new value for `score` is has a greater or equal to th
 
 ### Load data into columns of BITMAP type 
 
-[`BITMAP`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-statements/data-types/BITMAP) is often used to accelerate count distinct, such as counting UV, see [Use Bitmap for exact Count Distinct](https://docs.starrocks.io/en-us/latest/using_starrocks/Using_bitmap).
+[`BITMAP`](https://docs.starrocks.io/docs/sql-reference/sql-statements/data-types/BITMAP) is often used to accelerate count distinct, such as counting UV, see [Use Bitmap for exact Count Distinct](https://docs.starrocks.io/docs/using_starrocks/Using_bitmap).
 Here we take the counting of UV as an example to show how to load data into columns of the `BITMAP` type.
  
 1. Create a StarRocks Aggregate table
@@ -540,7 +540,7 @@ Here we take the counting of UV as an example to show how to load data into colu
 
 3. Create a Spark table 
 
-    The schema of the Spark table is inferred from the StarRocks table, and the Spark does not support the `BITMAP` type. So you need to customize the corresponding column data type in Spark, for example as `BIGINT`, by configuring the option `"starrocks.column.types"="visit_users BIGINT"`. When using Stream Load to ingest data, the connector uses the [`to_bitmap`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-functions/bitmap-functions/to_bitmap) function to convert the data of `BIGINT` type into `BITMAP` type.
+    The schema of the Spark table is inferred from the StarRocks table, and the Spark does not support the `BITMAP` type. So you need to customize the corresponding column data type in Spark, for example as `BIGINT`, by configuring the option `"starrocks.column.types"="visit_users BIGINT"`. When using Stream Load to ingest data, the connector uses the [`to_bitmap`](https://docs.starrocks.io/docs/sql-reference/sql-functions/bitmap-functions/to_bitmap) function to convert the data of `BIGINT` type into `BITMAP` type.
     
     Run the following DDL in `spark-sql`:
     
@@ -584,13 +584,13 @@ Here we take the counting of UV as an example to show how to load data into colu
     ```
 > **NOTICE:**
 > 
-> The connector uses [`to_bitmap`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-functions/bitmap-functions/to_bitmap)
+> The connector uses [`to_bitmap`](https://docs.starrocks.io/docs/sql-reference/sql-functions/bitmap-functions/to_bitmap)
 > function to convert data of the `TINYINT`, `SMALLINT`, `INTEGER`, and `BIGINT` types in Spark to the `BITMAP` type in StarRocks, and uses
 > [`bitmap_hash`](https://docs.starrocks.io/zh-cn/latest/sql-reference/sql-functions/bitmap-functions/bitmap_hash) function or [`bitmap_hash64`](https://docs.starrocks.io/zh-cn/latest/sql-reference/sql-functions/bitmap-functions/bitmap_hash64) for other Spark data types.
 
 ### Load data into columns of HLL type
 
-[`HLL`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-statements/data-types/HLL) can be used for approximate count distinct, see [Use HLL for approximate count distinct](https://docs.starrocks.io/en-us/latest/using_starrocks/Using_HLL). 
+[`HLL`](https://docs.starrocks.io/docs/sql-reference/sql-statements/data-types/HLL) can be used for approximate count distinct, see [Use HLL for approximate count distinct](https://docs.starrocks.io/docs/using_starrocks/Using_HLL). 
 
 Here we take the counting of UV as an example to show how to load data into columns of the `HLL` type.  **`HLL` is supported since version 1.1.1**.
 
@@ -610,7 +610,7 @@ DISTRIBUTED BY HASH(`page_id`);
 
 2. Create a Spark table
 
-   The schema of the Spark table is inferred from the StarRocks table, and the Spark does not support the `HLL` type. So you need to customize the corresponding column data type in Spark, for example as `BIGINT`, by configuring the option `"starrocks.column.types"="visit_users BIGINT"`. When using Stream Load to ingest data, the connector uses the [`hll_hash`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-functions/aggregate-functions/hll_hash) function to convert the data of `BIGINT` type into `HLL` type.
+   The schema of the Spark table is inferred from the StarRocks table, and the Spark does not support the `HLL` type. So you need to customize the corresponding column data type in Spark, for example as `BIGINT`, by configuring the option `"starrocks.column.types"="visit_users BIGINT"`. When using Stream Load to ingest data, the connector uses the [`hll_hash`](https://docs.starrocks.io/docs/sql-reference/sql-functions/aggregate-functions/hll_hash) function to convert the data of `BIGINT` type into `HLL` type.
 
     Run the following DDL in `spark-sql`:
     
@@ -655,7 +655,7 @@ DISTRIBUTED BY HASH(`page_id`);
 
 
 
-The following example explains how to load data into columns of the [`ARRAY`](https://docs.starrocks.io/en-us/latest/sql-reference/sql-statements/data-types/Array) type.
+The following example explains how to load data into columns of the [`ARRAY`](https://docs.starrocks.io/docs/sql-reference/sql-statements/data-types/Array) type.
 
 1. Create a StarRocks table
 
