@@ -47,7 +47,6 @@ class StarRocksScanBuilder(tableName: String,
   private var readSchema: StructType = schema
 
   private lazy val dialect = JdbcDialects.get("jdbc:mysql")
-  private lazy val sqlBuilder: V2ExpressionSQLBuilder = new V2ExpressionSQLBuilder
 
   override def pruneColumns(requiredSchema: StructType): Unit = {
     val requiredCols = requiredSchema.map(_.name)
