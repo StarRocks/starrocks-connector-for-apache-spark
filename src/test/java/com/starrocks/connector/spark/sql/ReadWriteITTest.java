@@ -850,6 +850,16 @@ public class ReadWriteITTest extends ITTestBase {
         testWriteHllBase(true);
     }
 
+    @Test
+    public void testWritePercentileWithCsv() throws Exception {
+        testWritePercentileBase(false);
+    }
+
+    @Test
+    public void testWritePercentileWithJson() throws Exception {
+        testWritePercentileBase(true);
+    }
+
     private void testWriteHllBase(boolean useJson) throws Exception {
         String tableName = "testWriteHll_" + genRandomUuid();
         prepareHllTable(tableName);
@@ -896,6 +906,71 @@ public class ReadWriteITTest extends ITTestBase {
                                 "tagname STRING," +
                                 "tagvalue STRING," +
                                 "userid HLL HLL_UNION" +
+                                ") ENGINE=OLAP " +
+                                "AGGREGATE KEY(`tagname`, `tagvalue`) " +
+                                "DISTRIBUTED BY HASH(`tagname`) BUCKETS 2 " +
+                                "PROPERTIES (" +
+                                "\"replication_num\" = \"1\"" +
+                                ")",
+                        DB_NAME, tableName);
+        executeSrSQL(createStarRocksTable);
+    }
+
+    private void testWritePercentileBase(boolean useJson) throws Exception {
+        String tableName = "testWritePercentile_" + genRandomUuid();
+        preparePercentileTable(tableName);
+
+        SparkSession spark = SparkSession
+                .builder()
+                .master("local[1]")
+                .appName("testWritePercentile")
+                .getOrCreate();
+
+        String columnTypes = "latency DOUBLE";
+        String ddl = String.format("CREATE TABLE sr_table \n" +
+                        " USING starrocks\n" +
+                        "OPTIONS(\n" +
+                        "  \"starrocks.table.identifier\"=\"%s\",\n" +
+                        "  \"starrocks.fe.http.url\"=\"%s\",\n" +
+                        "  \"starrocks.fe.jdbc.url\"=\"%s\",\n" +
+                        "  \"starrocks.user\"=\"%s\",\n" +
+                        "  \"starrocks.password\"=\"%s\",\n" +
+                        "  \"starrocks.column.types\"=\"%s\",\n" +
+                        "  \"starrocks.write.properties.format\"=\"%s\"\n" +
+                        ")", String.join(".", DB_NAME, tableName), FE_HTTP, FE_JDBC, USER,
+                PASSWORD, columnTypes, (useJson ? "json" : "csv"));
+        spark.sql(ddl);
+        spark.sql("INSERT INTO sr_table VALUES ('age', '18', 1.1), ('gender', 'male', 2.2)");
+        spark.sql("INSERT INTO sr_table VALUES ('age', '18', 3.3), ('gender', 'female', 4.4)");
+
+        List<List<Object>> expectedData = new ArrayList<>();
+        expectedData.add(Arrays.asList("age", "18", 2.2));
+        expectedData.add(Arrays.asList("gender", "female", 4.4));
+        expectedData.add(Arrays.asList("gender", "male", 2.2));
+
+        String query = String.format("SELECT tagname, tagvalue, PERCENTILE_APPROX_RAW(latency, 0.50) FROM `%s`.`%s`", DB_NAME, tableName);
+
+        List<List<Object>> actualWriteData = queryTable(DB_CONNECTION, query);
+        for (List<Object> row : actualWriteData) {
+            Object value = row.get(2);
+            if (value instanceof Double) {
+                double v = (Double) value;
+                row.set(2, java.math.BigDecimal.valueOf(v)
+                        .setScale(1, java.math.RoundingMode.HALF_UP)
+                        .doubleValue());
+            }
+        }
+        verifyResult(expectedData, actualWriteData);
+
+        spark.stop();
+    }
+
+    private void preparePercentileTable(String tableName) throws Exception {
+        String createStarRocksTable =
+                String.format("CREATE TABLE `%s`.`%s` (" +
+                                "tagname STRING," +
+                                "tagvalue STRING," +
+                                "latency PERCENTILE PERCENTILE_UNION" +
                                 ") ENGINE=OLAP " +
                                 "AGGREGATE KEY(`tagname`, `tagvalue`) " +
                                 "DISTRIBUTED BY HASH(`tagname`) BUCKETS 2 " +
