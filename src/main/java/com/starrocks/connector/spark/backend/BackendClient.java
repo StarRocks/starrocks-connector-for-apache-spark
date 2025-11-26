@@ -142,8 +142,9 @@ public class BackendClient {
                 }
                 return result;
             } catch (TException e) {
-                logger.warn("Open scanner from {} failed.", routing, e);
+                logger.warn("Open scanner from {} failed, attempt to reconnect.", routing, e);
                 ex = e;
+                reopenIfNeeded(attempt, retries, e);
             }
         }
         logger.error(ErrorMessages.CONNECT_FAILED_MESSAGE, routing);
@@ -179,8 +180,9 @@ public class BackendClient {
                 }
                 return result;
             } catch (TException e) {
-                logger.warn("Get next from {} failed.", routing, e);
+                logger.warn("Get next from {} failed, attempt to reconnect.", routing, e);
                 ex = e;
+                reopenIfNeeded(attempt, retries, e);
             }
         }
         if (result != null && (TStatusCode.OK != (result.getStatus().getStatus_code()))) {
@@ -223,10 +225,28 @@ public class BackendClient {
                 }
                 break;
             } catch (TException e) {
-                logger.warn("Close scanner from {} failed.", routing, e);
+                logger.warn("Close scanner from {} failed, attempt to reconnect.", routing, e);
+                reopenIfNeeded(attempt, retries, e);
             }
         }
         logger.info("CloseScanner to StarRocks BE '{}' success.", routing);
         close();
+    }
+
+    // when TException occurs, try to reconnect
+    private void reopenIfNeeded(int attempt, int maxRetries, Exception e) {
+        if (!(e instanceof TException)) {
+            return;
+        }
+        // Close the broken connection and try to reconnect
+        close();
+        // For the last attempt, no need to open
+        if (attempt < maxRetries - 1) {
+            try {
+                open();
+            } catch (ConnectedFailedException connEx) {
+                logger.warn("Reconnect to {} failed.", routing, connEx);
+            }
+        }
     }
 }
