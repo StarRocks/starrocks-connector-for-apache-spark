@@ -42,7 +42,7 @@ import scala.util.control.Breaks
  * @param partition Starrocks RDD partition
  * @param settings  request configuration
  */
-class RpcValueReader(partition: RpcPartition, settings: Settings)
+class RpcValueReader(partition: RpcPartition, settings: Settings, customSchema: StarRocksSchema)
   extends BaseValueReader(partition, settings, null) {
   protected val logger = Logger.getLogger(classOf[RpcValueReader])
   protected val client = new BackendClient(new Routing(partition.getBeAddress), settings)
@@ -124,7 +124,13 @@ class RpcValueReader(partition: RpcPartition, settings: Settings)
 
   private val openResult: TScanOpenResult = client.openScanner(openParams)
   private val contextId: String = openResult.getContext_id
-  protected val schema: StarRocksSchema = SchemaUtils.convert(openResult.getSelected_columns)
+  protected val schema: StarRocksSchema = if (customSchema != null) {
+    val selectedNames = openResult.getSelected_columns.map(_.getName).toSet
+    val filteredFields = customSchema.getColumns.filter(f => selectedNames.contains(f.getName))
+    new StarRocksSchema(filteredFields)
+  } else {
+    SchemaUtils.convert(openResult.getSelected_columns)
+  }
 
   private val asyncThread: Thread = new Thread {
     override def run {
@@ -203,4 +209,7 @@ class RpcValueReader(partition: RpcPartition, settings: Settings)
     closeParams.context_id = contextId
     client.closeScanner(closeParams)
   }
+
+  // Secondary constructor without customSchema
+  def this(partition: RpcPartition, settings: Settings) = this(partition, settings, null)
 }
