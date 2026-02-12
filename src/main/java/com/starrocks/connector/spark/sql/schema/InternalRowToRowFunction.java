@@ -30,13 +30,12 @@ import org.apache.spark.sql.catalyst.expressions.AttributeReference;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.types.StructType;
 import scala.collection.JavaConverters;
-import scala.collection.Seq;
-import scala.collection.Seq$;
 
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -77,11 +76,13 @@ public class InternalRowToRowFunction implements Function<InternalRow, Row>, Ser
             throw new RuntimeException("Fail to call `apply` method to create InternalRowToRowFunction");
         }
 
-        List<Attribute> attributeList = (List<Attribute>) Arrays.stream(rowExpressionEncoder.schema().fields())
+        List<Attribute> attributeList = Arrays.stream(rowExpressionEncoder.schema().fields())
                 .map(x -> (Attribute) new AttributeReference(x.name(), x.dataType(), x.nullable(), x.metadata(),
-                        NamedExpression.newExprId(), Seq$.MODULE$.empty())).collect(Collectors.toList());
-        Seq<Attribute> attributeSeq = JavaConverters.collectionAsScalaIterable(attributeList).toSeq();
-        this.deserializer = rowExpressionEncoder.resolveAndBind(attributeSeq, SimpleAnalyzer$.MODULE$).createDeserializer();
+                        NamedExpression.newExprId(),
+                        JavaConverters.asScalaBuffer(Collections.<String>emptyList()).toSeq()))
+                .collect(Collectors.toList());
+        this.deserializer = rowExpressionEncoder.resolveAndBind(JavaConverters.asScalaBuffer(attributeList).toSeq(),
+                SimpleAnalyzer$.MODULE$).createDeserializer();
 
     }
 

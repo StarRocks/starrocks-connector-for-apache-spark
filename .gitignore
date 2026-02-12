@@ -32,3 +32,5 @@ buildNumber.properties
 !.gitignore
 
 gen-thrift
+
+.java-version

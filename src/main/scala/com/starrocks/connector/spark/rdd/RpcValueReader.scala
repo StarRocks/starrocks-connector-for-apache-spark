@@ -32,7 +32,7 @@ import org.apache.log4j.Logger
 
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.util.Try
 import scala.util.control.Breaks
 
@@ -77,7 +77,7 @@ class RpcValueReader(partition: RpcPartition, settings: Settings)
     params.database = partition.getDatabase
     params.table = partition.getTable
 
-    params.tablet_ids = partition.getTabletIds.toList
+    params.tablet_ids = new java.util.ArrayList(partition.getTabletIds)
     params.opaqued_query_plan = partition.getQueryPlan
 
     // max row number of one read batch
@@ -124,7 +124,7 @@ class RpcValueReader(partition: RpcPartition, settings: Settings)
 
   private val openResult: TScanOpenResult = client.openScanner(openParams)
   private val contextId: String = openResult.getContext_id
-  protected val schema: StarRocksSchema = SchemaUtils.convert(openResult.getSelected_columns)
+  protected val schema: StarRocksSchema = SchemaUtils.convert(openResult.getSelected_columns.asScala.toSeq)
 
   private val asyncThread: Thread = new Thread {
     override def run {
