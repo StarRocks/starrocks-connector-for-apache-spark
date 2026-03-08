@@ -23,13 +23,15 @@ import com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_VALUE_RE
 import com.starrocks.connector.spark.cfg.Settings
 import com.starrocks.connector.spark.rest.RpcPartition
 import com.starrocks.connector.spark.rest.models.Schema
-import org.apache.spark.internal.Logging
 import org.apache.spark.util.TaskCompletionListener
 import org.apache.spark.{TaskContext, TaskKilledException}
+import org.slf4j.LoggerFactory
 
 private[spark] abstract class AbstractStarRocksRDDIterator[T](context: TaskContext,
                                                               partition: RpcPartition,
-                                                              schema: Schema) extends Iterator[T] with Logging {
+                                                              schema: Schema) extends Iterator[T] {
+
+  private val log = LoggerFactory.getLogger(classOf[AbstractStarRocksRDDIterator[_]])
 
   private var initialized = false
   private var closed = false
@@ -40,7 +42,7 @@ private[spark] abstract class AbstractStarRocksRDDIterator[T](context: TaskConte
     val settings = partition.settings()
     initReader(settings)
     val valueReaderName = settings.getProperty(STARROCKS_VALUE_READER_CLASS)
-    logDebug(s"Use value reader '$valueReaderName'.")
+    log.debug(s"Use value reader '$valueReaderName'.")
     val cons = Class.forName(valueReaderName).getDeclaredConstructor(classOf[RpcPartition], classOf[Settings])
     // catalog read can't exec here
     cons.newInstance(partition, settings).asInstanceOf[RpcValueReader]
@@ -68,7 +70,7 @@ private[spark] abstract class AbstractStarRocksRDDIterator[T](context: TaskConte
   }
 
   def closeIfNeeded(): Unit = {
-    logTrace(s"Close status is '$closed' when close StarRocks RDD Iterator")
+    log.trace(s"Close status is '$closed' when close StarRocks RDD Iterator")
     if (!closed) {
       close()
       closed = true
@@ -76,7 +78,7 @@ private[spark] abstract class AbstractStarRocksRDDIterator[T](context: TaskConte
   }
 
   protected def close(): Unit = {
-    logTrace(s"Initialize status is '$initialized' when close StarRocks RDD Iterator")
+    log.trace(s"Initialize status is '$initialized' when close StarRocks RDD Iterator")
     if (initialized) {
       reader.close()
     }

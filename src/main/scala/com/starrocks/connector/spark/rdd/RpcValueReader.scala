@@ -28,11 +28,11 @@ import com.starrocks.connector.spark.sql.SchemaUtils
 import com.starrocks.connector.spark.sql.schema.StarRocksSchema
 import com.starrocks.connector.spark.util.ErrorMessages
 import com.starrocks.thrift.{TScanCloseParams, TScanNextBatchParams, TScanOpenParams, TScanOpenResult}
-import org.apache.log4j.Logger
+import org.slf4j.LoggerFactory
 
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.util.Try
 import scala.util.control.Breaks
 
@@ -44,7 +44,7 @@ import scala.util.control.Breaks
  */
 class RpcValueReader(partition: RpcPartition, settings: Settings)
   extends BaseValueReader(partition, settings, null) {
-  protected val logger = Logger.getLogger(classOf[RpcValueReader])
+  protected val logger = LoggerFactory.getLogger(classOf[RpcValueReader])
   protected val client = new BackendClient(new Routing(partition.getBeAddress), settings)
   private var offset = 0L
   private val eos: AtomicBoolean = new AtomicBoolean(false)
@@ -52,7 +52,7 @@ class RpcValueReader(partition: RpcPartition, settings: Settings)
   private var deserializeArrowToRowBatchAsync: Boolean = Try {
     settings.getProperty(STARROCKS_DESERIALIZE_ARROW_ASYNC, STARROCKS_DESERIALIZE_ARROW_ASYNC_DEFAULT.toString).toBoolean
   } getOrElse {
-    logger.warn(ErrorMessages.PARSE_BOOL_FAILED_MESSAGE, STARROCKS_DESERIALIZE_ARROW_ASYNC, settings.getProperty(STARROCKS_DESERIALIZE_ARROW_ASYNC))
+    logger.warn(ErrorMessages.PARSE_BOOL_FAILED_MESSAGE, STARROCKS_DESERIALIZE_ARROW_ASYNC: Any, settings.getProperty(STARROCKS_DESERIALIZE_ARROW_ASYNC): Any)
     STARROCKS_DESERIALIZE_ARROW_ASYNC_DEFAULT
   }
 
@@ -60,7 +60,7 @@ class RpcValueReader(partition: RpcPartition, settings: Settings)
     val blockingQueueSize = Try {
       settings.getProperty(STARROCKS_DESERIALIZE_QUEUE_SIZE, STARROCKS_DESERIALIZE_QUEUE_SIZE_DEFAULT.toString).toInt
     } getOrElse {
-      logger.warn(ErrorMessages.PARSE_NUMBER_FAILED_MESSAGE, STARROCKS_DESERIALIZE_QUEUE_SIZE, settings.getProperty(STARROCKS_DESERIALIZE_QUEUE_SIZE))
+      logger.warn(ErrorMessages.PARSE_NUMBER_FAILED_MESSAGE, STARROCKS_DESERIALIZE_QUEUE_SIZE: Any, settings.getProperty(STARROCKS_DESERIALIZE_QUEUE_SIZE): Any)
       STARROCKS_DESERIALIZE_QUEUE_SIZE_DEFAULT
     }
 
@@ -77,28 +77,28 @@ class RpcValueReader(partition: RpcPartition, settings: Settings)
     params.database = partition.getDatabase
     params.table = partition.getTable
 
-    params.tablet_ids = partition.getTabletIds.toList
+    params.tablet_ids = partition.getTabletIds.asScala.toList.asJava
     params.opaqued_query_plan = partition.getQueryPlan
 
     // max row number of one read batch
     val batchSize = Try {
       settings.getProperty(STARROCKS_BATCH_SIZE, STARROCKS_BATCH_SIZE_DEFAULT.toString).toInt
     } getOrElse {
-      logger.warn(ErrorMessages.PARSE_NUMBER_FAILED_MESSAGE, STARROCKS_BATCH_SIZE, settings.getProperty(STARROCKS_BATCH_SIZE))
+      logger.warn(ErrorMessages.PARSE_NUMBER_FAILED_MESSAGE, STARROCKS_BATCH_SIZE: Any, settings.getProperty(STARROCKS_BATCH_SIZE): Any)
       STARROCKS_BATCH_SIZE_DEFAULT
     }
 
     val queryStarrocksTimeout = Try {
       settings.getProperty(STARROCKS_REQUEST_QUERY_TIMEOUT_S, STARROCKS_REQUEST_QUERY_TIMEOUT_S_DEFAULT.toString).toInt
     } getOrElse {
-      logger.warn(ErrorMessages.PARSE_NUMBER_FAILED_MESSAGE, STARROCKS_REQUEST_QUERY_TIMEOUT_S, settings.getProperty(STARROCKS_REQUEST_QUERY_TIMEOUT_S))
+      logger.warn(ErrorMessages.PARSE_NUMBER_FAILED_MESSAGE, STARROCKS_REQUEST_QUERY_TIMEOUT_S: Any, settings.getProperty(STARROCKS_REQUEST_QUERY_TIMEOUT_S): Any)
       STARROCKS_REQUEST_QUERY_TIMEOUT_S_DEFAULT
     }
 
     val execMemLimit = Try {
       settings.getProperty(STARROCKS_EXEC_MEM_LIMIT, STARROCKS_EXEC_MEM_LIMIT_DEFAULT.toString).toLong
     } getOrElse {
-      logger.warn(ErrorMessages.PARSE_NUMBER_FAILED_MESSAGE, STARROCKS_EXEC_MEM_LIMIT, settings.getProperty(STARROCKS_EXEC_MEM_LIMIT))
+      logger.warn(ErrorMessages.PARSE_NUMBER_FAILED_MESSAGE, STARROCKS_EXEC_MEM_LIMIT: Any, settings.getProperty(STARROCKS_EXEC_MEM_LIMIT): Any)
       STARROCKS_EXEC_MEM_LIMIT_DEFAULT
     }
 
@@ -124,7 +124,7 @@ class RpcValueReader(partition: RpcPartition, settings: Settings)
 
   private val openResult: TScanOpenResult = client.openScanner(openParams)
   private val contextId: String = openResult.getContext_id
-  protected val schema: StarRocksSchema = SchemaUtils.convert(openResult.getSelected_columns)
+  protected val schema: StarRocksSchema = SchemaUtils.convert(openResult.getSelected_columns.asScala.toSeq)
 
   private val asyncThread: Thread = new Thread {
     override def run {

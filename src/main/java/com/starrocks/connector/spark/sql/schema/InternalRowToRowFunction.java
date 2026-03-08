@@ -30,8 +30,7 @@ import org.apache.spark.sql.catalyst.expressions.AttributeReference;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.types.StructType;
 import scala.collection.JavaConverters;
-import scala.collection.Seq;
-import scala.collection.Seq$;
+import scala.collection.immutable.Seq;
 
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
@@ -79,8 +78,8 @@ public class InternalRowToRowFunction implements Function<InternalRow, Row>, Ser
 
         List<Attribute> attributeList = (List<Attribute>) Arrays.stream(rowExpressionEncoder.schema().fields())
                 .map(x -> (Attribute) new AttributeReference(x.name(), x.dataType(), x.nullable(), x.metadata(),
-                        NamedExpression.newExprId(), Seq$.MODULE$.empty())).collect(Collectors.toList());
-        Seq<Attribute> attributeSeq = JavaConverters.collectionAsScalaIterable(attributeList).toSeq();
+                        NamedExpression.newExprId(), scala.collection.immutable.List$.MODULE$.<String>empty())).collect(Collectors.toList());
+        Seq<Attribute> attributeSeq = (Seq<Attribute>) (scala.collection.Seq<Attribute>) JavaConverters.collectionAsScalaIterable(attributeList).toSeq();
         this.deserializer = rowExpressionEncoder.resolveAndBind(attributeSeq, SimpleAnalyzer$.MODULE$).createDeserializer();
 
     }

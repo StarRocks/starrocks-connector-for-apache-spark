@@ -19,7 +19,7 @@
 
 package com.starrocks.connector.spark.rdd
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
 import com.starrocks.connector.spark.cfg.SparkSettings
@@ -27,11 +27,14 @@ import com.starrocks.connector.spark.rest.{RpcPartition, RestService}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, SparkContext}
+import org.slf4j.LoggerFactory
 
 private[spark] abstract class AbstractStarRocksRDD[T: ClassTag](
     @transient private var sc: SparkContext,
     val params: Map[String, String] = Map.empty)
     extends RDD[T](sc, Nil) {
+
+  private val logger = LoggerFactory.getLogger(classOf[AbstractStarRocksRDD[_]])
 
   override def getPartitions: Array[Partition] = {
     starrocksPartitions.zipWithIndex.map { case (starrocksPartition, idx) =>
@@ -53,11 +56,11 @@ private[spark] abstract class AbstractStarRocksRDD[T: ClassTag](
    */
   @transient private[spark] lazy val starrocksCfg = {
     val cfg = new SparkSettings(sc.getConf)
-    cfg.merge(params)
+    cfg.merge(params.asJava)
   }
 
   @transient private[spark] lazy val starrocksPartitions = {
-    RestService.findPartitions(starrocksCfg, log)
+    RestService.findPartitions(starrocksCfg, logger).asScala
   }
 }
 
