@@ -34,7 +34,7 @@ private[spark] abstract class AbstractStarRocksRDD[T: ClassTag](
     val params: Map[String, String] = Map.empty)
     extends RDD[T](sc, Nil) {
 
-  private val logger = LoggerFactory.getLogger(classOf[AbstractStarRocksRDD[_]])
+  @transient private lazy val logger = LoggerFactory.getLogger(classOf[AbstractStarRocksRDD[_]])
 
   override def getPartitions: Array[Partition] = {
     starrocksPartitions.zipWithIndex.map { case (starrocksPartition, idx) =>

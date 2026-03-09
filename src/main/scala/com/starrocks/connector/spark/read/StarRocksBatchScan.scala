@@ -117,7 +117,7 @@ class StarRocksScan(tableName: String,
   with SupportsReportPartitioning
   with PartitionReaderFactory {
 
-  private val log = LoggerFactory.getLogger(classOf[StarRocksScan])
+  @transient private lazy val log = LoggerFactory.getLogger(classOf[StarRocksScan])
 
   private lazy val inputPartitions: Array[InputPartition] = {
       RestService.findPartitions(config, log).asScala.toArray
