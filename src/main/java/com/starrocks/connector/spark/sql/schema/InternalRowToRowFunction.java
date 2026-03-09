@@ -79,7 +79,7 @@ public class InternalRowToRowFunction implements Function<InternalRow, Row>, Ser
         List<Attribute> attributeList = (List<Attribute>) Arrays.stream(rowExpressionEncoder.schema().fields())
                 .map(x -> (Attribute) new AttributeReference(x.name(), x.dataType(), x.nullable(), x.metadata(),
                         NamedExpression.newExprId(), scala.collection.immutable.List$.MODULE$.<String>empty())).collect(Collectors.toList());
-        Seq<Attribute> attributeSeq = (Seq<Attribute>) (scala.collection.Seq<Attribute>) JavaConverters.collectionAsScalaIterable(attributeList).toSeq();
+        Seq<Attribute> attributeSeq = JavaConverters.collectionAsScalaIterable(attributeList).toList();
         this.deserializer = rowExpressionEncoder.resolveAndBind(attributeSeq, SimpleAnalyzer$.MODULE$).createDeserializer();
 
     }
