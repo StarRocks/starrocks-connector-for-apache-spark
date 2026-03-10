@@ -31,7 +31,7 @@ if ! ${MVN_CMD} --version; then
 fi
 export MVN_CMD
 
-SUPPORTED_SPARK_VERSIONS=("3.3" "3.4" "3.5")
+SUPPORTED_SPARK_VERSIONS=("3.3" "3.4" "3.5" "4.0")
 VERSION_MESSAGE=$(IFS=, ; echo "${SUPPORTED_SPARK_VERSIONS[*]}")
 
 function check_spark_version_supported() {
