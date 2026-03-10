@@ -93,7 +93,7 @@ public class ReadWriteITTest extends ITTestBase {
     @Test
     public void testDataFrame() throws Exception {
         String tableName = "testDataFrame_" + genRandomUuid();
-        prepareScoreBoardTable(tableName);
+        prepareCustomScoreBoardTable(tableName);
 
         SparkSession spark = SparkSession
                 .builder()
@@ -101,16 +101,31 @@ public class ReadWriteITTest extends ITTestBase {
                 .appName("testDataFrame")
                 .getOrCreate();
 
-        List<List<Object>> expectedData = new ArrayList<>();
-        expectedData.add(Arrays.asList(1, "2", 3));
-        expectedData.add(Arrays.asList(2, "3", 4));
-        List<Row> data = expectedData.stream().map(list -> list.toArray(new Object[0]))
+        List<List<Object>> testData = Arrays.asList(
+                Arrays.asList(1, "2", 3, RowFactory.create("tipo1", 123456789L, java.sql.Timestamp.valueOf("2023-10-01 12:34:56")), Arrays.asList(1, 2, 3), Collections.singletonMap("k1", "v1"), java.sql.Timestamp.valueOf("2023-10-01 12:34:56"), Collections.singletonMap("m1", RowFactory.create("tipo1", 123456789L, java.sql.Timestamp.valueOf("2023-10-01 12:34:56"))), Arrays.asList(RowFactory.create("tipo1", 123456789L, java.sql.Timestamp.valueOf("2023-10-01 12:34:56")), RowFactory.create("tipo2", 987654321L, java.sql.Timestamp.valueOf("2023-11-01 23:45:01")))),
+                Arrays.asList(2, "3", 4, RowFactory.create("tipo2", 987654321L, java.sql.Timestamp.valueOf("2023-11-01 23:45:01")), Arrays.asList(4, 5, 6), Collections.singletonMap("k2", "v2"), java.sql.Timestamp.valueOf("2023-11-01 23:45:01"), Collections.singletonMap("m2", RowFactory.create("tipo2", 987654321L, java.sql.Timestamp.valueOf("2023-11-01 23:45:01"))), Arrays.asList(RowFactory.create("tipo2", 987654321L, java.sql.Timestamp.valueOf("2023-11-01 23:45:01"))))
+        );
+        List<Row> data = testData.stream().map(list -> list.toArray(new Object[0]))
                 .map(RowFactory::create).collect(Collectors.toList());
+
+        StructType structType = DataTypes.createStructType(
+                new StructField[] {
+                        new StructField("type", DataTypes.StringType, false, Metadata.empty()),
+                        new StructField("phone", DataTypes.LongType, false, Metadata.empty()),
+                        new StructField("datetime", DataTypes.TimestampType, false, Metadata.empty())
+                }
+        );
 
         StructType schema = new StructType(new StructField[] {
                 new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
                 new StructField("name", DataTypes.StringType, false, Metadata.empty()),
-                new StructField("score", DataTypes.IntegerType, false, Metadata.empty())
+                new StructField("score", DataTypes.IntegerType, false, Metadata.empty()),
+                new StructField("identifier", structType, true, Metadata.empty()),
+                new StructField("arr_col", new ArrayType(DataTypes.IntegerType, true), true, Metadata.empty()),
+                new StructField("map_col", DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType, true), true, Metadata.empty()),
+                new StructField("datetime", DataTypes.TimestampType, false, Metadata.empty()),
+                new StructField("map_struct_col", DataTypes.createMapType(DataTypes.StringType, structType, true), true, Metadata.empty()),
+                new StructField("array_struct_col", new ArrayType(structType, true), true, Metadata.empty())
         });
 
         Dataset<Row> df = spark.createDataFrame(data, schema);
@@ -122,21 +137,50 @@ public class ReadWriteITTest extends ITTestBase {
         options.put("starrocks.user", USER);
         options.put("starrocks.password", PASSWORD);
 
+        String columnTypes = "id INT, name STRING, score INT, identifier STRUCT<type STRING, phone BIGINT, datetime TIMESTAMP>, arr_col ARRAY<INT>, map_col MAP<STRING, STRING>, datetime TIMESTAMP, map_struct_col MAP<STRING, STRUCT<type STRING, phone BIGINT, datetime TIMESTAMP>>, array_struct_col ARRAY<STRUCT<type STRING, phone BIGINT, datetime TIMESTAMP>>";
         df.write().format("starrocks")
+                .option("starrocks.column.types", columnTypes)
+                .option("starrocks.write.properties.format", "json")
                 .mode(SaveMode.Append)
                 .options(options)
                 .save();
 
+        List<List<Object>> expectedData = new ArrayList<>();
+        expectedData.add(Arrays.asList(
+                1,
+                "2",
+                3,
+                "{\"type\":\"tipo1\",\"phone\":123456789,\"datetime\":\"2023-10-01 12:34:56\"}",
+                Arrays.asList(1, 2, 3),
+                "{\"k1\":\"v1\"}",
+                "2023-10-01 12:34:56",
+                "{\"m1\":{\"type\":\"tipo1\",\"phone\":123456789,\"datetime\":\"2023-10-01 12:34:56\"}}",
+                "[{\"type\":\"tipo1\",\"phone\":123456789,\"datetime\":\"2023-10-01 12:34:56\"},{\"type\":\"tipo2\",\"phone\":987654321,\"datetime\":\"2023-11-01 23:45:01\"}]"
+        ));
+        expectedData.add(Arrays.asList(
+                2,
+                "3",
+                4,
+                "{\"type\":\"tipo2\",\"phone\":987654321,\"datetime\":\"2023-11-01 23:45:01\"}",
+                Arrays.asList(4, 5, 6),
+                "{\"k2\":\"v2\"}",
+                "2023-11-01 23:45:01",
+                "{\"m2\":{\"type\":\"tipo2\",\"phone\":987654321,\"datetime\":\"2023-11-01 23:45:01\"}}",
+                "[{\"type\":\"tipo2\",\"phone\":987654321,\"datetime\":\"2023-11-01 23:45:01\"}]"
+        ));
         List<List<Object>> actualWriteData = scanTable(DB_CONNECTION, DB_NAME, tableName);
         verifyResult(expectedData, actualWriteData);
 
         Dataset<Row> readDf = spark.read().format("starrocks")
+                .option("starrocks.column.types", columnTypes)
+                .option("starrocks.write.properties.format", "json")
                 .option("starrocks.table.identifier", String.join(".", DB_NAME, tableName))
                 .option("starrocks.fenodes", FE_HTTP)
                 .option("starrocks.fe.jdbc.url", FE_JDBC)
                 .option("user", USER)
                 .option("password", PASSWORD)
                 .load();
+
         List<Row> readRows = readDf.collectAsList();
         verifyRows(expectedData, readRows);
 
@@ -158,6 +202,8 @@ public class ReadWriteITTest extends ITTestBase {
         expectedData.add(Arrays.asList(1, "2", 3));
         expectedData.add(Arrays.asList(2, "3", 4));
 
+        // Pre-cleanup to avoid TableAlreadyExistsException
+        try { spark.sql("DROP TABLE IF EXISTS sr_table"); } catch (Exception ignore) {}
         String ddl = String.format("CREATE TABLE sr_table \n" +
                 " USING starrocks\n" +
                 "OPTIONS(\n" +
@@ -194,6 +240,8 @@ public class ReadWriteITTest extends ITTestBase {
         expectedData.add(Arrays.asList(1, "2", 3));
         expectedData.add(Arrays.asList(2, "3", 4));
 
+        // Pre-cleanup to avoid TableAlreadyExistsException
+        try { spark.sql("DROP TABLE IF EXISTS sr_table"); } catch (Exception ignore) {}
         String ddl = String.format("CREATE TEMPORARY VIEW sr_table \n" +
                 " USING starrocks\n" +
                 "OPTIONS(\n" +
@@ -378,6 +426,28 @@ public class ReadWriteITTest extends ITTestBase {
         executeSrSQL(createStarRocksTable);
     }
 
+    public static void prepareCustomScoreBoardTable(String tableName) throws Exception {
+        String createStarRocksTable =
+                String.format("CREATE TABLE `%s`.`%s` (" +
+                                "id INT," +
+                                "name STRING," +
+                                "score INT," +
+                                "identifier STRUCT<type STRING, phone BIGINT, datetime DATETIME>," +
+                                "arr_col ARRAY<INT>," +
+                                "map_col MAP<STRING, STRING>," +
+                                "datetime DATETIME," +
+                                "map_struct_col MAP<STRING, STRUCT<type STRING, phone BIGINT, datetime DATETIME>>," +
+                                "array_struct_col ARRAY<STRUCT<type STRING, phone BIGINT, datetime DATETIME>>" +
+                                ") ENGINE=OLAP " +
+                                "PRIMARY KEY(`id`) " +
+                                "DISTRIBUTED BY HASH(`id`) BUCKETS 2 " +
+                                "PROPERTIES (" +
+                                "\"replication_num\" = \"1\"" +
+                                ")",
+                        DB_NAME, tableName);
+        executeSrSQL(createStarRocksTable);
+    }
+
     @Test
     public void testWriteInCsvFormatContainJsonColumn() throws Exception {
         testWriteContainJsonColumnBase(true);
@@ -391,29 +461,29 @@ public class ReadWriteITTest extends ITTestBase {
     private void testWriteContainJsonColumnBase(boolean csvFormat) throws Exception {
         String tableName = "testWriteContainJsonColumnBase_" + genRandomUuid();
         String createStarRocksTable =
-            String.format("CREATE TABLE `%s`.`%s` (" +
-                    "c0 BOOLEAN," +
-                    "c1 TINYINT," +
-                    "c2 SMALLINT," +
-                    "c3 INT," +
-                    "c4 BIGINT," +
-                    "c5 LARGEINT," +
-                    "c6 FLOAT," +
-                    "c7 DOUBLE," +
-                    "c8 DECIMAL(20, 1)," +
-                    "c9 CHAR(10)," +
-                    "c10 VARCHAR(100)," +
-                    "c11 STRING," +
-                    "c12 DATE," +
-                    "c13 DATETIME," +
-                    "c14 JSON" +
-                ") ENGINE=OLAP " +
-                    "PRIMARY KEY(`c0`, `c1`) " +
-                    "DISTRIBUTED BY HASH(`c0`) BUCKETS 2 " +
-                    "PROPERTIES (" +
-                    "\"replication_num\" = \"1\"" +
-                ")",
-                DB_NAME, tableName);
+                String.format("CREATE TABLE `%s`.`%s` (" +
+                                "c0 BOOLEAN," +
+                                "c1 TINYINT," +
+                                "c2 SMALLINT," +
+                                "c3 INT," +
+                                "c4 BIGINT," +
+                                "c5 LARGEINT," +
+                                "c6 FLOAT," +
+                                "c7 DOUBLE," +
+                                "c8 DECIMAL(20, 1)," +
+                                "c9 CHAR(10)," +
+                                "c10 VARCHAR(100)," +
+                                "c11 STRING," +
+                                "c12 DATE," +
+                                "c13 DATETIME," +
+                                "c14 JSON" +
+                                ") ENGINE=OLAP " +
+                                "PRIMARY KEY(`c0`, `c1`) " +
+                                "DISTRIBUTED BY HASH(`c0`) BUCKETS 2 " +
+                                "PROPERTIES (" +
+                                "\"replication_num\" = \"1\"" +
+                                ")",
+                        DB_NAME, tableName);
         executeSrSQL(createStarRocksTable);
 
         SparkSession spark = SparkSession
@@ -1068,11 +1138,11 @@ public class ReadWriteITTest extends ITTestBase {
         options.put("starrocks.table.identifier", String.join(".", DB_NAME, tableName));
         options.put("starrocks.user", USER);
         options.put("starrocks.password", PASSWORD);
-        options.put("starrocks.column.types", columnTypes);
         options.put("starrocks.write.properties.format", useJson ? "json" : "csv");
         options.put("starrocks.write.properties.strict_mode", "true");
 
         df.write().format("starrocks")
+                .option("starrocks.column.types", columnTypes)
                 .mode(SaveMode.Append)
                 .options(options)
                 .save();
@@ -1131,6 +1201,8 @@ public class ReadWriteITTest extends ITTestBase {
         expectedData.add(Arrays.asList(1, "2", 3));
         expectedData.add(Arrays.asList(2, "3", 4));
 
+        // Pre-cleanup to avoid TableAlreadyExistsException
+        try { spark.sql("DROP TABLE IF EXISTS sr_table"); } catch (Exception ignore) {}
         String ddl = String.format("CREATE TABLE sr_table \n" +
                 " USING starrocks\n" +
                 "OPTIONS(\n" +
@@ -1159,7 +1231,7 @@ public class ReadWriteITTest extends ITTestBase {
         prepareDateAndDateTimeTable(tableName);
         executeSrSQL(
                 String.format("INSERT INTO `%s`.`%s` VALUES (1, '1', '2024-04-20', '2024-04-20 19:00:00')",
-                    DB_NAME, tableName));
+                        DB_NAME, tableName));
 
         SparkSession spark = SparkSession
                 .builder()
@@ -1234,7 +1306,7 @@ public class ReadWriteITTest extends ITTestBase {
                 "(1, CAST(\"2024-09-19 14:01:00.123\" AS TIMESTAMP))," +
                 "(2, CAST(\"2024-09-19 14:02:00.123456\" AS TIMESTAMP))," +
                 "(3, CAST(\"2024-09-19 14:03:00.123456789\" AS TIMESTAMP))"
-            );
+        );
 
         List<List<Object>> expectedData = new ArrayList<>();
         expectedData.add(Arrays.asList(0, Timestamp.valueOf("2024-09-19 14:00:00")));
@@ -1386,7 +1458,7 @@ public class ReadWriteITTest extends ITTestBase {
                                 ")",
                         DB_NAME, tableName);
         executeSrSQL(createStarRocksTable);
-        
+
         try (Statement statement = DB_CONNECTION.createStatement()) {
             statement.execute("insert into " + DB_NAME + "." + tableName + " VALUES (1, 'Tom', 3, '2025-07-02 07:35:58'), (2, 'Jerry', 4, '2025-06-02 07:35:58')");
         }
@@ -1425,5 +1497,302 @@ public class ReadWriteITTest extends ITTestBase {
         verifyRows(expectedData, readRows);
         spark.stop();
 
+    }
+
+    @Test
+    public void testComplexStructArrayMap() throws Exception {
+        String tableName = "testComplexStructArrayMap_" + genRandomUuid();
+        // Create the table in StarRocks before writing
+        String createStarRocksTable = String.format("CREATE TABLE `%s`.`%s` (" +
+                "id INT," +
+                "struct_col STRUCT<a STRING, b INT>," +
+                "array_struct_col ARRAY<STRUCT<a STRING, b INT>>," +
+                "map_array_col MAP<STRING, ARRAY<INT>>," +
+                "array_empty ARRAY<STRING>," +
+                "map_empty MAP<STRING, STRING>," +
+                "struct_with_nulls STRUCT<a STRING, b INT>" +
+                ") ENGINE=OLAP " +
+                "PRIMARY KEY(`id`) " +
+                "DISTRIBUTED BY HASH(`id`) BUCKETS 2 " +
+                "PROPERTIES (" +
+                "\"replication_num\" = \"1\"" +
+                ")",
+                DB_NAME, tableName);
+        executeSrSQL(createStarRocksTable);
+        SparkSession spark = SparkSession.builder().master("local[1]").appName("testComplexStructArrayMap").getOrCreate();
+
+        StructType innerStructType = DataTypes.createStructType(Arrays.asList(
+                new StructField("a", DataTypes.StringType, true, Metadata.empty()),
+                new StructField("b", DataTypes.IntegerType, true, Metadata.empty())
+        ));
+        StructType mainStructType = DataTypes.createStructType(Arrays.asList(
+                new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
+                new StructField("struct_col", innerStructType, true, Metadata.empty()),
+                new StructField("array_struct_col", new ArrayType(innerStructType, true), true, Metadata.empty()),
+                new StructField("map_array_col", DataTypes.createMapType(DataTypes.StringType, new ArrayType(DataTypes.IntegerType, true), true), true, Metadata.empty()),
+                new StructField("array_empty", new ArrayType(DataTypes.StringType, true), true, Metadata.empty()),
+                new StructField("map_empty", DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType, true), true, Metadata.empty()),
+                new StructField("struct_with_nulls", innerStructType, true, Metadata.empty())
+        ));
+
+        List<Row> data = Arrays.asList(
+                RowFactory.create(
+                        1,
+                        RowFactory.create("foo", 10),
+                        Arrays.asList(RowFactory.create("bar", 20), RowFactory.create("baz", 30)),
+                        Collections.singletonMap("k1", Arrays.asList(1, 2, 3)),
+                        Collections.emptyList(),
+                        Collections.emptyMap(),
+                        null
+                ),
+                RowFactory.create(
+                        2,
+                        null,
+                        Arrays.asList(),
+                        Collections.singletonMap("k2", Arrays.asList()),
+                        Arrays.asList(),
+                        Collections.emptyMap(),
+                        RowFactory.create(null, null)
+                )
+        );
+
+        Dataset<Row> df = spark.createDataFrame(data, mainStructType);
+
+        Map<String, String> options = new HashMap<>();
+        options.put("starrocks.fe.http.url", FE_HTTP);
+        options.put("starrocks.fe.jdbc.url", FE_JDBC);
+        options.put("starrocks.table.identifier", String.join(".", DB_NAME, tableName));
+        options.put("starrocks.user", USER);
+        options.put("starrocks.password", PASSWORD);
+
+        String columnTypes = "id INT, struct_col STRUCT<a STRING, b INT>, array_struct_col ARRAY<STRUCT<a STRING, b INT>>, map_array_col MAP<STRING, ARRAY<INT>>, array_empty ARRAY<STRING>, map_empty MAP<STRING, STRING>, struct_with_nulls STRUCT<a STRING, b INT>";
+
+        df.write().format("starrocks")
+                .option("starrocks.column.types", columnTypes)
+                .option("starrocks.write.properties.format", "json")
+                .mode(SaveMode.Append)
+                .options(options)
+                .save();
+
+        List<List<Object>> expectedData = new ArrayList<>();
+        expectedData.add(Arrays.asList(
+                1,
+                "{\"a\":\"foo\",\"b\":10}",
+                "[{\"a\":\"bar\",\"b\":20},{\"a\":\"baz\",\"b\":30}]",
+                Collections.singletonMap("k1", Arrays.asList(1, 2, 3)),
+                Collections.emptyList(),
+                Collections.emptyMap(),
+                null
+        ));
+        expectedData.add(Arrays.asList(
+                2,
+                null,
+                Collections.emptyList(),
+                Collections.singletonMap("k2", Collections.emptyList()),
+                Arrays.asList(),
+                Collections.emptyMap(),
+                "{\"a\":null,\"b\":null}"
+        ));
+
+        List<Row> actualWriteData = spark.read().format("starrocks")
+                .option("starrocks.column.types", columnTypes)
+                .option("starrocks.table.identifier", String.join(".", DB_NAME, tableName))
+                .option("starrocks.fe.http.url", FE_HTTP)
+                .option("starrocks.fe.jdbc.url", FE_JDBC)
+                .option("starrocks.user", USER)
+                .option("starrocks.password", PASSWORD)
+                .load()
+                .collectAsList();
+
+        verifyRows(expectedData, actualWriteData);
+    }
+
+    @Test
+    public void testAllTypesComplexStructArrayMap() throws Exception {
+        String tableName = "testAllTypesComplexStructArrayMap_" + genRandomUuid();
+        // Create the table in StarRocks before writing
+        String createStarRocksTable = String.format("CREATE TABLE `%s`.`%s` (" +
+                "id INT," +
+                "string_col STRING," +
+                "date_col DATE," +
+                "timestamp_col DATETIME," +
+                "float_col FLOAT," +
+                "double_col DOUBLE," +
+                "decimal_col DECIMAL(10,2)," +
+                "bool_col BOOLEAN," +
+                "tinyint_col TINYINT," +
+                "smallint_col SMALLINT," +
+                "bigint_col BIGINT," +
+                "struct_col STRUCT<a STRING, b INT, c DOUBLE, d DATE, e DATETIME, f BOOLEAN, g DECIMAL(10,2)>," +
+                "array_double_col ARRAY<DOUBLE>," +
+                "map_decimal_col MAP<STRING, DECIMAL(10,2)>," +
+                "array_struct_col ARRAY<STRUCT<a STRING, b INT, c DOUBLE, d DATE, e DATETIME, f BOOLEAN, g DECIMAL(10,2)>>," +
+                "map_struct_col MAP<STRING, STRUCT<a STRING, b INT, c DOUBLE, d DATE, e DATETIME, f BOOLEAN, g DECIMAL(10,2)>>" +
+                ") ENGINE=OLAP " +
+                "PRIMARY KEY(`id`) " +
+                "DISTRIBUTED BY HASH(`id`) BUCKETS 2 " +
+                "PROPERTIES (" +
+                "\"replication_num\" = \"1\"" +
+                ")",
+                DB_NAME, tableName);
+        executeSrSQL(createStarRocksTable);
+        SparkSession spark = SparkSession.builder().master("local[1]").appName("testAllTypesComplexStructArrayMap").getOrCreate();
+
+        StructType innerStructType = DataTypes.createStructType(Arrays.asList(
+                new StructField("a", DataTypes.StringType, true, Metadata.empty()),
+                new StructField("b", DataTypes.IntegerType, true, Metadata.empty()),
+                new StructField("c", DataTypes.DoubleType, true, Metadata.empty()),
+                new StructField("d", DataTypes.DateType, true, Metadata.empty()),
+                new StructField("e", DataTypes.TimestampType, true, Metadata.empty()),
+                new StructField("f", DataTypes.BooleanType, true, Metadata.empty()),
+                new StructField("g", DataTypes.createDecimalType(10,2), true, Metadata.empty())
+        ));
+        StructType mainStructType = DataTypes.createStructType(Arrays.asList(
+                new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
+                new StructField("string_col", DataTypes.StringType, true, Metadata.empty()),
+                new StructField("date_col", DataTypes.DateType, true, Metadata.empty()),
+                new StructField("timestamp_col", DataTypes.TimestampType, true, Metadata.empty()),
+                new StructField("float_col", DataTypes.FloatType, true, Metadata.empty()),
+                new StructField("double_col", DataTypes.DoubleType, true, Metadata.empty()),
+                new StructField("decimal_col", DataTypes.createDecimalType(10,2), true, Metadata.empty()),
+                new StructField("bool_col", DataTypes.BooleanType, true, Metadata.empty()),
+                new StructField("tinyint_col", DataTypes.ByteType, true, Metadata.empty()),
+                new StructField("smallint_col", DataTypes.ShortType, true, Metadata.empty()),
+                new StructField("bigint_col", DataTypes.LongType, true, Metadata.empty()),
+                new StructField("struct_col", innerStructType, true, Metadata.empty()),
+                new StructField("array_double_col", new ArrayType(DataTypes.DoubleType, true), true, Metadata.empty()),
+                new StructField("map_decimal_col", DataTypes.createMapType(DataTypes.StringType, DataTypes.createDecimalType(10,2), true), true, Metadata.empty()),
+                new StructField("array_struct_col", new ArrayType(innerStructType, true), true, Metadata.empty()),
+                new StructField("map_struct_col", DataTypes.createMapType(DataTypes.StringType, innerStructType, true), true, Metadata.empty())
+        ));
+
+        List<Row> data = Arrays.asList(
+                RowFactory.create(
+                        1,
+                        "foo-äöü!@#",
+                        java.sql.Date.valueOf("2023-12-15"),
+                        java.sql.Timestamp.valueOf("2023-12-15 10:20:30.123"),
+                        1.23f,
+                        2.34d,
+                        new java.math.BigDecimal("12345.67"),
+                        true,
+                        (byte) 127,
+                        (short) 32000,
+                        9223372036854775807L,
+                        RowFactory.create("bar", 42, 3.14, java.sql.Date.valueOf("2022-01-01"), java.sql.Timestamp.valueOf("2022-01-01 01:01:01"), false, new java.math.BigDecimal("1.23")),
+                        Arrays.asList(1.1, 2.2, 3.3),
+                        Collections.singletonMap("k1", new java.math.BigDecimal("9.99")),
+                        Arrays.asList(
+                                RowFactory.create("baz", 99, 2.71, java.sql.Date.valueOf("2021-05-05"), java.sql.Timestamp.valueOf("2021-05-05 05:05:05"), true, new java.math.BigDecimal("7.77"))
+                        ),
+                        Collections.singletonMap("s1", RowFactory.create("deep", 7, 1.23, java.sql.Date.valueOf("2020-02-02"), java.sql.Timestamp.valueOf("2020-02-02 02:02:02"), null, new java.math.BigDecimal("0.01")))
+                ),
+                RowFactory.create(
+                        2,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        Collections.emptyList(),
+                        Collections.emptyMap(),
+                        Collections.emptyList(),
+                        Collections.emptyMap()
+                )
+        );
+
+        Dataset<Row> df = spark.createDataFrame(data, mainStructType);
+
+        Map<String, String> options = new HashMap<>();
+        options.put("starrocks.fe.http.url", FE_HTTP);
+        options.put("starrocks.fe.jdbc.url", FE_JDBC);
+        options.put("starrocks.table.identifier", String.join(".", DB_NAME, tableName));
+        options.put("starrocks.user", USER);
+        options.put("starrocks.password", PASSWORD);
+
+        String columnTypes = "id INT, string_col STRING, date_col DATE, timestamp_col TIMESTAMP, float_col FLOAT, double_col DOUBLE, decimal_col DECIMAL(10,2), bool_col BOOLEAN, tinyint_col TINYINT, smallint_col SMALLINT, bigint_col BIGINT, struct_col STRUCT<a STRING, b INT, c DOUBLE, d DATE, e TIMESTAMP, f BOOLEAN, g DECIMAL(10,2)>, array_double_col ARRAY<DOUBLE>, map_decimal_col MAP<STRING, DECIMAL(10,2)>, array_struct_col ARRAY<STRUCT<a STRING, b INT, c DOUBLE, d DATE, e TIMESTAMP, f BOOLEAN, g DECIMAL(10,2)>>, map_struct_col MAP<STRING, STRUCT<a STRING, b INT, c DOUBLE, d DATE, e TIMESTAMP, f BOOLEAN, g DECIMAL(10,2)>>";
+
+        df.write().format("starrocks")
+                .option("starrocks.column.types", columnTypes)
+                .option("starrocks.write.properties.format", "json")
+                .mode(SaveMode.Append)
+                .options(options)
+                .save();
+
+        List<List<Object>> expectedData = new ArrayList<>();
+
+        Row structBar = new GenericRowWithSchema(
+                new Object[]{"bar", 42, 3.14, Date.valueOf("2022-01-01"),
+                        Timestamp.valueOf("2022-01-01 01:01:01"), false, BigDecimal.valueOf(1.23)},
+                innerStructType
+        );
+
+        Row structBaz = new GenericRowWithSchema(
+                new Object[]{"baz", 99, 2.71, Date.valueOf("2021-05-05"),
+                        Timestamp.valueOf("2021-05-05 05:05:05"), true, BigDecimal.valueOf(7.77)},
+                innerStructType
+        );
+
+        Row structDeep = new GenericRowWithSchema(
+                new Object[]{"deep", 7, 1.23, Date.valueOf("2020-02-02"),
+                        Timestamp.valueOf("2020-02-02 02:02:02"), null, BigDecimal.valueOf(0.01)},
+                innerStructType
+        );
+
+        expectedData.add(Arrays.asList(
+                1,
+                "foo-äöü!@#",
+                Date.valueOf("2023-12-15"),
+                Timestamp.valueOf("2023-12-15 10:20:30"),
+                1.23f,
+                2.34,
+                BigDecimal.valueOf(12345.67),
+                true,
+                (byte) 127,
+                (short) 32000,
+                9223372036854775807L,
+                structBar,  // struct as object
+                Arrays.asList(1.1, 2.2, 3.3),
+                Collections.singletonMap("k1", BigDecimal.valueOf(9.99)),
+                Collections.singletonList(structBaz),  // array of structs
+                Collections.singletonMap("s1", structDeep)  // map with struct
+        ));
+
+        expectedData.add(Arrays.asList(
+                2,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                Collections.emptyList(),
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptyMap()
+        ));
+        
+        List<Row> actualWriteData = spark.read().format("starrocks")
+                .option("starrocks.column.types", columnTypes)
+                .option("starrocks.table.identifier", String.join(".", DB_NAME, tableName))
+                .option("starrocks.fe.http.url", FE_HTTP)
+                .option("starrocks.fe.jdbc.url", FE_JDBC)
+                .option("starrocks.user", USER)
+                .option("starrocks.password", PASSWORD)
+                .load()
+                .collectAsList();
+
+        verifyRows(expectedData, actualWriteData);
     }
 }

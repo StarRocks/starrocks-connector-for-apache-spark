@@ -28,14 +28,20 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 public final class InferSchema {
+
+    private static final Logger LOG = LoggerFactory.getLogger(InferSchema.class);
 
     public static StructType inferSchema(Map<String, String> options) {
         SimpleStarRocksConfig config = new SimpleStarRocksConfig(options);
@@ -66,13 +72,25 @@ public final class InferSchema {
         }
 
         Map<String, StructField> customTypes = parseCustomTypes(config.getColumnTypes());
+        Set<String> unmatchedOverrides = new HashSet<>(customTypes.keySet());
         List<StructField> fields = new ArrayList<>();
         for (StarRocksField field : starRocksFields) {
-            if (customTypes.containsKey(field.getName())) {
-                fields.add(customTypes.get(field.getName()));
-            } else {
-                fields.add(inferStructField(field));
+            String fieldName = field.getName();
+            if (fieldName != null) {
+                String lowerCaseName = fieldName.toLowerCase(Locale.ROOT);
+                StructField custom = customTypes.get(lowerCaseName);
+                if (custom != null) {
+                    fields.add(custom);
+                    unmatchedOverrides.remove(lowerCaseName);
+                    continue;
+                }
             }
+            fields.add(inferStructField(field));
+        }
+
+        if (!customTypes.isEmpty() && !unmatchedOverrides.isEmpty()) {
+            LOG.warn("Columns {} from option 'starrocks.column.types' were not found in StarRocks table `{}`.`{}`",
+                    unmatchedOverrides, config.getDatabase(), config.getTable());
         }
 
         return DataTypes.createStructType(fields);
@@ -86,7 +104,7 @@ public final class InferSchema {
         Map<String, StructField> customTypes = new HashMap<>();
         StructType customSchema = StructType.fromDDL(columnTypes);
         for (StructField field : customSchema.fields()) {
-            customTypes.put(field.name(), field);
+            customTypes.put(field.name().toLowerCase(Locale.ROOT), field);
         }
         return customTypes;
     }
@@ -98,7 +116,14 @@ public final class InferSchema {
     }
 
     static DataType inferDataType(StarRocksField field) {
-        String type = field.getType().toLowerCase(Locale.ROOT);
+        String rawType = field.getType();
+        if (rawType == null) {
+            throw new UnsupportedOperationException(
+                    String.format("Unknown starrocks type for column name: %s", field.getName()));
+        }
+        // Remove only the (n) or (n,m) from types like 'decimal(20,1)' or 'bigint(20) unsigned' to get 'decimal' or 'bigint unsigned'
+        String type = rawType.replaceAll("\\(.*?\\)", "").toLowerCase(Locale.ROOT);
+
         switch (type) {
             case "tinyint":
                 // mysql does not have boolean type, and starrocks `information_schema`.`COLUMNS` will return

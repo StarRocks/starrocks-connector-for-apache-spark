@@ -34,7 +34,7 @@ abstract class AbstractStarRocksDecoder[Record <: StarRocksGenericRow](partition
     with Logging {
   // the reader obtain data from StarRocks BE
   lazy val reader: BaseValueReader = {
-    val baseValueReader = new RpcValueReader(partition.asInstanceOf[RpcPartition], settings)
+    val baseValueReader = new RpcValueReader(partition.asInstanceOf[RpcPartition], settings, schema)
     baseValueReader.init
     baseValueReader
   }

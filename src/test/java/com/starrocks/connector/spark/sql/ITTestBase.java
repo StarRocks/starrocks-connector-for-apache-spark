@@ -29,12 +29,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.StringJoiner;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -42,6 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.types.StructType;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.slf4j.Logger;
@@ -61,7 +57,6 @@ public abstract class ITTestBase {
 
     @BeforeEach
     public void beforeClass() throws Exception {
-        if (!DEBUG_MODE) {
             try {
                 StarRocksTestEnvironment env = StarRocksTestEnvironment.getInstance();
                 env.startIfNeeded();
@@ -72,7 +67,7 @@ public abstract class ITTestBase {
             } catch (Throwable t) {
                 LOG.warn("Failed to start StarRocks container, ITs may be skipped if no external cluster is provided.", t);
             }
-        }
+
         assertTrue(FE_HTTP != null && FE_JDBC != null);
  
         DB_NAME = "sr_test_" + genRandomUuid();
@@ -155,12 +150,24 @@ public abstract class ITTestBase {
         rows.forEach(row -> System.out.println(row.mkString(" | ")));
     }
 
+    protected static Object normalize(Object value) {
+        if (value instanceof scala.collection.Seq) {
+            // Converts Scala WrappedArray/Seq to Java List
+            return scala.collection.JavaConverters.seqAsJavaList((scala.collection.Seq<?>) value);
+        }
+        if (value instanceof scala.collection.Map) {
+            // Converts Scala Map to Java Map
+            return scala.collection.JavaConverters.mapAsJavaMap((scala.collection.Map<?, ?>) value);
+        }
+        return value;
+    }
+
     protected static void verifyRows(List<List<Object>> expected, List<Row> actualRows) {
         List<List<Object>> actual = new ArrayList<>();
         for (Row row : actualRows) {
             List<Object> objects = new ArrayList<>();
             for (int i = 0; i < row.length(); i++) {
-                objects.add(row.get(i));
+                objects.add(normalize(row.get(i)));
             }
             actual.add(objects);
         }
@@ -192,23 +199,96 @@ public abstract class ITTestBase {
     }
 
     private static String convertToStr(Object object, boolean quoted) {
+        if (object == null) {
+            return "null";
+        }
+
         String result;
-        if (object instanceof List) {
-            // for array type
+        if (object instanceof scala.collection.Map) {
+            scala.collection.Map<?, ?> scalaMap = (scala.collection.Map<?, ?>) object;
+            Map<?, ?> javaMap = scala.collection.JavaConverters.mapAsJavaMap(scalaMap);
+            StringJoiner joiner = new StringJoiner(",", "{", "}");
+            javaMap.forEach((k, v) -> {
+                String key = convertToStr(k, true);
+                String value = convertToStr(v, true);
+                joiner.add(key + ":" + value);
+            });
+            result = joiner.toString();
+        } else if (object instanceof Map) {
+            StringJoiner joiner = new StringJoiner(",", "{", "}");
+            ((Map<?, ?>) object).forEach((k, v) -> {
+                String key = convertToStr(k, true);
+                String value = convertToStr(v, true);
+                joiner.add(key + ":" + value);
+            });
+            result = joiner.toString();
+        } else if (object instanceof Row) {
+            Row row = (Row) object;
+            StringJoiner joiner = new StringJoiner(",", "{", "}");
+            StructType schema = row.schema();
+
+            // Check if schema is null
+            if (schema == null) {
+                // Without schema, just serialize values by position
+                for (int i = 0; i < row.length(); i++) {
+                    Object fieldValue = row.isNullAt(i) ? null : row.get(i);
+                    if (i > 0) {
+                        joiner.add(convertToStr(fieldValue, true));
+                    } else {
+                        joiner = new StringJoiner(",", "{", "}");
+                        joiner.add(convertToStr(fieldValue, true));
+                    }
+                }
+            } else {
+                // With schema, use field names
+                for (int i = 0; i < row.length(); i++) {
+                    String fieldName = schema.fields()[i].name();
+                    Object fieldValue = row.isNullAt(i) ? null : row.get(i);
+                    joiner.add("\"" + fieldName + "\":" + convertToStr(fieldValue, true));
+                }
+            }
+            result = joiner.toString();
+        } else if (object instanceof scala.collection.Seq) {
+            scala.collection.Seq<?> seq = (scala.collection.Seq<?>) object;
+            StringJoiner joiner = new StringJoiner(",", "[", "]");
+            scala.collection.Iterator<?> iterator = seq.iterator();
+            while (iterator.hasNext()) {
+                Object element = iterator.next();
+                String elementStr = (element == null) ? "null" : convertToStr(element, true);
+                joiner.add(elementStr);
+            }
+            result = joiner.toString();
+        } else if (object instanceof List) {
             StringJoiner joiner = new StringJoiner(",", "[", "]");
             ((List<?>) object).forEach(obj -> joiner.add(convertToStr(obj, true)));
             result = joiner.toString();
         } else if (object instanceof Timestamp) {
             result = DATETIME_FORMATTER.format((Timestamp) object);
+            if (quoted) {
+                return String.format("\"%s\"", result);
+            }
+            return result;
         } else if (object instanceof LocalDateTime) {
             result = LOCAL_DATETIME_FORMATTER.format((LocalDateTime) object);
-        } else if (object instanceof LocalDate) {
-            result = LOCAL_DATE_FORMATTER.format((LocalDate) object);
+            if (quoted) {
+                return String.format("\"%s\"", result);
+            }
+            return result;
+        } else if (object instanceof LocalDate || object instanceof Date) {
+            if (object instanceof LocalDate) {
+                result = LOCAL_DATE_FORMATTER.format((LocalDate) object);
+            } else {
+                result = object.toString();
+            }
+            if (quoted) {
+                return String.format("\"%s\"", result);
+            }
+            return result;
         } else {
-            result = object == null ? "null" : object.toString();
+            result = object.toString();
         }
 
-        if (quoted && (object instanceof String || object instanceof Date)) {
+        if (quoted && object instanceof String) {
             return String.format("\"%s\"", result);
         } else {
             return result;

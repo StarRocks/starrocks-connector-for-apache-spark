@@ -47,6 +47,12 @@ public class DataTypeUtils {
                 return "VARCHAR";
             case DECIMAL:
                 return "DECIMAL128";
+            case STRUCT:
+                return "STRUCT";
+            case LIST:
+                return "ARRAY";
+            case MAP:
+                return "MAP";
             default:
                 return "";
         }

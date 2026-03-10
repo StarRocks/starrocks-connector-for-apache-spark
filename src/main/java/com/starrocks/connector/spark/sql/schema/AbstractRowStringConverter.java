@@ -21,12 +21,7 @@ package com.starrocks.connector.spark.sql.schema;
 
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.types.ArrayType;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.Decimal;
-import org.apache.spark.sql.types.DecimalType;
-import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.types.*;
 import scala.collection.JavaConverters;
 
 import java.io.Serializable;
@@ -97,6 +92,19 @@ public abstract class AbstractRowStringConverter implements RowStringConverter, 
             } else if (dataType instanceof ArrayType) {
                 DataType elementType = ((ArrayType) dataType).elementType();
                 return new NullableWrapper(new ListDataConverter(convert(elementType)));
+            } else if (dataType instanceof MapType) {
+                DataType keyType = ((MapType) dataType).keyType();
+                DataType valueType = ((MapType) dataType).valueType();
+                return new NullableWrapper(new MapDataConverter(convert(keyType), convert(valueType)));
+            } else if (dataType instanceof StructType) {
+                StructType structType = (StructType) dataType;
+                Function<Object, Object>[] fieldConverters = new Function[structType.size()];
+                String[] fieldNames = new String[structType.size()];
+                for (int i = 0; i < structType.size(); i++) {
+                    fieldConverters[i] = convert(structType.fields()[i].dataType());
+                    fieldNames[i] = structType.fields()[i].name();
+                }
+                return new NullableWrapper(new StructDataConverter(fieldNames, fieldConverters));
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -139,6 +147,53 @@ public abstract class AbstractRowStringConverter implements RowStringConverter, 
             }
             List<Object> result = new ArrayList<>(input.size());
             input.forEach(element -> result.add(elementConverter.apply(element)));
+            return result;
+        }
+    }
+
+    private static class MapDataConverter implements Function<Object, Object> {
+        private final Function<Object, Object> keyConverter;
+        private final Function<Object, Object> valueConverter;
+
+        public MapDataConverter(Function<Object, Object> keyConverter, Function<Object, Object> valueConverter) {
+            this.keyConverter = keyConverter;
+            this.valueConverter = valueConverter;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public Object apply(Object data) {
+            java.util.Map<Object, Object> input;
+            if (data instanceof java.util.Map) {
+                input = (java.util.Map<Object, Object>) data;
+            } else {
+                input = scala.collection.JavaConverters.mapAsJavaMap((scala.collection.Map<Object, Object>) data);
+            }
+            java.util.Map<Object, Object> result = new java.util.HashMap<>(input.size());
+            input.forEach((k, v) -> result.put(keyConverter.apply(k), valueConverter.apply(v)));
+            return result;
+        }
+    }
+
+    private static class StructDataConverter implements Function<Object, Object> {
+
+        private final String[] fieldNames;
+        private final Function<Object, Object>[] fieldConverters;
+
+        public StructDataConverter(String[] fieldNames, Function<Object, Object>[] fieldConverters) {
+            this.fieldNames = fieldNames;
+            this.fieldConverters = fieldConverters;
+        }
+
+        @Override
+        public Object apply(Object data) {
+            Row row = (Row) data;
+            java.util.Map<String, Object> result = new java.util.HashMap<>(fieldNames.length);
+            for (int i = 0; i < fieldNames.length; i++) {
+                if (!row.isNullAt(i)) {
+                    result.put(fieldNames[i], fieldConverters[i].apply(row.get(i)));
+                }
+            }
             return result;
         }
     }
