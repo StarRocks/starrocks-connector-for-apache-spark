@@ -183,6 +183,9 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
             } else if (starRocksField.isHll()) {
                 streamLoadColumnNames[i] = "__tmp" + field.name();
                 expressions.add(String.format("`%s`=hll_hash(`%s`)", field.name(), streamLoadColumnNames[i]));
+            } else if (starRocksField.isPercentile()) {
+                streamLoadColumnNames[i] = "__tmp" + field.name();
+                expressions.add(String.format("`%s`=percentile_hash(`%s`)", field.name(), streamLoadColumnNames[i]));
             } else {
                 streamLoadColumnNames[i] = field.name();
             }
