@@ -58,7 +58,7 @@ class StarRocksScanBuilder(tableName: String,
   private var supportedPredicates = Array.empty[Predicate]
 
   override def pushPredicates(predicates: Array[Predicate]): Array[Predicate] = {
-    val (supported, _) = predicates.partition(dialect.compileExpression(_).isDefined)
+    val (supported, unSupported) = predicates.partition(dialect.compileExpression(_).isDefined)
 
     val predicateWhereClause = supported
       .flatMap(compilePredicate)
@@ -67,16 +67,29 @@ class StarRocksScanBuilder(tableName: String,
     // only for test
     predicateWhereClauseForTest = predicateWhereClause
 
-    // pass filter column to BE
-    config.setProperty(STARROCKS_FILTER_QUERY, predicateWhereClause)
+    val userFilters = Option(config.getProperty(STARROCKS_FILTER_QUERY))
+      .filter(_.nonEmpty)
+      .map(f => s"($f)")
+
+    val pushedFilters = userFilters.toSeq ++ Seq(predicateWhereClause).filter(_.nonEmpty)
+
+    if (pushedFilters.nonEmpty) {
+      // pass merged filters to BE
+      config.setProperty(STARROCKS_FILTER_QUERY, pushedFilters.mkString(" and "))
+    }
 
     supportedPredicates = supported
-    supported
+    unSupported
   }
 
   override def pushedPredicates(): Array[Predicate] = supportedPredicates
 
   override def build(): Scan = new StarRocksScan(tableName, readSchema, starRocksSchema, pushedPredicates(), config)
+
+  private def stripUnsupportedEscape(sql: String): String = {
+    // StarRocks does not support "ESCAPE ...", drop any escape clause emitted by MySQL dialect.
+    sql.replaceAll("(?i)\\s+escape\\s+'[^']*'", "")
+  }
 
   private def compilePredicate(predicate: Predicate): Option[String] = {
     Option(predicate match {
@@ -95,7 +108,7 @@ class StarRocksScanBuilder(tableName: String,
       case _: AlwaysFalse => "false"
       case _ =>
         try {
-          dialect.compileExpression(predicate).get
+          dialect.compileExpression(predicate).map(stripUnsupportedEscape).get
         }
         catch {
           case _: Throwable => null
