@@ -286,14 +286,17 @@ public class RpcRowBatch extends BaseRowBatch {
 
     public void close() {
         try {
+            if (root != null) {
+                root.close();
+            }
             if (arrowStreamReader != null) {
                 arrowStreamReader.close();
             }
             if (rootAllocator != null) {
                 rootAllocator.close();
             }
-        } catch (IOException ioe) {
-            // do nothing
+        } catch (Exception e) {
+            logger.warn("Error closing Arrow resources", e);
         }
     }
 

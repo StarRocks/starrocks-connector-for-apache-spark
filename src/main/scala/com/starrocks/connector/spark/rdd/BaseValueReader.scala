@@ -26,7 +26,7 @@ import com.starrocks.connector.spark.sql.schema.StarRocksSchema
 import org.apache.spark.sql.connector.read.InputPartition
 
 import java.time.ZoneId
-import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.collection.JavaConverters._
 
 /**
  * read data from Starrocks BE to array.

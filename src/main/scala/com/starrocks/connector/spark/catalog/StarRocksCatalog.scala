@@ -24,19 +24,19 @@ import com.starrocks.connector.spark.sql.StarRocksTable
 import com.starrocks.connector.spark.sql.conf.SimpleStarRocksConfig
 import com.starrocks.connector.spark.sql.connect.StarRocksConnector
 import com.starrocks.connector.spark.sql.schema.InferSchema
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
+import org.slf4j.LoggerFactory
 
 import java.util
-import scala.collection.JavaConverters.seqAsJavaListConverter
-import scala.collection.convert.ImplicitConversions.{`collection AsScalaIterable`, `map AsScala`}
+import scala.collection.JavaConverters._
 
 class StarRocksCatalog extends TableCatalog
-  with SupportsNamespaces
-  with Logging {
+  with SupportsNamespaces {
+
+  private val log = LoggerFactory.getLogger(classOf[StarRocksCatalog])
 
   private var catalogName: String = _
   private var properties: util.Map[String, String] = _
@@ -53,7 +53,7 @@ class StarRocksCatalog extends TableCatalog
   override def name(): String = catalogName
 
   override def listTables(namespace: Array[String]): Array[Identifier] = {
-    val table2Db = StarRocksConnector.getTables(simpleStarRocksConfig, namespace.toList.asJava)
+    val table2Db = StarRocksConnector.getTables(simpleStarRocksConfig, namespace.toList.asJava).asScala
     table2Db.map { case (tb, db) => Identifier.of(Array(db), tb) }.toArray
   }
 
@@ -75,7 +75,7 @@ class StarRocksCatalog extends TableCatalog
   override def renameTable(oldIdent: Identifier, newIdent: Identifier): Unit = throw new UnsupportedOperationException
 
   override def listNamespaces(): Array[Array[String]] = {
-    val dbNames = StarRocksConnector.getDatabases(simpleStarRocksConfig)
+    val dbNames = StarRocksConnector.getDatabases(simpleStarRocksConfig).asScala
     dbNames.map(dbName => Array(dbName)).toArray
   }
 

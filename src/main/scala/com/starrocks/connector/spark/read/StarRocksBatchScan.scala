@@ -23,16 +23,15 @@ import com.starrocks.connector.spark.cfg.ConfigurationOptions.{STARROCKS_FILTER_
 import com.starrocks.connector.spark.cfg.Settings
 import com.starrocks.connector.spark.rest.RestService
 import com.starrocks.connector.spark.sql.schema.StarRocksSchema
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.expressions.filter._
 import org.apache.spark.sql.connector.read._
 import org.apache.spark.sql.connector.read.partitioning.{Partitioning, UnknownPartitioning}
-import org.apache.spark.sql.connector.util.V2ExpressionSQLBuilder
 import org.apache.spark.sql.jdbc.JdbcDialects
 import org.apache.spark.sql.types.StructType
+import org.slf4j.LoggerFactory
 
-import scala.collection.JavaConverters.collectionAsScalaIterableConverter
+import scala.collection.JavaConverters._
 
 class StarRocksScanBuilder(tableName: String,
                            schema: StructType,
@@ -115,9 +114,10 @@ class StarRocksScan(tableName: String,
                     pushedPredicates: Array[Predicate],
                     config: Settings) extends Scan
   with Batch
-  with Logging
   with SupportsReportPartitioning
   with PartitionReaderFactory {
+
+  @transient private lazy val log = LoggerFactory.getLogger(classOf[StarRocksScan])
 
   private lazy val inputPartitions: Array[InputPartition] = {
       RestService.findPartitions(config, log).asScala.toArray

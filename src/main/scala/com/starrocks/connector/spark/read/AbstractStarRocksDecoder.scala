@@ -24,14 +24,12 @@ import com.starrocks.connector.spark.cfg.Settings
 import com.starrocks.connector.spark.rdd.{BaseValueReader, RpcValueReader}
 import com.starrocks.connector.spark.rest.RpcPartition
 import com.starrocks.connector.spark.sql.schema.StarRocksSchema
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.read.{InputPartition, PartitionReader}
 
 abstract class AbstractStarRocksDecoder[Record <: StarRocksGenericRow](partition: InputPartition,
                                                                        settings: Settings,
                                                                        schema: StarRocksSchema)
-  extends PartitionReader[Record]
-    with Logging {
+  extends PartitionReader[Record] {
   // the reader obtain data from StarRocks BE
   lazy val reader: BaseValueReader = {
     val baseValueReader = new RpcValueReader(partition.asInstanceOf[RpcPartition], settings)
