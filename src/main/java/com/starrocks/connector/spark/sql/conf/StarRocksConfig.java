@@ -27,6 +27,7 @@ import javax.annotation.Nullable;
 public interface StarRocksConfig extends Serializable {
 
     String PREFIX = "starrocks.";
+    String DORIS_PREFIX = "doris."; // to compatible with doris config
 
     Map<String, String> getOriginOptions();
 
