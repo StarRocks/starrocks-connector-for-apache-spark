@@ -44,7 +44,10 @@ public enum FieldType {
     TIME("TIME"),
     CHAR("CHAR"),
     BINARY("BINARY"),
-    DECIMALV2("DECIMALV2");
+    DECIMALV2("DECIMALV2"),
+    STRUCT("STRUCT"),
+    ARRAY("ARRAY"),
+    MAP("MAP");
 
     private static final Map<String, FieldType> REVERSE_MAPPING = new HashMap<>(values().length);
 
@@ -87,5 +90,128 @@ public enum FieldType {
     public static boolean isSupported(String typeName) {
         return elegantOf(typeName).isPresent();
     }
+
+    public static String[] extractStructTypes(String structType) {
+        String inner = extractInnerContent(structType, "STRUCT<");
+        if (inner == null) {
+            return new String[0];
+        }
+
+        java.util.List<String> types = new java.util.ArrayList<>();
+        java.util.List<String> fields = splitByComma(inner);
+
+        for (String field : fields) {
+            String type = extractTypeFromField(field.trim());
+            if (type != null) {
+                types.add(type);
+            }
+        }
+
+        return types.toArray(new String[0]);
+    }
+
+    public static String[] extractArrayTypes(String arrayType) {
+        String inner = extractInnerContent(arrayType, "ARRAY<");
+        if (inner == null) {
+            return new String[0];
+        }
+
+        String type = extractBaseType(inner.trim());
+        return type != null ? new String[] { type } : new String[0];
+    }
+
+    public static String[] extractMapTypes(String mapType) {
+        String inner = extractInnerContent(mapType, "MAP<");
+        if (inner == null) {
+            return new String[0];
+        }
+
+        java.util.List<String> parts = splitByComma(inner);
+        if (parts.size() != 2) {
+            return new String[0];
+        }
+
+        String keyType = extractBaseType(parts.get(0).trim());
+        String valueType = extractBaseType(parts.get(1).trim());
+
+        if (keyType == null || valueType == null) {
+            return new String[0];
+        }
+
+        return new String[] { keyType, valueType };
+    }
+
+    private static String extractInnerContent(String type, String prefix) {
+        if (!type.endsWith(">")) {
+            return null;
+        }
+        return type.substring(prefix.length(), type.length() - 1).trim();
+    }
+
+    private static java.util.List<String> splitByComma(String content) {
+        java.util.List<String> result = new java.util.ArrayList<>();
+        int angleDepth = 0;
+        int parenDepth = 0;
+        StringBuilder current = new StringBuilder();
+
+        for (char c : content.toCharArray()) {
+            if (c == '<') {
+                angleDepth++;current.append(c);
+            } else if (c == '>') {
+                angleDepth--;
+                current.append(c);
+            } else if (c == '(') {
+                parenDepth++;
+                current.append(c);
+            } else if (c == ')') {
+                parenDepth--;
+                current.append(c);
+            } else if (c == ',' && angleDepth == 0 && parenDepth == 0) {
+                result.add(current.toString());
+                current.setLength(0);
+            } else {
+                current.append(c);
+            }
+        }
+
+        if (current.length() > 0) {
+            result.add(current.toString());
+        }
+
+        return result;
+    }
+
+
+    private static String extractTypeFromField(String field) {
+        int spaceIdx = field.indexOf(' ');
+        if (spaceIdx <= 0) {
+            return null;
+        }
+
+        String type = field.substring(spaceIdx + 1).trim();
+        return extractBaseType(type);
+    }
+
+    private static String extractBaseType(String type) {
+        String upperType = type.toUpperCase();
+
+        // If it is a complex type (STRUCT, ARRAY, MAP), return complete without modification
+        if (upperType.startsWith("STRUCT<") ||
+                upperType.startsWith("ARRAY<") ||
+                upperType.startsWith("MAP<")) {
+            return upperType;
+        }
+
+        // For simple types, remove parameters
+        int parenIdx = type.indexOf('(');
+        if (parenIdx > 0) {
+            return type.substring(0, parenIdx).toUpperCase().replace("DECIMAL", "DECIMALV2");
+        }
+
+        return type.toUpperCase().replace("DECIMAL", "DECIMALV2");
+    }
+
+
+
 
 }
