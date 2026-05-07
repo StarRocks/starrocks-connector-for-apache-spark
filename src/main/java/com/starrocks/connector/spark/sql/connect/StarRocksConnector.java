@@ -20,7 +20,9 @@
 package com.starrocks.connector.spark.sql.connect;
 
 import com.starrocks.connector.spark.exception.StarRocksException;
+import com.starrocks.connector.spark.rest.models.PartitionType;
 import com.starrocks.connector.spark.sql.conf.StarRocksConfig;
+import com.starrocks.connector.spark.sql.conf.WriteStarRocksConfig;
 import com.starrocks.connector.spark.sql.schema.StarRocksField;
 import com.starrocks.connector.spark.sql.schema.StarRocksSchema;
 import org.apache.commons.lang3.StringUtils;
@@ -28,6 +30,8 @@ import org.apache.spark.sql.connector.catalog.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.*;
+import java.util.*;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -53,7 +57,8 @@ public class StarRocksConnector {
             "select SCHEMA_NAME from information_schema.schemata where SCHEMA_NAME in (?) AND CATALOG_NAME = 'def';";
     private static final String ALL_TABLES_QUERY = "select TABLE_SCHEMA, TABLE_NAME from information_schema.tables "
             + "where TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA in (?) ;";
-
+    private static final String TABLE_PARTITION_QUERY = "SELECT DB_NAME, TABLE_NAME, PARTITION_NAME, PARTITION_KEY, PARTITION_VALUE FROM `information_schema`.`partitions_meta` WHERE IS_TEMP = 1 AND "
+            + "DB_NAME = ? AND TABLE_NAME = ? AND PARTITION_NAME LIKE ?";
     // Driver name for mysql connector 5.1 which is deprecated in 8.0
     private static final String MYSQL_51_DRIVER_NAME = "com.mysql.jdbc.Driver";
     // Driver name for mysql connector 8.0
@@ -83,6 +88,43 @@ public class StarRocksConnector {
         columns.sort(Comparator.comparingInt(StarRocksField::getOrdinalPosition));
 
         return new StarRocksSchema(columns, pks);
+    }
+
+    public static PartitionType getPartitionType(StarRocksConfig config) {
+        String showCreateTableDDL = String.format("SHOW CREATE TABLE `%s`.`%s`", config.getDatabase(), config.getTable());
+        String createTableDDL = "";
+        try (Connection conn = createJdbcConnection(config.getFeJdbcUrl(), config.getUsername(), config.getPassword());
+             PreparedStatement ps = conn.prepareStatement(showCreateTableDDL)) {
+          ResultSet rs = ps.executeQuery();
+          if (rs.next()) {
+            createTableDDL = rs.getString(2);
+          }
+          rs.close();
+        } catch (Exception e) {
+          throw new IllegalStateException("failed to show table ddl, " + e.getMessage(), e);
+        }
+        return createTableDDL.contains("PARTITION BY RANGE(") ?
+            PartitionType.RANGE:
+            createTableDDL.contains("PARTITION BY LIST(") ?
+                PartitionType.LIST:
+                createTableDDL.contains("PARTITION BY") ?
+                    PartitionType.EXPRESSION : PartitionType.NONE;
+    }
+
+    public static boolean isDynamicPartitionTable(StarRocksConfig config) {
+        String showCreateTableDDL = String.format("SHOW CREATE TABLE `%s`.`%s`", config.getDatabase(), config.getTable());
+        String createTableDDL = "";
+        try (Connection conn = createJdbcConnection(config.getFeJdbcUrl(), config.getUsername(), config.getPassword());
+             PreparedStatement ps = conn.prepareStatement(showCreateTableDDL)) {
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                createTableDDL = rs.getString(2);
+            }
+            rs.close();
+        } catch (Exception e) {
+            throw new IllegalStateException("show create table ddl by sql error, " + e.getMessage(), e);
+        }
+        return createTableDDL.contains("\"dynamic_partition.enable\" = \"true\"");
     }
 
     public static List<String> getDatabases(StarRocksConfig config) {
@@ -186,4 +228,83 @@ public class StarRocksConnector {
         return columnValues;
     }
 
+    private static boolean executeSql(StarRocksConfig config, String sql, String errorMsg) {
+        try (Connection conn = createJdbcConnection(config.getFeJdbcUrl(), config.getUsername(), config.getPassword());
+             Statement statement = conn.createStatement()) {
+            return statement.execute(sql);
+        } catch (Exception e) {
+            throw new IllegalStateException(errorMsg + " , sql: " + sql + " , " + e.getMessage(), e);
+        }
+    }
+
+    public static boolean createTempTable(StarRocksConfig config, String newTableName) {
+        String createTempTableDDL =  String.format("CREATE TABLE `%s`.`%s` LIKE  `%s`.`%s`",
+                config.getDatabase(), newTableName, config.getDatabase(), config.getTable());
+        return executeSql(config, createTempTableDDL, "failed to create table");
+    }
+
+    public static boolean createTemporaryPartition(
+            StarRocksConfig config, String tempPartition, String partitionExpr, PartitionType partitionType) {
+        String createTemporaryPartitionDDL;
+        if (PartitionType.LIST.equals(partitionType)) {
+            createTemporaryPartitionDDL =  String.format("ALTER TABLE `%s`.`%s` ADD TEMPORARY PARTITION %s VALUES IN %s",
+                    config.getDatabase(), config.getTable(), tempPartition, partitionExpr);
+        } else {
+            createTemporaryPartitionDDL = String.format("ALTER TABLE `%s`.`%s` ADD TEMPORARY PARTITION %s VALUES %s",
+                    config.getDatabase(), config.getTable(), tempPartition, partitionExpr);
+        }
+        return executeSql(config, createTemporaryPartitionDDL,
+                "failed to create temporary partition");
+    }
+
+    public static boolean createPartition(
+            StarRocksConfig config, String partitionName, String partitionValue, PartitionType partitionType) {
+        String createPartitionDDL;
+        if (PartitionType.LIST.equals(partitionType)) {
+            createPartitionDDL = String.format("ALTER TABLE `%s`.`%s` ADD PARTITION IF NOT EXISTS %s VALUES IN %s",
+                    config.getDatabase(), config.getTable(), partitionName, partitionValue);
+        } else {
+            createPartitionDDL = String.format("ALTER TABLE `%s`.`%s` ADD PARTITION IF NOT EXISTS %s VALUES %s",
+                    config.getDatabase(), config.getTable(), partitionName, partitionValue);
+        }
+        return executeSql(config, createPartitionDDL, "failed create partition");
+    }
+
+    public static boolean dropAndCreatePartition(StarRocksConfig config, String tempPartition, String partitionExpr,
+            PartitionType partitionType, String overwritePartition) {
+        List<Map<String, String>> existsPartitions = extractColumnValuesBySql(config, TABLE_PARTITION_QUERY,
+            Arrays.asList(config.getDatabase(), config.getTable(), overwritePartition + WriteStarRocksConfig.TEMPORARY_PARTITION_SUFFIX + "%"));
+        existsPartitions.forEach(partition -> {
+            String partitionName = partition.get("PARTITION_NAME");
+            String partitionValue = partition.get("PARTITION_VALUE");
+            logger.info("exists partition {} with value : {}, drop it ...", partitionName, partitionValue);
+            dropTemporaryPartition(config, partitionName);
+        }
+      );
+      return createTemporaryPartition(config, tempPartition, partitionExpr, partitionType);
+    }
+
+    public static boolean swapTable(StarRocksConfig config, String tempTableName) {
+        String swapTableDDL = String.format("ALTER TABLE `%s`.`%s` SWAP WITH `%s`",
+                config.getDatabase(), config.getTable(), tempTableName);
+        return executeSql(config, swapTableDDL, "swap table by sql error");
+    }
+
+    public static boolean replacePartition(StarRocksConfig config, String partitionName, String tempPartitionName) {
+        String replacePartitionDDL = String.format(
+                "ALTER TABLE `%s`.`%s` REPLACE PARTITION (`%s`) WITH TEMPORARY PARTITION (`%s`)",
+                config.getDatabase(), config.getTable(), partitionName, tempPartitionName);
+        return executeSql(config, replacePartitionDDL, "replace partition by sql error");
+    }
+
+    public static boolean dropTemporaryPartition(StarRocksConfig config, String tempPartitionName) {
+        String dropTempPartitionDDL = String.format("ALTER TABLE `%s`.`%s` DROP TEMPORARY PARTITION IF EXISTS %s",
+                config.getDatabase(), config.getTable(), tempPartitionName);
+        return executeSql(config, dropTempPartitionDDL, "drop temporary partition by sql error");
+    }
+
+    public static boolean dropTable(StarRocksConfig config, String tableName) {
+        String dropTableDDL = String.format("DROP TABLE IF EXISTS `%s`.`%s` FORCE", config.getDatabase(), tableName);
+        return executeSql(config, dropTableDDL, "drop table by sql error");
+    }
 }
