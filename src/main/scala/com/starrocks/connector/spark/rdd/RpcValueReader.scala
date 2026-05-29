@@ -125,8 +125,9 @@ class RpcValueReader(partition: RpcPartition, settings: Settings, customSchema: 
   private val openResult: TScanOpenResult = client.openScanner(openParams)
   private val contextId: String = openResult.getContext_id
   protected val schema: StarRocksSchema = if (customSchema != null) {
-    val selectedNames = openResult.getSelected_columns.asScala.map(_.getName).toSet
-    val filteredFields = customSchema.getColumns.asScala.filter(f => selectedNames.contains(f.getName))
+    val selectedNames = openResult.getSelected_columns.asScala.map(_.getName)
+    val customColMap = customSchema.getColumns.asScala.map(f => f.getName -> f).toMap
+    val filteredFields = selectedNames.flatMap(name => customColMap.get(name))
     new StarRocksSchema(filteredFields.asJava)
   } else {
     SchemaUtils.convert(openResult.getSelected_columns.asScala.toSeq)

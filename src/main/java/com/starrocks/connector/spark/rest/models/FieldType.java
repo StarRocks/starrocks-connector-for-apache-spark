@@ -142,10 +142,14 @@ public enum FieldType {
     }
 
     private static String extractInnerContent(String type, String prefix) {
-        if (!type.endsWith(">")) {
+        if (type == null) {
             return null;
         }
-        return type.substring(prefix.length(), type.length() - 1).trim();
+        String upperType = type.toUpperCase();
+        if (!upperType.startsWith(prefix) || !upperType.endsWith(">")) {
+            return null;
+        }
+        return upperType.substring(prefix.length(), upperType.length() - 1).trim();
     }
 
     private static java.util.List<String> splitByComma(String content) {
@@ -204,11 +208,15 @@ public enum FieldType {
 
         // For simple types, remove parameters
         int parenIdx = type.indexOf('(');
-        if (parenIdx > 0) {
-            return type.substring(0, parenIdx).toUpperCase().replace("DECIMAL", "DECIMALV2");
+        String upperBase = parenIdx > 0 ? type.substring(0, parenIdx).toUpperCase() : type.toUpperCase();
+
+        // Map precision-qualified DECIMAL variants to canonical names
+        if (upperBase.equals("DECIMAL")) {
+            return "DECIMALV2";
         }
 
-        return type.toUpperCase().replace("DECIMAL", "DECIMALV2");
+        // DECIMAL32/64/128 and all other types retain their name as-is
+        return upperBase;
     }
 
 

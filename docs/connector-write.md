@@ -135,6 +135,8 @@ Directly download the corresponding version of the Spark connector JAR from the 
 	| DateType        | DATE                                                         |
 	| TimestampType   | DATETIME                                                     |
 	| ArrayType       | ARRAY <br> **NOTE:** <br> **Supported since version 1.1.1**. For detailed steps, see [Load data into columns of ARRAY type](#load-data-into-columns-of-array-type). |
+	| MapType         | MAP <br> **NOTE:** <br> **Supported since version 1.1.3**. For detailed steps, see [Load nested columns](#load-nested-columns-struct-array-and-map). |
+	| StructType      | STRUCT <br> **NOTE:** <br> **Supported since version 1.1.3**. For detailed steps, see [Load nested columns](#load-nested-columns-struct-array-and-map). |
 
 - You can also customize the data type mapping.
 
@@ -708,4 +710,70 @@ MySQL [test]> SELECT * FROM `array_tbl`;
 |    2 | ["hello","spark"]     | [[5,6,7],[8,9,10]] |
 +------+-----------------------+--------------------+
 2 rows in set (0.01 sec)
+```
+
+## Load nested columns (STRUCT, ARRAY, and MAP)
+
+**Supported since version 1.1.3.**
+
+The Spark connector supports writing StarRocks columns of type `STRUCT`, `ARRAY`, and `MAP`. You must declare the StarRocks column types using the `starrocks.column.types` option so the connector can serialize the data correctly.
+
+### Serialization format
+
+Nested values are serialized as JSON-compatible strings before being sent to StarRocks via Stream Load:
+
+- `STRUCT` columns are serialized as a JSON object: `{"field1": value1, "field2": value2}`.
+- `ARRAY` columns are serialized as a JSON array: `[value1, value2, ...]`.
+- `MAP` columns are serialized as a JSON object: `{"key1": value1, "key2": value2}`.
+
+### Example
+
+Given the following StarRocks table:
+
+```sql
+CREATE TABLE nested_tbl (
+    id          INT,
+    info        STRUCT<type STRING, phone BIGINT>,
+    tags        ARRAY<STRING>,
+    attributes  MAP<STRING, STRING>
+) ENGINE=OLAP
+DUPLICATE KEY(id)
+DISTRIBUTED BY HASH(id) BUCKETS 4;
+```
+
+Write data from Spark:
+
+```scala
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.Row
+
+val schema = StructType(Seq(
+  StructField("id", IntegerType),
+  StructField("info", StructType(Seq(
+    StructField("type", StringType),
+    StructField("phone", LongType)
+  ))),
+  StructField("tags", ArrayType(StringType)),
+  StructField("attributes", MapType(StringType, StringType))
+))
+
+val data = Seq(
+  Row(1, Row("admin", 123456789L), Seq("spark", "starrocks"), Map("env" -> "prod"))
+)
+
+val df = spark.createDataFrame(spark.sparkContext.parallelize(data), schema)
+
+val columnTypes =
+  "info STRUCT<type STRING, phone BIGINT>, " +
+  "tags ARRAY<STRING>, " +
+  "attributes MAP<STRING, STRING>"
+
+df.write.format("starrocks")
+  .option("starrocks.fenodes", "127.0.0.1:8030")
+  .option("starrocks.table.identifier", "test.nested_tbl")
+  .option("starrocks.user", "root")
+  .option("starrocks.password", "")
+  .option("starrocks.column.types", columnTypes)
+  .mode("append")
+  .save()
 ```
