@@ -63,6 +63,7 @@ public abstract class ITTestBase {
 
     @BeforeEach
     public void beforeClass() throws Exception {
+        if (!DEBUG_MODE) {
             try {
                 StarRocksTestEnvironment env = StarRocksTestEnvironment.getInstance();
                 env.startIfNeeded();
@@ -73,7 +74,7 @@ public abstract class ITTestBase {
             } catch (Throwable t) {
                 LOG.warn("Failed to start StarRocks container, ITs may be skipped if no external cluster is provided.", t);
             }
-
+        }
         assertTrue(FE_HTTP != null && FE_JDBC != null);
  
         DB_NAME = "sr_test_" + genRandomUuid();

@@ -74,7 +74,7 @@
         <scala-maven-plugin.version>3.2.1</scala-maven-plugin.version>
         <mockito-scala.version>1.6.2</mockito-scala.version>
         <commons-lang3.version>3.12.0</commons-lang3.version>
-        <surefire.argLine>--add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/sun.util.calendar=ALL-UNNAMED</surefire.argLine>
+        <surefire.argLine></surefire.argLine>
     </properties>
 
     <profiles>
@@ -252,6 +252,7 @@
                 <mockito-scala.version>1.17.37</mockito-scala.version>
                 <commons-lang3.version>3.17.0</commons-lang3.version>
                 <arrow.version>18.1.0</arrow.version>
+                <surefire.argLine>--add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/sun.util.calendar=ALL-UNNAMED</surefire.argLine>
             </properties>
 
             <dependencies>

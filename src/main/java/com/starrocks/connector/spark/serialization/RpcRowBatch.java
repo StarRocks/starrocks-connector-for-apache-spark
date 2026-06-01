@@ -119,9 +119,180 @@ public class RpcRowBatch extends BaseRowBatch {
                 FieldType fieldType = FieldType.of(currentType);
                 StarRocksField schemaField = schema.getColumns().get(col);
 
-                for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
-                    Object value = convertValue(curFieldVector, mt, fieldType, rowIndex, schemaField);
-                    addValueToRow(rowIndex, value);
+                // For complex types (STRUCT/ARRAY/MAP), use the generic convertValue path
+                if (fieldType == FieldType.STRUCT || fieldType == FieldType.ARRAY || fieldType == FieldType.MAP) {
+                    for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                        Object value = convertValue(curFieldVector, mt, fieldType, rowIndex, schemaField);
+                        addValueToRow(rowIndex, value);
+                    }
+                    continue;
+                }
+
+                // For primitive types, use the original tight loop (cast vector once, iterate rows)
+                switch (fieldType) {
+case NULL:
+                        for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                            addValueToRow(rowIndex, null);
+                        }
+                        break;
+                    case BOOLEAN:
+                        Preconditions.checkArgument(mt.equals(Types.MinorType.BIT),
+                                typeMismatchMessage(currentType, mt));
+                        BitVector bitVector = (BitVector) curFieldVector;
+                        for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                            Object fieldValue = bitVector.isNull(rowIndex) ? null : bitVector.get(rowIndex) != 0;
+                            addValueToRow(rowIndex, fieldValue);
+                        }
+                        break;
+                    case TINYINT:
+                        Preconditions.checkArgument(mt.equals(Types.MinorType.TINYINT),
+                                typeMismatchMessage(currentType, mt));
+                        TinyIntVector tinyIntVector = (TinyIntVector) curFieldVector;
+                        for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                            Object fieldValue = tinyIntVector.isNull(rowIndex) ? null : tinyIntVector.get(rowIndex);
+                            addValueToRow(rowIndex, fieldValue);
+                        }
+                        break;
+                    case SMALLINT:
+                        Preconditions.checkArgument(mt.equals(Types.MinorType.SMALLINT),
+                                typeMismatchMessage(currentType, mt));
+                        SmallIntVector smallIntVector = (SmallIntVector) curFieldVector;
+                        for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                            Object fieldValue = smallIntVector.isNull(rowIndex) ? null : smallIntVector.get(rowIndex);
+                            addValueToRow(rowIndex, fieldValue);
+                        }
+                        break;
+                    case INT:
+                        Preconditions.checkArgument(mt.equals(Types.MinorType.INT),
+                                typeMismatchMessage(currentType, mt));
+                        IntVector intVector = (IntVector) curFieldVector;
+                        for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                            Object fieldValue = intVector.isNull(rowIndex) ? null : intVector.get(rowIndex);
+                            addValueToRow(rowIndex, fieldValue);
+                        }
+                        break;
+                    case BIGINT:
+                        Preconditions.checkArgument(mt.equals(Types.MinorType.BIGINT),
+                                typeMismatchMessage(currentType, mt));
+                        BigIntVector bigIntVector = (BigIntVector) curFieldVector;
+                        for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                            Object fieldValue = bigIntVector.isNull(rowIndex) ? null : bigIntVector.get(rowIndex);
+                            addValueToRow(rowIndex, fieldValue);
+                        }
+                        break;
+                    case FLOAT:
+                        Preconditions.checkArgument(mt.equals(Types.MinorType.FLOAT4),
+                                typeMismatchMessage(currentType, mt));
+                        Float4Vector float4Vector = (Float4Vector) curFieldVector;
+                        for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                            Object fieldValue = float4Vector.isNull(rowIndex) ? null : float4Vector.get(rowIndex);
+                            addValueToRow(rowIndex, fieldValue);
+                        }
+                        break;
+                    case TIME:
+                    case DOUBLE:
+                        Preconditions.checkArgument(mt.equals(Types.MinorType.FLOAT8),
+                                typeMismatchMessage(currentType, mt));
+                        Float8Vector float8Vector = (Float8Vector) curFieldVector;
+                        for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                            Object fieldValue = float8Vector.isNull(rowIndex) ? null : float8Vector.get(rowIndex);
+                            addValueToRow(rowIndex, fieldValue);
+                        }
+                        break;
+                    case BINARY:
+                        Preconditions.checkArgument(mt.equals(Types.MinorType.VARBINARY),
+                                typeMismatchMessage(currentType, mt));
+                        VarBinaryVector varBinaryVector = (VarBinaryVector) curFieldVector;
+                        for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                            Object fieldValue = varBinaryVector.isNull(rowIndex) ? null : varBinaryVector.get(rowIndex);
+                            addValueToRow(rowIndex, fieldValue);
+                        }
+                        break;
+                    case DECIMAL:
+                        Preconditions.checkArgument(mt.equals(Types.MinorType.VARCHAR),
+                                typeMismatchMessage(currentType, mt));
+                        VarCharVector varCharVectorForDecimal = (VarCharVector) curFieldVector;
+                        for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                            if (varCharVectorForDecimal.isNull(rowIndex)) {
+                                addValueToRow(rowIndex, null);
+                                continue;
+                            }
+                            String decimalValue = new String(varCharVectorForDecimal.get(rowIndex));
+                            Decimal decimal = new Decimal();
+                            try {
+                                decimal.set(new scala.math.BigDecimal(new BigDecimal(decimalValue)));
+                            } catch (NumberFormatException e) {
+                                String errMsg = "Decimal response result '" + decimalValue + "' is illegal.";
+                                logger.error(errMsg, e);
+                                throw new StarRocksException(errMsg);
+                            }
+                            addValueToRow(rowIndex, decimal);
+                        }
+                        break;
+                    case DECIMALV2:
+                    case DECIMAL32:
+                    case DECIMAL64:
+                    case DECIMAL128:
+                        Preconditions.checkArgument(mt.equals(Types.MinorType.DECIMAL),
+                                typeMismatchMessage(currentType, mt));
+                        DecimalVector decimalVector = (DecimalVector) curFieldVector;
+                        for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                            if (decimalVector.isNull(rowIndex)) {
+                                addValueToRow(rowIndex, null);
+                                continue;
+                            }
+                            Decimal decimal = Decimal.apply(decimalVector.getObject(rowIndex));
+                            addValueToRow(rowIndex, decimal);
+                        }
+                        break;
+                    case DATE:
+                        Preconditions.checkArgument(mt.equals(Types.MinorType.VARCHAR),
+                                typeMismatchMessage(currentType, mt));
+                        VarCharVector varCharVectorForDate = (VarCharVector) curFieldVector;
+                        for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                            if (varCharVectorForDate.isNull(rowIndex)) {
+                                addValueToRow(rowIndex, null);
+                                continue;
+                            }
+                            String value = new String(varCharVectorForDate.get(rowIndex));
+                            LocalDate parsedTime = LocalDate.parse(value, dateFormatter);
+
+                            addValueToRow(rowIndex, Date.valueOf(parsedTime));
+                        }
+                        break;
+                    case DATETIME:
+                        Preconditions.checkArgument(mt.equals(Types.MinorType.VARCHAR),
+                                typeMismatchMessage(currentType, mt));
+                        VarCharVector varCharVectorForDateTime = (VarCharVector) curFieldVector;
+                        for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                            if (varCharVectorForDateTime.isNull(rowIndex)) {
+                                addValueToRow(rowIndex, null);
+                                continue;
+                            }
+                            String value = new String(varCharVectorForDateTime.get(rowIndex));
+                            ZonedDateTime zonedDateTime = ZonedDateTime.parse(value, dateTimeFormatter);
+                            addValueToRow(rowIndex, Timestamp.from(zonedDateTime.toInstant()));
+                        }
+                        break;
+                    case LARGEINT:
+                    case VARCHAR:
+                    case CHAR:
+                        Preconditions.checkArgument(mt.equals(Types.MinorType.VARCHAR),
+                                typeMismatchMessage(currentType, mt));
+                        VarCharVector varCharVector = (VarCharVector) curFieldVector;
+                        for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                            if (varCharVector.isNull(rowIndex)) {
+                                addValueToRow(rowIndex, null);
+                                continue;
+                            }
+                            String value = new String(varCharVector.get(rowIndex));
+                            addValueToRow(rowIndex, value);
+                        }
+                        break;
+                    default:
+                        String errMsg = "Unsupported type " + schema.getColumns().get(col).getType();
+                        logger.error(errMsg);
+                        throw new StarRocksException(errMsg);
                 }
             }
         } catch (Exception e) {
@@ -238,7 +409,7 @@ public class RpcRowBatch extends BaseRowBatch {
                 if (varCharVector.isNull(rowIndex)) {
                     return null;
                 }
-                return new String(varCharVector.get(rowIndex));
+                return UTF8String.fromBytes(varCharVector.get(rowIndex));
             case STRUCT:
                 return convertStructValue(vector, arrowType, rowIndex, schemaField);
             case ARRAY:
@@ -282,7 +453,8 @@ public class RpcRowBatch extends BaseRowBatch {
             Types.MinorType childType = childVector.getMinorType();
             FieldType childFieldType = FieldType.elegantOf(childTypes[i])
                     .orElse(FieldType.VARCHAR);
-            childValues[i] = convertValue(childVector, childType, childFieldType, rowIndex, null);
+            StarRocksField childSchemaField = new StarRocksField(childVector.getName(), childTypes[i], i, null, null, null);
+            childValues[i] = convertValue(childVector, childType, childFieldType, rowIndex, childSchemaField);
         }
         return childValues;
     }
@@ -292,19 +464,24 @@ public class RpcRowBatch extends BaseRowBatch {
         if (listVector.isNull(rowIndex)) {
             return null;
         }
-        int start = listVector.getOffsetBuffer().getInt(rowIndex * 4);
-        int end = listVector.getOffsetBuffer().getInt((rowIndex + 1) * 4);
+        int start = listVector.getElementStartIndex(rowIndex);
+        int end = listVector.getElementEndIndex(rowIndex);
         FieldVector childVector = listVector.getDataVector();
 
-        String childTypes = FieldType.extractArrayTypes(
-                schemaField == null ? null : schemaField.getType())[0];
+        String[] extractedTypes = FieldType.extractArrayTypes(
+                schemaField == null ? null : schemaField.getType());
+        if (extractedTypes.length == 0) {
+            throw new StarRocksException("Failed to extract array element type from schema field: " + 
+                    (schemaField == null ? "null" : schemaField.getType()));
+        }
+        String childTypeStr = extractedTypes[0];
 
-        StarRocksField valueSchemaField = new StarRocksField("array", childTypes, 0, null, null, null);
+        StarRocksField valueSchemaField = new StarRocksField("array", childTypeStr, 0, null, null, null);
 
         List<Object> array = new java.util.ArrayList<>();
         for (int i = start; i < end; i++) {
             Types.MinorType childType = childVector.getMinorType();
-            FieldType childFieldType = FieldType.elegantOf(DataTypeUtils.map(childType)).orElse(FieldType.VARCHAR);
+            FieldType childFieldType = FieldType.elegantOf(childTypeStr).orElse(FieldType.VARCHAR);
             array.add(convertValue(childVector, childType, childFieldType, i, valueSchemaField));
         }
         return array;
@@ -315,26 +492,30 @@ public class RpcRowBatch extends BaseRowBatch {
         if (mapVector.isNull(rowIndex)) {
             return null;
         }
-        int start = mapVector.getOffsetBuffer().getInt(rowIndex * 4);
-        int end = mapVector.getOffsetBuffer().getInt((rowIndex + 1) * 4);
+        int start = mapVector.getElementStartIndex(rowIndex);
+        int end = mapVector.getElementEndIndex(rowIndex);
         FieldVector entryVector = mapVector.getDataVector();
         FieldVector keyVector = ((org.apache.arrow.vector.complex.StructVector) entryVector).getChild("key");
         FieldVector valueVector = ((org.apache.arrow.vector.complex.StructVector) entryVector).getChild("value");
 
-        String[] childTypes = FieldType.extractMapTypes(
+        String[] extractedTypes = FieldType.extractMapTypes(
                 schemaField == null ? null : schemaField.getType());
+        if (extractedTypes.length < 2) {
+            throw new StarRocksException("Failed to extract map key/value types from schema field: " + 
+                    (schemaField == null ? "null" : schemaField.getType()));
+        }
 
-        StarRocksField keySchemaField = new StarRocksField("key", childTypes[0], 0, null, null, null);
-        StarRocksField valueSchemaField = new StarRocksField("value", childTypes[1], 1, null, null, null);
+        StarRocksField keySchemaField = new StarRocksField("key", extractedTypes[0], 0, null, null, null);
+        StarRocksField valueSchemaField = new StarRocksField("value", extractedTypes[1], 1, null, null, null);
 
-        java.util.Map<Object, Object> map = new java.util.HashMap<>();
+        java.util.Map<Object, Object> map = new java.util.LinkedHashMap<>();
         for (int i = start; i < end; i++) {
             Types.MinorType keyType = keyVector.getMinorType();
-            FieldType keyFieldType = FieldType.elegantOf(DataTypeUtils.map(keyType)).orElse(FieldType.VARCHAR);
+            FieldType keyFieldType = FieldType.elegantOf(extractedTypes[0]).orElse(FieldType.VARCHAR);
             Object key = convertValue(keyVector, keyType, keyFieldType, i, keySchemaField);
 
             Types.MinorType valueType = valueVector.getMinorType();
-            FieldType valueFieldType = FieldType.elegantOf(DataTypeUtils.map(valueType)).orElse(FieldType.VARCHAR);
+            FieldType valueFieldType = FieldType.elegantOf(extractedTypes[1]).orElse(FieldType.VARCHAR);
             Object value = convertValue(valueVector, valueType, valueFieldType, i, valueSchemaField);
 
             map.put(key, value);
