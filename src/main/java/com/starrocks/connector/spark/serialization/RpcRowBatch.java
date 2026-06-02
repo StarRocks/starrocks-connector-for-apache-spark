@@ -254,7 +254,7 @@ case NULL:
                                 addValueToRow(rowIndex, null);
                                 continue;
                             }
-                            String value = new String(varCharVectorForDate.get(rowIndex));
+                            String value = new String(varCharVectorForDate.get(rowIndex), StandardCharsets.UTF_8);
                             LocalDate parsedTime = LocalDate.parse(value, dateFormatter);
 
                             addValueToRow(rowIndex, Date.valueOf(parsedTime));
@@ -269,7 +269,7 @@ case NULL:
                                 addValueToRow(rowIndex, null);
                                 continue;
                             }
-                            String value = new String(varCharVectorForDateTime.get(rowIndex));
+                            String value = new String(varCharVectorForDateTime.get(rowIndex), StandardCharsets.UTF_8);
                             ZonedDateTime zonedDateTime = ZonedDateTime.parse(value, dateTimeFormatter);
                             addValueToRow(rowIndex, Timestamp.from(zonedDateTime.toInstant()));
                         }
@@ -285,7 +285,7 @@ case NULL:
                                 addValueToRow(rowIndex, null);
                                 continue;
                             }
-                            String value = new String(varCharVector.get(rowIndex));
+                            String value = new String(varCharVector.get(rowIndex), StandardCharsets.UTF_8);
                             addValueToRow(rowIndex, value);
                         }
                         break;
@@ -409,7 +409,7 @@ case NULL:
                 if (varCharVector.isNull(rowIndex)) {
                     return null;
                 }
-                return UTF8String.fromBytes(varCharVector.get(rowIndex));
+                return new String(varCharVector.get(rowIndex), StandardCharsets.UTF_8);
             case STRUCT:
                 return convertStructValue(vector, arrowType, rowIndex, schemaField);
             case ARRAY:
@@ -451,7 +451,11 @@ case NULL:
         for (int i = 0; i < children.size(); i++) {
             FieldVector childVector = children.get(i);
             Types.MinorType childType = childVector.getMinorType();
-            FieldType childFieldType = FieldType.elegantOf(childTypes[i])
+            // Extract base type name for complex types (e.g., "ARRAY<INT>" -> "ARRAY")
+            String childBaseTypeName = childTypes[i].contains("<")
+                ? childTypes[i].substring(0, childTypes[i].indexOf("<")).trim()
+                : childTypes[i];
+            FieldType childFieldType = FieldType.elegantOf(childBaseTypeName)
                     .orElse(FieldType.VARCHAR);
             StarRocksField childSchemaField = new StarRocksField(childVector.getName(), childTypes[i], i, null, null, null);
             childValues[i] = convertValue(childVector, childType, childFieldType, rowIndex, childSchemaField);
@@ -481,7 +485,11 @@ case NULL:
         List<Object> array = new java.util.ArrayList<>();
         for (int i = start; i < end; i++) {
             Types.MinorType childType = childVector.getMinorType();
-            FieldType childFieldType = FieldType.elegantOf(childTypeStr).orElse(FieldType.VARCHAR);
+            // Extract base type name for complex types (e.g., "STRUCT<...>" -> "STRUCT")
+            String baseTypeName = childTypeStr.contains("<") 
+                ? childTypeStr.substring(0, childTypeStr.indexOf("<")).trim()
+                : childTypeStr;
+            FieldType childFieldType = FieldType.elegantOf(baseTypeName).orElse(FieldType.VARCHAR);
             array.add(convertValue(childVector, childType, childFieldType, i, valueSchemaField));
         }
         return array;
@@ -511,11 +519,19 @@ case NULL:
         java.util.Map<Object, Object> map = new java.util.LinkedHashMap<>();
         for (int i = start; i < end; i++) {
             Types.MinorType keyType = keyVector.getMinorType();
-            FieldType keyFieldType = FieldType.elegantOf(extractedTypes[0]).orElse(FieldType.VARCHAR);
+            // Extract base type name for complex types (e.g., "STRUCT<...>" -> "STRUCT")
+            String keyBaseTypeName = extractedTypes[0].contains("<")
+                ? extractedTypes[0].substring(0, extractedTypes[0].indexOf("<")).trim()
+                : extractedTypes[0];
+            FieldType keyFieldType = FieldType.elegantOf(keyBaseTypeName).orElse(FieldType.VARCHAR);
             Object key = convertValue(keyVector, keyType, keyFieldType, i, keySchemaField);
 
             Types.MinorType valueType = valueVector.getMinorType();
-            FieldType valueFieldType = FieldType.elegantOf(extractedTypes[1]).orElse(FieldType.VARCHAR);
+            // Extract base type name for complex types (e.g., "ARRAY<INT>" -> "ARRAY")
+            String valueBaseTypeName = extractedTypes[1].contains("<")
+                ? extractedTypes[1].substring(0, extractedTypes[1].indexOf("<")).trim()
+                : extractedTypes[1];
+            FieldType valueFieldType = FieldType.elegantOf(valueBaseTypeName).orElse(FieldType.VARCHAR);
             Object value = convertValue(valueVector, valueType, valueFieldType, i, valueSchemaField);
 
             map.put(key, value);
