@@ -137,11 +137,17 @@ class RpcValueReader(partition: RpcPartition, settings: Settings, customSchema: 
         val customType = customField.getType
         // Use BE type if it's a simple primitive that BE recognizes
         // Otherwise use JDBC type for nested structures
-        if (customType != null && (customType.startsWith("STRUCT<") || customType.startsWith("ARRAY<") || customType.startsWith("MAP<"))) {
-          // Nested type - use JDBC schema which has full structure
-          customField
+        // JDBC types are lowercase, so check case-insensitively
+        if (customType != null) {
+          val upperType = customType.toUpperCase()
+          if (upperType.startsWith("STRUCT<") || upperType.startsWith("ARRAY<") || upperType.startsWith("MAP<")) {
+            // Nested type - use JDBC schema which has full structure
+            customField
+          } else {
+            // Primitive type - prefer BE's normalized type
+            beFieldMap.getOrElse(name, customField)
+          }
         } else {
-          // Primitive type - prefer BE's normalized type
           beFieldMap.getOrElse(name, customField)
         }
       }

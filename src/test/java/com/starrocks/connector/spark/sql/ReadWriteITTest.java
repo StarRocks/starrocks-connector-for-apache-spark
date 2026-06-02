@@ -1795,4 +1795,129 @@ public class ReadWriteITTest extends ITTestBase {
 
         verifyRows(expectedData, actualWriteData);
     }
+
+    @Test
+    public void testNestedFieldsWithVarcharAndDecimal() throws Exception {
+        String tableName = "testNestedFieldsWithVarcharAndDecimal_" + genRandomUuid();
+        // Create table with nested VARCHAR fields, deeply nested types, and decimals
+        String createStarRocksTable = String.format("CREATE TABLE `%s`.`%s` (" +
+                "id INT," +
+                "price DECIMAL(10,2)," +
+                "user_info STRUCT<name VARCHAR(100), email VARCHAR(100)>," +
+                "orders ARRAY<STRUCT<product VARCHAR(50), quantity INT>>," +
+                "metadata MAP<STRING, STRUCT<value VARCHAR(200), timestamp BIGINT>>" +
+                ") ENGINE=OLAP " +
+                "PRIMARY KEY(`id`) " +
+                "DISTRIBUTED BY HASH(`id`) BUCKETS 2 " +
+                "PROPERTIES (" +
+                "\"replication_num\" = \"1\"" +
+                ")",
+                DB_NAME, tableName);
+        executeSrSQL(createStarRocksTable);
+        SparkSession spark = SparkSession.builder().master("local[1]").appName("testNestedFieldsWithVarcharAndDecimal").getOrCreate();
+
+        // Define schema
+        StructType userInfoType = DataTypes.createStructType(Arrays.asList(
+                new StructField("name", DataTypes.StringType, true, Metadata.empty()),
+                new StructField("email", DataTypes.StringType, true, Metadata.empty())
+        ));
+        StructType orderType = DataTypes.createStructType(Arrays.asList(
+                new StructField("product", DataTypes.StringType, true, Metadata.empty()),
+                new StructField("quantity", DataTypes.IntegerType, true, Metadata.empty())
+        ));
+        StructType metadataValueType = DataTypes.createStructType(Arrays.asList(
+                new StructField("value", DataTypes.StringType, true, Metadata.empty()),
+                new StructField("timestamp", DataTypes.LongType, true, Metadata.empty())
+        ));
+        StructType mainStructType = DataTypes.createStructType(Arrays.asList(
+                new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
+                new StructField("price", new DecimalType(10, 2), true, Metadata.empty()),
+                new StructField("user_info", userInfoType, true, Metadata.empty()),
+                new StructField("orders", new ArrayType(orderType, true), true, Metadata.empty()),
+                new StructField("metadata", DataTypes.createMapType(DataTypes.StringType, metadataValueType, true), true, Metadata.empty())
+        ));
+
+        // Create test data
+        Map<String, Row> metadataMap = new HashMap<>();
+        metadataMap.put("source", RowFactory.create("web", 1234567890L));
+        metadataMap.put("campaign", RowFactory.create("summer_sale", 1234567891L));
+
+        List<Row> data = Arrays.asList(
+                RowFactory.create(
+                        1,
+                        new BigDecimal("99.99"),
+                        RowFactory.create("John Doe", "john@example.com"),
+                        Arrays.asList(
+                                RowFactory.create("Laptop", 1),
+                                RowFactory.create("Mouse", 2)
+                        ),
+                        metadataMap
+                ),
+                RowFactory.create(
+                        2,
+                        new BigDecimal("49.50"),
+                        RowFactory.create("Jane Smith", "jane@example.com"),
+                        Arrays.asList(RowFactory.create("Keyboard", 1)),
+                        Collections.singletonMap("source", RowFactory.create("mobile", 9876543210L))
+                )
+        );
+
+        Dataset<Row> df = spark.createDataFrame(data, mainStructType);
+
+        Map<String, String> options = new HashMap<>();
+        options.put("starrocks.fe.http.url", FE_HTTP);
+        options.put("starrocks.fe.jdbc.url", FE_JDBC);
+        options.put("starrocks.table.identifier", String.join(".", DB_NAME, tableName));
+        options.put("starrocks.user", USER);
+        options.put("starrocks.password", PASSWORD);
+
+        String columnTypes = "id INT, price DECIMAL(10,2), user_info STRUCT<name VARCHAR(100), email VARCHAR(100)>, orders ARRAY<STRUCT<product VARCHAR(50), quantity INT>>, metadata MAP<STRING, STRUCT<value VARCHAR(200), timestamp BIGINT>>";
+
+        // Write data
+        df.write().format("starrocks")
+                .option("starrocks.column.types", columnTypes)
+                .mode(SaveMode.Append)
+                .options(options)
+                .save();
+
+        // Read back and verify
+        List<Row> actualData = spark.read().format("starrocks")
+                .option("starrocks.column.types", columnTypes)
+                .option("starrocks.table.identifier", String.join(".", DB_NAME, tableName))
+                .option("starrocks.fe.http.url", FE_HTTP)
+                .option("starrocks.fe.jdbc.url", FE_JDBC)
+                .option("starrocks.user", USER)
+                .option("starrocks.password", PASSWORD)
+                .load()
+                .collectAsList();
+
+        // Verify we got 2 rows
+        Assertions.assertEquals(2, actualData.size(), "Should have 2 rows");
+
+        // Verify row 1
+        Row row1 = actualData.stream().filter(r -> r.getInt(0) == 1).findFirst().orElse(null);
+        Assertions.assertNotNull(row1, "Row with id=1 should exist");
+        Assertions.assertEquals(new BigDecimal("99.99"), row1.getDecimal(1), "Decimal should be preserved");
+        
+        // Verify nested VARCHAR in STRUCT (tests String return, not UTF8String)
+        Row userInfo1 = row1.getStruct(2);
+        Assertions.assertEquals("John Doe", userInfo1.getString(0), "Nested VARCHAR should work");
+        Assertions.assertEquals("john@example.com", userInfo1.getString(1), "Nested VARCHAR should work");
+
+        // Verify ARRAY<STRUCT<...>> (tests deeply nested dispatch)
+        List<Row> orders1 = row1.getList(3);
+        Assertions.assertEquals(2, orders1.size(), "Should have 2 orders");
+        Assertions.assertEquals("Laptop", orders1.get(0).getString(0), "Nested VARCHAR in array should work");
+        Assertions.assertEquals(1, orders1.get(0).getInt(1), "Nested INT in array should work");
+
+        // Verify MAP<STRING, STRUCT<...>> (tests map with nested values)
+        Map<String, Row> metadata1 = row1.getJavaMap(4);
+        Assertions.assertTrue(metadata1.containsKey("source"), "Map should contain 'source' key");
+        Assertions.assertEquals("web", metadata1.get("source").getString(0), "Nested VARCHAR in map value should work");
+
+        // Verify row 2
+        Row row2 = actualData.stream().filter(r -> r.getInt(0) == 2).findFirst().orElse(null);
+        Assertions.assertNotNull(row2, "Row with id=2 should exist");
+        Assertions.assertEquals(new BigDecimal("49.50"), row2.getDecimal(1), "Decimal should be preserved");
+    }
 }
