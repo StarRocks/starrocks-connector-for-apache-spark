@@ -125,9 +125,27 @@ class RpcValueReader(partition: RpcPartition, settings: Settings, customSchema: 
   private val openResult: TScanOpenResult = client.openScanner(openParams)
   private val contextId: String = openResult.getContext_id
   protected val schema: StarRocksSchema = if (customSchema != null) {
+    // For nested types, use customSchema (JDBC) which has full type structure
+    // For primitives, prefer BE normalized types to avoid JDBC format issues (e.g., "decimal(10,2)" vs "DECIMAL")
+    val beSchema = SchemaUtils.convert(openResult.getSelected_columns.asScala.toSeq)
+    val beFieldMap = beSchema.getColumns.asScala.map(f => f.getName -> f).toMap
+    val customFieldMap = customSchema.getColumns.asScala.map(f => f.getName -> f).toMap
     val selectedNames = openResult.getSelected_columns.asScala.map(_.getName)
-    val customColMap = customSchema.getColumns.asScala.map(f => f.getName -> f).toMap
-    val filteredFields = selectedNames.flatMap(name => customColMap.get(name))
+    
+    val filteredFields = selectedNames.flatMap { name =>
+      customFieldMap.get(name).map { customField =>
+        val customType = customField.getType
+        // Use BE type if it's a simple primitive that BE recognizes
+        // Otherwise use JDBC type for nested structures
+        if (customType != null && (customType.startsWith("STRUCT<") || customType.startsWith("ARRAY<") || customType.startsWith("MAP<"))) {
+          // Nested type - use JDBC schema which has full structure
+          customField
+        } else {
+          // Primitive type - prefer BE's normalized type
+          beFieldMap.getOrElse(name, customField)
+        }
+      }
+    }
     new StarRocksSchema(filteredFields.asJava)
   } else {
     SchemaUtils.convert(openResult.getSelected_columns.asScala.toSeq)
