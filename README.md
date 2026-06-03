@@ -1,6 +1,6 @@
 # StarRocks Connector for Apache Spark™
 
-The connector supports to read from and write to StarRocks through Apache Spark™.
+The connector supports to read from and write to StarRocks through Apache Spark™. Supported StarRocks data types include primitive types as well as `ARRAY`, `MAP`, and `STRUCT` (nested fields supported since version 1.1.3).
 
 ## Documentation
 

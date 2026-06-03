@@ -42,7 +42,7 @@ import scala.util.control.Breaks
  * @param partition Starrocks RDD partition
  * @param settings  request configuration
  */
-class RpcValueReader(partition: RpcPartition, settings: Settings)
+class RpcValueReader(partition: RpcPartition, settings: Settings, customSchema: StarRocksSchema)
   extends BaseValueReader(partition, settings, null) {
   protected val logger = LoggerFactory.getLogger(classOf[RpcValueReader])
   protected val client = new BackendClient(new Routing(partition.getBeAddress), settings)
@@ -124,7 +124,38 @@ class RpcValueReader(partition: RpcPartition, settings: Settings)
 
   private val openResult: TScanOpenResult = client.openScanner(openParams)
   private val contextId: String = openResult.getContext_id
-  protected val schema: StarRocksSchema = SchemaUtils.convert(openResult.getSelected_columns.asScala.toSeq)
+  protected val schema: StarRocksSchema = if (customSchema != null) {
+    // For nested types, use customSchema (JDBC) which has full type structure
+    // For primitives, prefer BE normalized types to avoid JDBC format issues (e.g., "decimal(10,2)" vs "DECIMAL")
+    val beSchema = SchemaUtils.convert(openResult.getSelected_columns.asScala.toSeq)
+    val beFieldMap = beSchema.getColumns.asScala.map(f => f.getName -> f).toMap
+    val customFieldMap = customSchema.getColumns.asScala.map(f => f.getName -> f).toMap
+    val selectedNames = openResult.getSelected_columns.asScala.map(_.getName)
+    
+    val filteredFields = selectedNames.flatMap { name =>
+      customFieldMap.get(name).map { customField =>
+        val customType = customField.getType
+        // Use BE type if it's a simple primitive that BE recognizes
+        // Otherwise use JDBC type for nested structures
+        // JDBC types are lowercase, so check case-insensitively
+        if (customType != null) {
+          val upperType = customType.toUpperCase()
+          if (upperType.startsWith("STRUCT<") || upperType.startsWith("ARRAY<") || upperType.startsWith("MAP<")) {
+            // Nested type - use JDBC schema which has full structure
+            customField
+          } else {
+            // Primitive type - prefer BE's normalized type
+            beFieldMap.getOrElse(name, customField)
+          }
+        } else {
+          beFieldMap.getOrElse(name, customField)
+        }
+      }
+    }
+    new StarRocksSchema(filteredFields.asJava)
+  } else {
+    SchemaUtils.convert(openResult.getSelected_columns.asScala.toSeq)
+  }
 
   private val asyncThread: Thread = new Thread {
     override def run {
@@ -203,4 +234,7 @@ class RpcValueReader(partition: RpcPartition, settings: Settings)
     closeParams.context_id = contextId
     client.closeScanner(closeParams)
   }
+
+  // Secondary constructor without customSchema
+  def this(partition: RpcPartition, settings: Settings) = this(partition, settings, null)
 }

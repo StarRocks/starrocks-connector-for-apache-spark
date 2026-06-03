@@ -31,6 +31,7 @@ import org.apache.spark.sql.types.ByteType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.IntegerType;
 import org.apache.spark.sql.types.LongType;
+import org.apache.spark.sql.types.MapType;
 import org.apache.spark.sql.types.ShortType;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -205,7 +206,10 @@ public class WriteStarRocksConfig extends StarRocksConfigBase {
         for (StructField field : sparkSchema.fields()) {
             // TODO there is no standard about how to represent array type in csv format,
             //  so force to use json format if there is array type
-            if (field.dataType() instanceof ArrayType) {
+            // Also force JSON for struct and map types
+            if (field.dataType() instanceof ArrayType
+                    || field.dataType() instanceof StructType
+                    || field.dataType() instanceof MapType) {
                 return "json";
             }
         }

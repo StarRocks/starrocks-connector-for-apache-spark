@@ -31,6 +31,7 @@ import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
@@ -42,18 +43,22 @@ import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.spark.sql.types.Decimal;
+import org.apache.spark.unsafe.types.UTF8String;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -111,9 +116,21 @@ public class RpcRowBatch extends BaseRowBatch {
                 FieldVector curFieldVector = fieldVectors.get(col);
                 Types.MinorType mt = curFieldVector.getMinorType();
                 String currentType = resolveFieldType(col);
+                FieldType fieldType = FieldType.of(currentType);
+                StarRocksField schemaField = schema.getColumns().get(col);
 
-                switch (FieldType.of(currentType)) {
-                    case NULL:
+                // For complex types (STRUCT/ARRAY/MAP), use the generic convertValue path
+                if (fieldType == FieldType.STRUCT || fieldType == FieldType.ARRAY || fieldType == FieldType.MAP) {
+                    for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                        Object value = convertValue(curFieldVector, mt, fieldType, rowIndex, schemaField);
+                        addValueToRow(rowIndex, value);
+                    }
+                    continue;
+                }
+
+                // For primitive types, use the original tight loop (cast vector once, iterate rows)
+                switch (fieldType) {
+case NULL:
                         for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
                             addValueToRow(rowIndex, null);
                         }
@@ -237,7 +254,7 @@ public class RpcRowBatch extends BaseRowBatch {
                                 addValueToRow(rowIndex, null);
                                 continue;
                             }
-                            String value = new String(varCharVectorForDate.get(rowIndex));
+                            String value = new String(varCharVectorForDate.get(rowIndex), StandardCharsets.UTF_8);
                             LocalDate parsedTime = LocalDate.parse(value, dateFormatter);
 
                             addValueToRow(rowIndex, Date.valueOf(parsedTime));
@@ -252,7 +269,7 @@ public class RpcRowBatch extends BaseRowBatch {
                                 addValueToRow(rowIndex, null);
                                 continue;
                             }
-                            String value = new String(varCharVectorForDateTime.get(rowIndex));
+                            String value = new String(varCharVectorForDateTime.get(rowIndex), StandardCharsets.UTF_8);
                             ZonedDateTime zonedDateTime = ZonedDateTime.parse(value, dateTimeFormatter);
                             addValueToRow(rowIndex, Timestamp.from(zonedDateTime.toInstant()));
                         }
@@ -268,7 +285,7 @@ public class RpcRowBatch extends BaseRowBatch {
                                 addValueToRow(rowIndex, null);
                                 continue;
                             }
-                            String value = new String(varCharVector.get(rowIndex));
+                            String value = new String(varCharVector.get(rowIndex), StandardCharsets.UTF_8);
                             addValueToRow(rowIndex, value);
                         }
                         break;
@@ -282,6 +299,244 @@ public class RpcRowBatch extends BaseRowBatch {
             close();
             throw e;
         }
+    }
+
+    private Object convertValue(FieldVector vector,
+                                Types.MinorType arrowType,
+                                FieldType fieldType,
+                                int rowIndex,
+                                StarRocksField schemaField) {
+        String sparkType = fieldType.getTypeName();
+        switch (fieldType) {
+            case NULL:
+                return null;
+            case BOOLEAN:
+                Preconditions.checkArgument(arrowType.equals(Types.MinorType.BIT),
+                        typeMismatchMessage(sparkType, arrowType));
+                BitVector bitVector = (BitVector) vector;
+                return bitVector.isNull(rowIndex) ? null : bitVector.get(rowIndex) != 0;
+            case TINYINT:
+                Preconditions.checkArgument(arrowType.equals(Types.MinorType.TINYINT),
+                        typeMismatchMessage(sparkType, arrowType));
+                TinyIntVector tinyIntVector = (TinyIntVector) vector;
+                return tinyIntVector.isNull(rowIndex) ? null : tinyIntVector.get(rowIndex);
+            case SMALLINT:
+                Preconditions.checkArgument(arrowType.equals(Types.MinorType.SMALLINT),
+                        typeMismatchMessage(sparkType, arrowType));
+                SmallIntVector smallIntVector = (SmallIntVector) vector;
+                return smallIntVector.isNull(rowIndex) ? null : smallIntVector.get(rowIndex);
+            case INT:
+                Preconditions.checkArgument(arrowType.equals(Types.MinorType.INT),
+                        typeMismatchMessage(sparkType, arrowType));
+                IntVector intVector = (IntVector) vector;
+                return intVector.isNull(rowIndex) ? null : intVector.get(rowIndex);
+            case BIGINT:
+                Preconditions.checkArgument(arrowType.equals(Types.MinorType.BIGINT),
+                        typeMismatchMessage(sparkType, arrowType));
+                BigIntVector bigIntVector = (BigIntVector) vector;
+                return bigIntVector.isNull(rowIndex) ? null : bigIntVector.get(rowIndex);
+            case FLOAT:
+                Preconditions.checkArgument(arrowType.equals(Types.MinorType.FLOAT4),
+                        typeMismatchMessage(sparkType, arrowType));
+                Float4Vector float4Vector = (Float4Vector) vector;
+                return float4Vector.isNull(rowIndex) ? null : float4Vector.get(rowIndex);
+            case TIME:
+            case DOUBLE:
+                Preconditions.checkArgument(arrowType.equals(Types.MinorType.FLOAT8),
+                        typeMismatchMessage(sparkType, arrowType));
+                Float8Vector float8Vector = (Float8Vector) vector;
+                return float8Vector.isNull(rowIndex) ? null : float8Vector.get(rowIndex);
+            case BINARY:
+                Preconditions.checkArgument(arrowType.equals(Types.MinorType.VARBINARY),
+                        typeMismatchMessage(sparkType, arrowType));
+                VarBinaryVector varBinaryVector = (VarBinaryVector) vector;
+                return varBinaryVector.isNull(rowIndex) ? null : varBinaryVector.get(rowIndex);
+            case DECIMAL:
+                Preconditions.checkArgument(arrowType.equals(Types.MinorType.VARCHAR),
+                        typeMismatchMessage(sparkType, arrowType));
+                VarCharVector varCharVectorForDecimal = (VarCharVector) vector;
+                if (varCharVectorForDecimal.isNull(rowIndex)) {
+                    return null;
+                }
+                UTF8String decimalUtf8 = UTF8String.fromBytes(varCharVectorForDecimal.get(rowIndex));
+                String decimalValue = decimalUtf8.toString();
+                Decimal decimal = new Decimal();
+                try {
+                    decimal.set(new scala.math.BigDecimal(new BigDecimal(decimalValue)));
+                } catch (NumberFormatException e) {
+                    String errMsg = "Decimal response result '" + decimalValue + "' is illegal.";
+                    logger.error(errMsg, e);
+                    throw new StarRocksException(errMsg);
+                }
+                return decimal;
+            case DECIMALV2:
+            case DECIMAL32:
+            case DECIMAL64:
+            case DECIMAL128:
+                Preconditions.checkArgument(arrowType.equals(Types.MinorType.DECIMAL),
+                        typeMismatchMessage(sparkType, arrowType));
+                DecimalVector decimalVector = (DecimalVector) vector;
+                if (decimalVector.isNull(rowIndex)) {
+                    return null;
+                }
+                return Decimal.apply(decimalVector.getObject(rowIndex));
+            case DATE:
+                Preconditions.checkArgument(arrowType.equals(Types.MinorType.VARCHAR),
+                        typeMismatchMessage(sparkType, arrowType));
+                VarCharVector varCharVectorForDate = (VarCharVector) vector;
+                if (varCharVectorForDate.isNull(rowIndex)) {
+                    return null;
+                }
+                String dateValue = new String(varCharVectorForDate.get(rowIndex), StandardCharsets.UTF_8);
+                LocalDate parsedTime = LocalDate.parse(dateValue, dateFormatter);
+                return Date.valueOf(parsedTime);
+            case DATETIME:
+                Preconditions.checkArgument(arrowType.equals(Types.MinorType.VARCHAR),
+                        typeMismatchMessage(sparkType, arrowType));
+                VarCharVector varCharVectorForDateTime = (VarCharVector) vector;
+                if (varCharVectorForDateTime.isNull(rowIndex)) {
+                    return null;
+                }
+                String dateTimeValue = new String(varCharVectorForDateTime.get(rowIndex), StandardCharsets.UTF_8);
+                ZonedDateTime zonedDateTime = ZonedDateTime.parse(dateTimeValue, dateTimeFormatter);
+                return Timestamp.from(zonedDateTime.toInstant());
+            case LARGEINT:
+            case VARCHAR:
+            case CHAR:
+                Preconditions.checkArgument(arrowType.equals(Types.MinorType.VARCHAR),
+                        typeMismatchMessage(sparkType, arrowType));
+                VarCharVector varCharVector = (VarCharVector) vector;
+                if (varCharVector.isNull(rowIndex)) {
+                    return null;
+                }
+                return new String(varCharVector.get(rowIndex), StandardCharsets.UTF_8);
+            case STRUCT:
+                return convertStructValue(vector, arrowType, rowIndex, schemaField);
+            case ARRAY:
+                Preconditions.checkArgument(arrowType.equals(Types.MinorType.LIST),
+                        typeMismatchMessage(sparkType, arrowType));
+                return convertArrayValue(vector, arrowType, rowIndex, schemaField);
+            case MAP:
+                Preconditions.checkArgument(arrowType.equals(Types.MinorType.MAP),
+                        typeMismatchMessage(sparkType, arrowType));
+                return convertMapValue(vector, arrowType, rowIndex, schemaField);
+            default:
+                String srType = schemaField == null ? fieldType.getTypeName() : schemaField.getType();
+                String errMsg = String.format("Unsupported or unexpected StarRocks type '%s', Arrow minor type '%s'. ",
+                        srType, arrowType.name());
+                logger.error(errMsg);
+                throw new StarRocksException(errMsg);
+        }
+    }
+
+    private Object convertStructValue(FieldVector vector,
+                                      Types.MinorType arrowType,
+                                      int rowIndex,
+                                      StarRocksField schemaField) {
+        Preconditions.checkArgument(arrowType.equals(Types.MinorType.STRUCT),
+                "Spark type is STRUCT, but mapped type is " + arrowType.name());
+        StructVector structVector = (StructVector) vector;
+        if (structVector.isNull(rowIndex)) {
+            return null;
+        }
+        List<FieldVector> children = structVector.getChildrenFromFields();
+        String[] childTypes = FieldType.extractStructTypes(
+                schemaField == null ? null : schemaField.getType());
+        if (childTypes.length != children.size()) {
+            throw new StarRocksException("The number of extracted subtypes (" + childTypes.length +
+                    ") does not match the number of child fields (" + children.size() +
+                    ") for the struct: " + (schemaField == null ? "null" : schemaField.getType()));
+        }
+        Object[] childValues = new Object[children.size()];
+        for (int i = 0; i < children.size(); i++) {
+            FieldVector childVector = children.get(i);
+            Types.MinorType childType = childVector.getMinorType();
+            // Extract base type name for complex types (e.g., "ARRAY<INT>" -> "ARRAY")
+            String childBaseTypeName = childTypes[i].contains("<")
+                ? childTypes[i].substring(0, childTypes[i].indexOf("<")).trim()
+                : childTypes[i];
+            FieldType childFieldType = FieldType.elegantOf(childBaseTypeName)
+                    .orElse(FieldType.VARCHAR);
+            StarRocksField childSchemaField = new StarRocksField(childVector.getName(), childTypes[i], i, null, null, null);
+            childValues[i] = convertValue(childVector, childType, childFieldType, rowIndex, childSchemaField);
+        }
+        return childValues;
+    }
+
+    private Object convertArrayValue(FieldVector vector, Types.MinorType arrowType, int rowIndex, StarRocksField schemaField) {
+        org.apache.arrow.vector.complex.ListVector listVector = (org.apache.arrow.vector.complex.ListVector) vector;
+        if (listVector.isNull(rowIndex)) {
+            return null;
+        }
+        int start = listVector.getElementStartIndex(rowIndex);
+        int end = listVector.getElementEndIndex(rowIndex);
+        FieldVector childVector = listVector.getDataVector();
+
+        String[] extractedTypes = FieldType.extractArrayTypes(
+                schemaField == null ? null : schemaField.getType());
+        if (extractedTypes.length == 0) {
+            throw new StarRocksException("Failed to extract array element type from schema field: " + 
+                    (schemaField == null ? "null" : schemaField.getType()));
+        }
+        String childTypeStr = extractedTypes[0];
+
+        StarRocksField valueSchemaField = new StarRocksField("array", childTypeStr, 0, null, null, null);
+
+        List<Object> array = new java.util.ArrayList<>();
+        for (int i = start; i < end; i++) {
+            Types.MinorType childType = childVector.getMinorType();
+            // Extract base type name for complex types (e.g., "STRUCT<...>" -> "STRUCT")
+            String baseTypeName = childTypeStr.contains("<") 
+                ? childTypeStr.substring(0, childTypeStr.indexOf("<")).trim()
+                : childTypeStr;
+            FieldType childFieldType = FieldType.elegantOf(baseTypeName).orElse(FieldType.VARCHAR);
+            array.add(convertValue(childVector, childType, childFieldType, i, valueSchemaField));
+        }
+        return array;
+    }
+
+    private Object convertMapValue(FieldVector vector, Types.MinorType arrowType, int rowIndex, StarRocksField schemaField) {
+        org.apache.arrow.vector.complex.MapVector mapVector = (org.apache.arrow.vector.complex.MapVector) vector;
+        if (mapVector.isNull(rowIndex)) {
+            return null;
+        }
+        int start = mapVector.getElementStartIndex(rowIndex);
+        int end = mapVector.getElementEndIndex(rowIndex);
+        FieldVector entryVector = mapVector.getDataVector();
+        FieldVector keyVector = ((org.apache.arrow.vector.complex.StructVector) entryVector).getChild("key");
+        FieldVector valueVector = ((org.apache.arrow.vector.complex.StructVector) entryVector).getChild("value");
+
+        String[] extractedTypes = FieldType.extractMapTypes(
+                schemaField == null ? null : schemaField.getType());
+        if (extractedTypes.length < 2) {
+            throw new StarRocksException("Failed to extract map key/value types from schema field: " + 
+                    (schemaField == null ? "null" : schemaField.getType()));
+        }
+
+        StarRocksField keySchemaField = new StarRocksField("key", extractedTypes[0], 0, null, null, null);
+        StarRocksField valueSchemaField = new StarRocksField("value", extractedTypes[1], 1, null, null, null);
+
+        java.util.Map<Object, Object> map = new java.util.LinkedHashMap<>();
+        for (int i = start; i < end; i++) {
+            Types.MinorType keyType = keyVector.getMinorType();
+            // Extract base type name for complex types (e.g., "STRUCT<...>" -> "STRUCT")
+            String keyBaseTypeName = extractedTypes[0].contains("<")
+                ? extractedTypes[0].substring(0, extractedTypes[0].indexOf("<")).trim()
+                : extractedTypes[0];
+            FieldType keyFieldType = FieldType.elegantOf(keyBaseTypeName).orElse(FieldType.VARCHAR);
+            Object key = convertValue(keyVector, keyType, keyFieldType, i, keySchemaField);
+
+            Types.MinorType valueType = valueVector.getMinorType();
+            // Extract base type name for complex types (e.g., "ARRAY<INT>" -> "ARRAY")
+            String valueBaseTypeName = extractedTypes[1].contains("<")
+                ? extractedTypes[1].substring(0, extractedTypes[1].indexOf("<")).trim()
+                : extractedTypes[1];
+            FieldType valueFieldType = FieldType.elegantOf(valueBaseTypeName).orElse(FieldType.VARCHAR);
+            Object value = convertValue(valueVector, valueType, valueFieldType, i, valueSchemaField);
+
+            map.put(key, value);
+        }
+        return map;
     }
 
     public void close() {
