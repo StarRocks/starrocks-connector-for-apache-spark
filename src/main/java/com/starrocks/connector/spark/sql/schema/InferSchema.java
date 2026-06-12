@@ -26,6 +26,7 @@ import com.starrocks.connector.spark.sql.connect.StarRocksConnector;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Metadata;
+import org.apache.spark.sql.types.MetadataBuilder;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
@@ -112,7 +113,12 @@ public final class InferSchema {
     static StructField inferStructField(StarRocksField field) {
         DataType dataType = inferDataType(field);
 
-        return new StructField(field.getName(), dataType, true, Metadata.empty());
+        String comment = field.getComment();
+        Metadata metadata = (comment == null || comment.isEmpty())
+                ? Metadata.empty()
+                : new MetadataBuilder().putString("comment", comment).build();
+
+        return new StructField(field.getName(), dataType, true, metadata);
     }
 
     static DataType inferDataType(StarRocksField field) {

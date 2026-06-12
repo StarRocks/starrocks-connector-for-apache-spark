@@ -22,6 +22,7 @@ package com.starrocks.connector.spark.sql.schema;
 import com.starrocks.connector.spark.sql.conf.SimpleStarRocksConfig;
 import com.starrocks.connector.spark.sql.conf.StarRocksConfigBase;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.junit.Assert;
@@ -53,6 +54,20 @@ public class InferSchemaTest {
         StructType identifierType = (StructType) identifier.dataType();
         Assert.assertEquals(DataTypes.StringType, identifierType.apply("type").dataType());
         Assert.assertEquals(DataTypes.StringType, identifierType.apply("id").dataType());
+    }
+
+    @Test
+    public void testColumnCommentInMetadata() {
+        List<StarRocksField> fields = Arrays.asList(
+                new StarRocksField("user_id", "bigint", 1, null, null, null, "user id"),
+                new StarRocksField("email", "varchar", 2, null, null, null, null)
+        );
+        StarRocksSchema schema = new StarRocksSchema(fields);
+
+        StructType result = InferSchema.inferSchema(schema, new SimpleStarRocksConfig(new HashMap<>()));
+
+        Assert.assertEquals("user id", result.apply("user_id").metadata().getString("comment"));
+        Assert.assertEquals(Metadata.empty(), result.apply("email").metadata());
     }
 }
 
