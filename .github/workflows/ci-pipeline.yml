@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
-      max-parallel: 4
+      max-parallel: 5
       matrix:
         include:
           - spark: '3.3'
@@ -47,6 +47,8 @@ jobs:
           - spark: '3.5'
             java: '8'
           - spark: '4.0'
+            java: '17'
+          - spark: '4.1'
             java: '17'
     env:
       CUSTOM_MVN: mvn -B -ntp

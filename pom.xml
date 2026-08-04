@@ -64,6 +64,7 @@
         <arrow.version>5.0.0</arrow.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <fasterxml.version>2.12.0</fasterxml.version>
+        <fasterxml.annotations.version>${fasterxml.version}</fasterxml.annotations.version>
         <slf4j.version>1.7.32</slf4j.version>
         <log4j.version>2.17.2</log4j.version>
         <httpclient.version>4.5.13</httpclient.version>
@@ -266,6 +267,43 @@
 
         </profile>
 
+        <profile>
+            <id>spark-4.1</id>
+            <activation>
+                <property>
+                    <name>env.spark-4.1</name>
+                </property>
+            </activation>
+
+            <properties>
+                <env.STARROCKS_SCALA_VERSION>2.13</env.STARROCKS_SCALA_VERSION>
+                <env.STARROCKS_SPARK_VERSION>4.1.0</env.STARROCKS_SPARK_VERSION>
+                <env.SPARK_FEATURE_VERSION>4.1</env.SPARK_FEATURE_VERSION>
+                <scala-lang.version>2.13.17</scala-lang.version>
+                <fasterxml.version>2.20.0</fasterxml.version>
+                <fasterxml.annotations.version>2.20</fasterxml.annotations.version>
+                <slf4j.version>2.0.17</slf4j.version>
+                <log4j.version>2.24.3</log4j.version>
+                <java.source.version>17</java.source.version>
+                <java.target.version>17</java.target.version>
+                <scala-maven-plugin.version>4.9.5</scala-maven-plugin.version>
+                <mockito-scala.version>1.17.37</mockito-scala.version>
+                <commons-lang3.version>3.19.0</commons-lang3.version>
+                <arrow.version>18.3.0</arrow.version>
+                <surefire.argLine>--add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/sun.util.calendar=ALL-UNNAMED</surefire.argLine>
+            </properties>
+
+            <dependencies>
+                <dependency>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-slf4j2-impl</artifactId>
+                    <version>${log4j.version}</version>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
+
+        </profile>
+
     </profiles>
 
     <dependencies>
@@ -345,7 +383,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>${fasterxml.version}</version>
+            <version>${fasterxml.annotations.version}</version>
             <scope>provided</scope>
         </dependency>
 
