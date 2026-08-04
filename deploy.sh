@@ -31,7 +31,7 @@ fi
 spark_version=$1
 check_spark_version_supported $spark_version
 
-${MVN_CMD} clean deploy -DskipTests -Pspark-${spark_version}
+${MVN_CMD} clean deploy -Prelease -DskipTests -Pspark-${spark_version}
 
 echo "*********************************************************************"
 echo "Successfully deploy Spark StarRocks Connector for Spark $spark_version"
