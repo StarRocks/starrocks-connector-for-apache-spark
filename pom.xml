@@ -64,8 +64,10 @@
         <arrow.version>5.0.0</arrow.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <fasterxml.version>2.12.0</fasterxml.version>
+        <fasterxml.annotations.version>${fasterxml.version}</fasterxml.annotations.version>
         <slf4j.version>1.7.32</slf4j.version>
         <log4j.version>2.17.2</log4j.version>
+        <netty.version>4.1.87.Final</netty.version>
         <httpclient.version>4.5.13</httpclient.version>
         <httpcore.version>4.4.15</httpcore.version>
         <fastjson.version>1.2.83</fastjson.version>
@@ -266,6 +268,79 @@
 
         </profile>
 
+        <profile>
+            <id>spark-4.1</id>
+            <activation>
+                <property>
+                    <name>env.spark-4.1</name>
+                </property>
+            </activation>
+
+            <properties>
+                <env.STARROCKS_SCALA_VERSION>2.13</env.STARROCKS_SCALA_VERSION>
+                <env.STARROCKS_SPARK_VERSION>4.1.0</env.STARROCKS_SPARK_VERSION>
+                <env.SPARK_FEATURE_VERSION>4.1</env.SPARK_FEATURE_VERSION>
+                <scala-lang.version>2.13.17</scala-lang.version>
+                <fasterxml.version>2.20.0</fasterxml.version>
+                <fasterxml.annotations.version>2.20</fasterxml.annotations.version>
+                <slf4j.version>2.0.17</slf4j.version>
+                <log4j.version>2.24.3</log4j.version>
+                <netty.version>4.2.7.Final</netty.version>
+                <httpclient.version>4.5.14</httpclient.version>
+                <httpcore.version>4.4.16</httpcore.version>
+                <java.source.version>17</java.source.version>
+                <java.target.version>17</java.target.version>
+                <scala-maven-plugin.version>4.9.5</scala-maven-plugin.version>
+                <mockito-scala.version>1.17.37</mockito-scala.version>
+                <commons-lang3.version>3.19.0</commons-lang3.version>
+                <arrow.version>18.3.0</arrow.version>
+                <surefire.argLine>--add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/sun.util.calendar=ALL-UNNAMED</surefire.argLine>
+            </properties>
+
+            <dependencies>
+                <dependency>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-slf4j2-impl</artifactId>
+                    <version>${log4j.version}</version>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
+
+        </profile>
+
+        <profile>
+            <id>release</id>
+            <activation>
+                <property>
+                    <name>release</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>1.5</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                                <configuration>
+                                    <gpgArguments>
+                                        <arg>--pinentry-mode</arg>
+                                        <arg>loopback</arg>
+                                    </gpgArguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
     </profiles>
 
     <dependencies>
@@ -278,7 +353,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-            <version>4.1.87.Final</version>
+            <version>${netty.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -345,7 +420,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>${fasterxml.version}</version>
+            <version>${fasterxml.annotations.version}</version>
             <scope>provided</scope>
         </dependency>
 
@@ -616,12 +691,12 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>2.2.1</version>
+                <version>3.2.1</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>
                         <goals>
-                            <goal>jar-no-fork</goal>
+                            <goal>jar</goal>
                         </goals>
                     </execution>
                 </executions>
@@ -640,29 +715,40 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.sonatype.plugins</groupId>
-                <artifactId>nexus-staging-maven-plugin</artifactId>
-                <version>1.6.7</version>
-                <extensions>true</extensions>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.5.0</version>
                 <configuration>
-                    <serverId>ossrh</serverId>
-                    <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
-                    <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                    <updatePomFile>true</updatePomFile>
+                    <flattenMode>oss</flattenMode>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-gpg-plugin</artifactId>
-                <version>1.5</version>
                 <executions>
                     <execution>
-                        <id>sign-artifacts</id>
-                        <phase>verify</phase>
+                        <id>flatten</id>
                         <goals>
-                            <goal>sign</goal>
+                            <goal>flatten</goal>
                         </goals>
+                        <phase>process-resources</phase>
+                    </execution>
+                    <execution>
+                        <id>flatten.clean</id>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                        <phase>clean</phase>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.8.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                    <autoPublish>true</autoPublish>
+                    <waitUntil>published</waitUntil>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -681,30 +767,7 @@
         </plugins>
     </build>
 
-    <repositories>
-        <repository>
-            <id>oss.sonatype.org-snapshot</id>
-            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
-
-    <distributionManagement>
-         <snapshotRepository>
-             <id>ossrh</id>
-             <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
-         </snapshotRepository>
-         <repository>
-             <id>ossrh</id>
-             <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-         </repository>
-     </distributionManagement>
-     <reporting>
+    <reporting>
          <plugins>
              <plugin>
                  <groupId>org.apache.maven.plugins</groupId>
