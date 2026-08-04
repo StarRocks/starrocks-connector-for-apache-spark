@@ -67,6 +67,7 @@
         <fasterxml.annotations.version>${fasterxml.version}</fasterxml.annotations.version>
         <slf4j.version>1.7.32</slf4j.version>
         <log4j.version>2.17.2</log4j.version>
+        <netty.version>4.1.87.Final</netty.version>
         <httpclient.version>4.5.13</httpclient.version>
         <httpcore.version>4.4.15</httpcore.version>
         <fastjson.version>1.2.83</fastjson.version>
@@ -284,6 +285,9 @@
                 <fasterxml.annotations.version>2.20</fasterxml.annotations.version>
                 <slf4j.version>2.0.17</slf4j.version>
                 <log4j.version>2.24.3</log4j.version>
+                <netty.version>4.2.7.Final</netty.version>
+                <httpclient.version>4.5.14</httpclient.version>
+                <httpcore.version>4.4.16</httpcore.version>
                 <java.source.version>17</java.source.version>
                 <java.target.version>17</java.target.version>
                 <scala-maven-plugin.version>4.9.5</scala-maven-plugin.version>
@@ -316,7 +320,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-            <version>4.1.87.Final</version>
+            <version>${netty.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
