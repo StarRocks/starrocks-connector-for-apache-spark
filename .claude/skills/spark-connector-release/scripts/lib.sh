@@ -290,6 +290,22 @@ assert_primary_checkout() {
     || die "linked Git worktree is not supported for release builds; use a primary checkout because git-commit-id-plugin 4.0.2 omits the connector fingerprint here"
 }
 
+assert_official_origin() {
+  local root="$1" origin_url
+  origin_url="$(git -C "$root" remote get-url origin 2>/dev/null || true)"
+  case "$origin_url" in
+    git@github.com:StarRocks/starrocks-connector-for-apache-spark|\
+    git@github.com:StarRocks/starrocks-connector-for-apache-spark.git|\
+    https://github.com/StarRocks/starrocks-connector-for-apache-spark|\
+    https://github.com/StarRocks/starrocks-connector-for-apache-spark.git|\
+    ssh://git@github.com/StarRocks/starrocks-connector-for-apache-spark|\
+    ssh://git@github.com/StarRocks/starrocks-connector-for-apache-spark.git)
+      return
+      ;;
+  esac
+  die "origin is not the StarRocks Spark connector repository: ${origin_url:-<missing>}"
+}
+
 assert_clean_checkout() {
   [ -z "$(git -C "$1" status --porcelain)" ] \
     || die "working tree is not clean; commit, stash, or remove local changes before continuing"

@@ -40,9 +40,7 @@ for command in git mvn gpg curl jq base64 unzip zip sha256sum gh; do
   pass "$command is available"
 done
 
-origin_url="$(git remote get-url origin 2>/dev/null || true)"
-[[ "$origin_url" == *StarRocks/starrocks-connector-for-apache-spark* ]] \
-  || die "origin is not the StarRocks Spark connector repository: ${origin_url:-<missing>}"
+assert_official_origin "$REPO_ROOT"
 pass "origin points to StarRocks/starrocks-connector-for-apache-spark"
 
 mapfile -t versions < <(supported_spark_versions "$REPO_ROOT")

@@ -27,6 +27,7 @@ REPO_ROOT="$(resolve_repo)"
 cd "$REPO_ROOT"
 assert_primary_checkout "$REPO_ROOT"
 assert_clean_checkout "$REPO_ROOT"
+assert_official_origin "$REPO_ROOT"
 CENTRAL_CURL_CONFIG=''
 trap '[ -z "$CENTRAL_CURL_CONFIG" ] || rm -f "$CENTRAL_CURL_CONFIG"' EXIT
 for command in curl jq base64 sha256sum; do require_command "$command"; done

@@ -183,6 +183,39 @@ test_linked_worktree_rejected() {
   [ "$status" -ne 0 ] && [[ "$output" == *"linked Git worktree"* ]]
 }
 
+test_publish_rechecks_official_origin() {
+  local work repo fork output status
+  work="$(mktemp -d)"
+  repo="$work/repo"
+  fork="$work/lookalike/StarRocks/starrocks-connector-for-apache-spark-fork.git"
+  mkdir -p "$repo"
+  mkdir -p "$(dirname "$fork")"
+  git init --quiet --bare "$fork"
+  git init --quiet "$repo"
+  git -C "$repo" config user.name 'Release Test'
+  git -C "$repo" config user.email 'release-test@example.com'
+  printf '%s\n' \
+    '<project>' \
+    '  <artifactId>starrocks-spark-connector-${env.SPARK_FEATURE_VERSION}_${env.STARROCKS_SCALA_VERSION}</artifactId>' \
+    '  <version>1.2.3</version>' \
+    '</project>' > "$repo/pom.xml"
+  printf '%s\n' 'SUPPORTED_SPARK_VERSIONS=(3.5)' > "$repo/common.sh"
+  git -C "$repo" add pom.xml common.sh
+  git -C "$repo" commit --quiet -m fixture
+  git -C "$repo" tag v1.2.3
+  git -C "$repo" remote add origin "$fork"
+  git -C "$repo" push --quiet origin HEAD 'refs/tags/v1.2.3'
+
+  set +e
+  output="$(CONNECTOR_REPO="$repo" "$SCRIPTS/publish.sh" 3.5 2>&1)"
+  status=$?
+  set -e
+  rm -rf "$work"
+
+  [ "$status" -ne 0 ] \
+    && [[ "$output" == *"origin is not the StarRocks Spark connector repository"* ]]
+}
+
 test_verified_bundle_upload() {
   # shellcheck disable=SC1091
   source "$SCRIPTS/lib.sh"
@@ -322,6 +355,7 @@ assert_success "duplicate Spark versions cannot be selected" test_version_select
 assert_success "custom Maven settings reach deploy.sh" test_custom_maven_settings
 assert_success "Central no-upload rehearsal is pinned to its verified plugin" test_central_dry_run_contract
 assert_success "linked-worktree rejection uses an isolated fixture" test_linked_worktree_rejected
+assert_success "publish rejects a matching tag from a non-official origin" test_publish_rechecks_official_origin
 assert_success "Central API credentials come from Maven settings without logging them" test_central_api_credentials_from_maven_settings
 assert_success "verified Central bundle is uploaded directly" test_verified_bundle_upload
 assert_success "JAR verifier validates Spark release metadata" test_jar_validation
