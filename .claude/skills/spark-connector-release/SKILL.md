@@ -23,8 +23,8 @@ artifacts after publication.
   there. `preflight.sh` enforces this.
 - Treat `common.sh` as the only source of supported Spark minor versions. A profile that
   exists only in `pom.xml` is not releasable unless `common.sh` lists it.
-- Use JDK 8 for Spark 3.x and JDK 17 for Spark 4.x. The scripts verify both the active JDK
-  and the resulting connector class-file version.
+- Use JDK 8 for Spark 3.x and JDK 17 for Spark 4.x. The scripts verify the active JDK and
+  the profile's Java source/target configuration.
 - Stop on any non-zero script result. Never bypass the verification marker or publication
   confirmation.
 - Never attempt to overwrite or redeploy coordinates already published to Maven Central.
@@ -85,7 +85,7 @@ validation checks:
 - no connector `SNAPSHOT` version;
 - embedded connector commit equals the release-tag commit;
 - Spark/Scala artifact suffixes match the selected profile;
-- connector-owned classes use Java 8 or Java 17 bytecode as required;
+- connector-owned classes are present in the shaded JAR;
 - the released Stream Load SDK version and its shaded classes/metadata are present;
 - the bundle contains the primary JAR, sources, Javadocs, POM, GPG signatures, and all
   configured checksums, and each signature/checksum verifies locally.

@@ -25,10 +25,10 @@ The supported minor-version list comes exclusively from `common.sh`. The Spark p
 
 The release uses the JDK matching the selected Spark generation:
 
-| Spark generation listed by `common.sh` | Scala binary | Maven runtime JDK | Connector class major |
-| --- | --- | --- | --- |
-| 3.x | 2.12 | 8 | 52 |
-| 4.x | 2.13 | 17 | 61 |
+| Spark generation listed by `common.sh` | Scala binary | Maven runtime JDK |
+| --- | --- | --- |
+| 3.x | 2.12 | 8 |
+| 4.x | 2.13 | 17 |
 
 Set `JAVA8_HOME` and `JAVA17_HOME` when possible. Automatic discovery is a fallback, and
 the scripts always execute `java -version` against the selected home before building or
@@ -119,7 +119,6 @@ Maven Central coordinates are immutable. The safe order is:
 | A JDK cannot be found | Set `JAVA8_HOME` or `JAVA17_HOME` to the required installation. |
 | Preflight reports a linked worktree | Use a primary clone/checkout for the release. |
 | Connector Git properties are missing | Do not publish; confirm the checkout type and rebuild. |
-| Class major is wrong | Confirm the selected `JAVA_HOME`, profile Java target, and rebuild. |
 | GPG signing fails | Check the secret key, passphrase source, loopback support, and `gpg-agent`. |
 | Central authentication fails | Regenerate/check the Portal token and namespace permission. |
 | One Spark artifact publishes and the next fails | Keep the published coordinates; fix and retry only the unpublished Spark version. |

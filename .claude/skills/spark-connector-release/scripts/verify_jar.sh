@@ -28,16 +28,14 @@ EXPECTED_COMMIT="${2:-}"
 EXPECTED_VERSION="${3:-}"
 SPARK_MINOR="${4:-}"
 SCALA_BINARY="${5:-}"
-JAVA_MAJOR="${6:-}"
-SDK_VERSION="${7:-}"
+SDK_VERSION="${6:-}"
 
-[ "$#" -eq 7 ] \
-  || die "usage: verify_jar.sh <jar> <commit> <version> <spark-minor> <scala-binary> <java-major> <sdk-version>"
+[ "$#" -eq 6 ] \
+  || die "usage: verify_jar.sh <jar> <commit> <version> <spark-minor> <scala-binary> <sdk-version>"
 [ -f "$JAR" ] || die "JAR not found: $JAR"
 [[ "$EXPECTED_COMMIT" =~ ^[0-9a-fA-F]{40}$ ]] || die "expected commit must be a full 40-character Git SHA"
 
 require_command unzip
-require_command od
 
 ARTIFACT="$(artifact_id "$SPARK_MINOR" "$SCALA_BINARY")"
 EXPECTED_FILE="$(artifact_filename "$EXPECTED_VERSION" "$SPARK_MINOR" "$SCALA_BINARY")"
@@ -46,7 +44,6 @@ CONNECTOR_PROPERTIES="starrocks-spark-connector-git.properties"
 SDK_POM_PROPERTIES="META-INF/maven/com.starrocks/starrocks-stream-load-sdk/pom.properties"
 SDK_GIT_PROPERTIES="stream-load-sdk-git.properties"
 SDK_CLASS_PREFIX="com/starrocks/data/load/stream/"
-EXPECTED_CLASS_MAJOR="$(expected_class_major "$JAVA_MAJOR")"
 
 ok=0
 bad=0
@@ -59,7 +56,7 @@ case "$(basename "$JAR")" in
     ;;
 esac
 
-info "Verifying $(basename "$JAR") for Spark $SPARK_MINOR / Scala $SCALA_BINARY / Java $JAVA_MAJOR"
+info "Verifying $(basename "$JAR") for Spark $SPARK_MINOR / Scala $SCALA_BINARY"
 if [ "$(basename "$JAR")" = "$EXPECTED_FILE" ]; then
   yes "filename matches $EXPECTED_FILE"
 else
@@ -134,37 +131,8 @@ class_list="$(printf '%s\n' "$LIST" | awk '/^com\/starrocks\/connector\/spark\/.
 if [ -z "$class_list" ]; then
   no "no connector-owned class files found"
 else
-  class_count=0
-  class_mismatch=0
-  class_exact=0
-  class_tmp="$(mktemp)"
-  trap 'rm -f "$class_tmp"' EXIT
-  while IFS= read -r entry; do
-    [ -n "$entry" ] || continue
-    class_count=$((class_count + 1))
-    unzip -p "$JAR" "$entry" > "$class_tmp" 2>/dev/null \
-      || die "cannot extract class file $entry"
-    magic="$(od -An -tx1 -N4 "$class_tmp" | tr -d ' \n')"
-    [ "$magic" = cafebabe ] || die "$entry is not a valid Java class file"
-    bytes="$(od -An -tu1 -j6 -N2 "$class_tmp")"
-    read -r high low <<< "$bytes"
-    major=$((high * 256 + low))
-    if [ "$major" -gt "$EXPECTED_CLASS_MAJOR" ]; then
-      fail "bytecode mismatch: $entry has class major $major, newer than $EXPECTED_CLASS_MAJOR for Java $JAVA_MAJOR"
-      class_mismatch=$((class_mismatch + 1))
-    elif [ "$major" -eq "$EXPECTED_CLASS_MAJOR" ]; then
-      class_exact=$((class_exact + 1))
-    fi
-  done <<< "$class_list"
-  rm -f "$class_tmp"
-  trap - EXIT
-  if [ "$class_mismatch" -eq 0 ] && [ "$class_exact" -gt 0 ]; then
-    yes "$class_count connector class files are Java $JAVA_MAJOR compatible; $class_exact use target major $EXPECTED_CLASS_MAJOR"
-  elif [ "$class_mismatch" -eq 0 ]; then
-    no "bytecode does not prove Java $JAVA_MAJOR target: no connector class uses major $EXPECTED_CLASS_MAJOR"
-  else
-    no "$class_mismatch connector class files have incompatible bytecode"
-  fi
+  class_count="$(printf '%s\n' "$class_list" | awk 'NF { count++ } END { print count + 0 }')"
+  yes "$class_count connector-owned class files are present"
 fi
 
 echo

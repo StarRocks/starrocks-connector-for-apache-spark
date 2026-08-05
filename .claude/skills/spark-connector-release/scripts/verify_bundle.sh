@@ -29,10 +29,9 @@ EXPECTED_COMMIT="${3:-}"
 EXPECTED_VERSION="${4:-}"
 SPARK_MINOR="${5:-}"
 SCALA_BINARY="${6:-}"
-JAVA_MAJOR="${7:-}"
-SDK_VERSION="${8:-}"
-[ "$#" -eq 8 ] \
-  || die "usage: verify_bundle.sh <bundle.zip> <local-jar> <commit> <version> <spark-minor> <scala-binary> <java-major> <sdk-version>"
+SDK_VERSION="${7:-}"
+[ "$#" -eq 7 ] \
+  || die "usage: verify_bundle.sh <bundle.zip> <local-jar> <commit> <version> <spark-minor> <scala-binary> <sdk-version>"
 [ -s "$BUNDLE" ] || die "Central bundle not found: $BUNDLE"
 [ -s "$LOCAL_JAR" ] || die "local primary JAR not found: $LOCAL_JAR"
 
@@ -68,5 +67,5 @@ cmp -s "$LOCAL_JAR" "$BASE.jar" \
 
 "$SCRIPT_DIR/verify_jar.sh" \
   "$BASE.jar" "$EXPECTED_COMMIT" "$EXPECTED_VERSION" "$SPARK_MINOR" \
-  "$SCALA_BINARY" "$JAVA_MAJOR" "$SDK_VERSION"
+  "$SCALA_BINARY" "$SDK_VERSION"
 pass "Central bundle contains signed primary, sources, Javadocs, POM, and checksums"

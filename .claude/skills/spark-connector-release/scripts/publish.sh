@@ -101,7 +101,7 @@ for spark in "${versions[@]}"; do
   [ "$actual_bundle_sha" = "$expected_bundle_sha" ] \
     || die "Central bundle for Spark $spark changed after verification"
   "$SCRIPT_DIR/verify_bundle.sh" \
-    "$bundle" "$jar" "$COMMIT" "$VERSION" "$spark" "$scala" "$java" "$SDK_VERSION" >/dev/null
+    "$bundle" "$jar" "$COMMIT" "$VERSION" "$spark" "$scala" "$SDK_VERSION" >/dev/null
   pass "verified signed Central bundle is intact for Spark $spark"
 
   url="$(central_artifact_url "$VERSION" "$spark" "$scala")"

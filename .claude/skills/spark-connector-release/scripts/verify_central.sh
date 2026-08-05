@@ -65,7 +65,6 @@ download_file() {
 
 for spark in "${versions[@]}"; do
   scala="$(spark_scala_binary "$REPO_ROOT" "$spark")"
-  java="$(spark_java_major "$REPO_ROOT" "$spark")"
   artifact="$(artifact_id "$spark" "$scala")"
   filename="$(artifact_filename "$VERSION" "$spark" "$scala")"
   destination="$DOWNLOAD_DIR/$filename"
@@ -97,7 +96,7 @@ for spark in "${versions[@]}"; do
     && die "published POM for Spark $spark contains a project SNAPSHOT version"
 
   if "$SCRIPT_DIR/verify_jar.sh" \
-      "$destination" "$COMMIT" "$VERSION" "$spark" "$scala" "$java" "$SDK_VERSION"; then
+      "$destination" "$COMMIT" "$VERSION" "$spark" "$scala" "$SDK_VERSION"; then
     sha="$(sha256sum "$destination" | awk '{print $1}')"
     {
       printf 'commit=%s\n' "$COMMIT"

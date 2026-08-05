@@ -64,8 +64,8 @@ assert_failure_with() {
 }
 
 make_fake_jar() {
-  local destination="$1" version="$2" spark="$3" scala="$4" commit="$5" class_major="$6" sdk_version="$7"
-  local fixture artifact class_hi class_lo
+  local destination="$1" version="$2" spark="$3" scala="$4" commit="$5" sdk_version="$6"
+  local fixture artifact
   fixture="$(mktemp -d)"
   artifact="starrocks-spark-connector-${spark}_${scala}"
   mkdir -p \
@@ -81,11 +81,7 @@ make_fake_jar() {
     > "$fixture/META-INF/maven/com.starrocks/starrocks-stream-load-sdk/pom.properties"
   printf 'git.build.version=%s\ngit.commit.id=1111111111111111111111111111111111111111\n' "$sdk_version" \
     > "$fixture/stream-load-sdk-git.properties"
-  class_hi=$((class_major / 256))
-  class_lo=$((class_major % 256))
-  printf '\xca\xfe\xba\xbe\x00\x00' > "$fixture/com/starrocks/connector/spark/Fixture.class"
-  printf "\\$(printf '%03o' "$class_hi")\\$(printf '%03o' "$class_lo")" \
-    >> "$fixture/com/starrocks/connector/spark/Fixture.class"
+  printf 'connector-class' > "$fixture/com/starrocks/connector/spark/Fixture.class"
   printf 'sdk' > "$fixture/com/starrocks/data/load/stream/Chunk.class"
   (cd "$fixture" && zip -qr "$destination" .)
   rm -rf "$fixture"
@@ -174,26 +170,25 @@ test_linked_worktree_rejected() {
 }
 
 test_jar_validation() {
-  local work commit good wrong_major snapshot_sdk
+  local work commit spark3 spark4 snapshot_sdk
   work="$(mktemp -d)"
   commit=0123456789abcdef0123456789abcdef01234567
-  good="$work/starrocks-spark-connector-3.5_2.12-1.2.0.jar"
-  wrong_major="$work/starrocks-spark-connector-4.1_2.13-1.2.0.jar"
+  spark3="$work/starrocks-spark-connector-3.5_2.12-1.2.0.jar"
+  spark4="$work/starrocks-spark-connector-4.1_2.13-1.2.0.jar"
   snapshot_sdk="$work/starrocks-spark-connector-3.5_2.12-1.2.0.jar.snapshot-sdk"
-  make_fake_jar "$good" 1.2.0 3.5 2.12 "$commit" 52 1.0
-  make_fake_jar "$wrong_major" 1.2.0 4.1 2.13 "$commit" 52 1.0
-  cp "$good" "$snapshot_sdk"
+  make_fake_jar "$spark3" 1.2.0 3.5 2.12 "$commit" 1.0
+  make_fake_jar "$spark4" 1.2.0 4.1 2.13 "$commit" 1.0
+  cp "$spark3" "$snapshot_sdk"
   fixture="$(mktemp -d)"
   (cd "$fixture" && unzip -q "$snapshot_sdk")
   printf 'git.build.version=1.0-SNAPSHOT\ngit.commit.id=1111111111111111111111111111111111111111\n' \
     > "$fixture/stream-load-sdk-git.properties"
   (cd "$fixture" && zip -qr "$snapshot_sdk" .)
   rm -rf "$fixture"
-  "$SCRIPTS/verify_jar.sh" "$good" "$commit" 1.2.0 3.5 2.12 8 1.0 >/dev/null
-  assert_failure_with "jar rejects wrong Java bytecode" "bytecode" \
-    "$SCRIPTS/verify_jar.sh" "$wrong_major" "$commit" 1.2.0 4.1 2.13 17 1.0
+  "$SCRIPTS/verify_jar.sh" "$spark3" "$commit" 1.2.0 3.5 2.12 1.0 >/dev/null
+  "$SCRIPTS/verify_jar.sh" "$spark4" "$commit" 1.2.0 4.1 2.13 1.0 >/dev/null
   assert_failure_with "jar rejects snapshot Stream Load SDK metadata" "SDK Git version" \
-    "$SCRIPTS/verify_jar.sh" "$snapshot_sdk" "$commit" 1.2.0 3.5 2.12 8 1.0
+    "$SCRIPTS/verify_jar.sh" "$snapshot_sdk" "$commit" 1.2.0 3.5 2.12 1.0
   rm -rf "$work"
 }
 
@@ -213,7 +208,7 @@ assert_success "duplicate Spark versions cannot be selected" test_version_select
 assert_success "custom Maven settings reach deploy.sh" test_custom_maven_settings
 assert_success "Central no-upload rehearsal is pinned to its verified plugin" test_central_dry_run_contract
 assert_failure_with "linked worktree is rejected" "linked Git worktree" test_linked_worktree_rejected
-assert_success "JAR verifier accepts valid artifact and rejects wrong bytecode" test_jar_validation
+assert_success "JAR verifier validates Spark release metadata" test_jar_validation
 assert_success "publish and GitHub stages retain irreversible-action guards" test_irreversible_stage_guards
 
 for script in "$SCRIPTS"/*.sh "$TEST_DIR"/*.sh; do

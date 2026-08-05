@@ -223,14 +223,6 @@ assert_central_dry_run_contract() {
     || die "deploy.sh defines skipPublishing itself; review the dry-run contract before release"
 }
 
-expected_class_major() {
-  case "$1" in
-    8) printf '52\n' ;;
-    17) printf '61\n' ;;
-    *) die "No class-file mapping is defined for Java $1" ;;
-  esac
-}
-
 java_major_at_home() {
   local home="$1" line version
   [ -x "$home/bin/java" ] || return 1

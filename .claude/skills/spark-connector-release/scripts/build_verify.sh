@@ -87,7 +87,7 @@ for spark in "${versions[@]}"; do
     continue
   fi
   if ! "$SCRIPT_DIR/verify_bundle.sh" \
-      "$source_bundle" "$source_jar" "$COMMIT" "$VERSION" "$spark" "$scala" "$java" "$SDK_VERSION"; then
+      "$source_bundle" "$source_jar" "$COMMIT" "$VERSION" "$spark" "$scala" "$SDK_VERSION"; then
     results+=("Spark $spark FAIL(bundle-verify)")
     overall=1
     continue
