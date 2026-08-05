@@ -104,9 +104,10 @@ only after all intended versions pass.
 - the user to type the release version, or explicitly provide
   `CONFIRM_PUBLISH=<version>` for a non-interactive run.
 
-It switches JDK for each profile and invokes the repository's existing `deploy.sh` without
-the dry-run flag. The POM activates the `release` and selected Spark profiles together.
-Publication stops at the first failure.
+It uploads each already-verified signed bundle directly to the Central Publisher API with
+automatic publishing; it does not rebuild the artifact. The in-flight marker records the
+bundle SHA-256 and returned Central deployment ID before polling that deployment to
+`PUBLISHED`. Publication stops at the first failure.
 
 ### Verify Maven Central
 
@@ -148,5 +149,6 @@ $SKILL/scripts/verify_central.sh 1.2.0 4.1
 
 Use a subset only when recovering a failed or unpublished version. Local state records
 successful publication and refuses to publish the same version twice. If execution was
-interrupted during upload, check the Central Portal deployment before retrying; absence
-from the public Maven mirror alone does not prove that an upload never happened.
+interrupted during upload, use the deployment ID in `publishing-<spark>.env` to check the
+Central Portal before retrying; absence from the public Maven mirror alone does not prove
+that an upload never happened.

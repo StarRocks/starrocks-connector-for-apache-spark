@@ -338,6 +338,146 @@ central_artifact_url() {
     "$artifact" "$version" "$artifact" "$version"
 }
 
+maven_central_server_value() {
+  local settings="$1" element="$2"
+  awk -v element="$element" '
+    BEGIN { RS = "</server>"; ORS = "" }
+    /<id>[[:space:]]*central[[:space:]]*<\/id>/ {
+      opening = "<" element ">"
+      closing = "</" element ">"
+      start = index($0, opening)
+      if (start == 0) exit
+      value = substr($0, start + length(opening))
+      finish = index(value, closing)
+      if (finish == 0) exit
+      value = substr(value, 1, finish - 1)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      print value
+      exit
+    }
+  ' "$settings"
+}
+
+write_central_curl_config() {
+  local destination="$1" settings username password authorization
+  if [ -n "${CENTRAL_USERNAME:-}" ] || [ -n "${CENTRAL_PASSWORD:-}" ]; then
+    [ -n "${CENTRAL_USERNAME:-}" ] && [ -n "${CENTRAL_PASSWORD:-}" ] \
+      || die "set both CENTRAL_USERNAME and CENTRAL_PASSWORD, or neither"
+    username="$CENTRAL_USERNAME"
+    password="$CENTRAL_PASSWORD"
+  else
+    settings="${MAVEN_SETTINGS:-${HOME}/.m2/settings.xml}"
+    [ -f "$settings" ] || die "Maven settings not found: $settings"
+    username="$(maven_central_server_value "$settings" username)"
+    password="$(maven_central_server_value "$settings" password)"
+    [ -n "$username" ] && [ -n "$password" ] \
+      || die "$settings has no complete username/password for server id central"
+    [[ "$password" != \{*\} ]] \
+      || die "the central password in $settings is Maven-encrypted; export decrypted CENTRAL_USERNAME and CENTRAL_PASSWORD for the Portal API upload"
+    [[ "$username$password" != *'&'* ]] \
+      || die "the central credentials in $settings use XML entities; export CENTRAL_USERNAME and CENTRAL_PASSWORD instead"
+  fi
+  [[ "$username$password" != *$'\n'* ]] || die "Central credentials must not contain newlines"
+  require_command base64
+  authorization="$(printf '%s:%s' "$username" "$password" | base64 | tr -d '\r\n')"
+  (umask 077; printf 'header = "Authorization: Bearer %s"\n' "$authorization" > "$destination")
+  chmod 600 "$destination"
+}
+
+upload_central_bundle() {
+  local bundle="$1" deployment_name="$2" curl_config="$3"
+  local encoded_name response http_status deployment_id
+  [ -s "$bundle" ] || die "Central bundle not found: $bundle"
+  [ -s "$curl_config" ] || die "Central API curl configuration not found: $curl_config"
+  require_command curl
+  require_command jq
+
+  encoded_name="$(jq -rn --arg value "$deployment_name" '$value | @uri')"
+  response="$(mktemp)"
+  if ! http_status="$(curl \
+      --config "$curl_config" \
+      --silent --show-error \
+      --connect-timeout 20 --max-time 600 \
+      --request POST \
+      --form "bundle=@$bundle;type=application/octet-stream" \
+      --output "$response" \
+      --write-out '%{http_code}' \
+      "https://central.sonatype.com/api/v1/publisher/upload?name=$encoded_name&publishingType=AUTOMATIC")"; then
+    rm -f "$response"
+    die "Central Portal rejected or could not receive the verified bundle"
+  fi
+  if [ "$http_status" != 201 ]; then
+    rm -f "$response"
+    die "Central Portal bundle upload returned HTTP $http_status"
+  fi
+  deployment_id="$(tr -d '\r\n' < "$response")"
+  rm -f "$response"
+  [[ "$deployment_id" =~ ^[0-9A-Fa-f-]{36}$ ]] \
+    || die "Central Portal returned an invalid deployment id"
+  printf '%s\n' "$deployment_id"
+}
+
+central_deployment_state() {
+  local deployment_id="$1" curl_config="$2" response http_status state
+  response="$(mktemp)"
+  if ! http_status="$(curl \
+      --config "$curl_config" \
+      --silent --show-error \
+      --connect-timeout 20 --max-time 60 \
+      --request POST \
+      --output "$response" \
+      --write-out '%{http_code}' \
+      "https://central.sonatype.com/api/v1/publisher/status?id=$deployment_id")"; then
+    rm -f "$response"
+    die "could not query Central Portal deployment $deployment_id"
+  fi
+  if [ "$http_status" != 200 ]; then
+    rm -f "$response"
+    die "Central Portal status query returned HTTP $http_status for deployment $deployment_id"
+  fi
+  state="$(jq -er '.deploymentState | strings' "$response" 2>/dev/null || true)"
+  rm -f "$response"
+  [ -n "$state" ] || die "Central Portal returned no state for deployment $deployment_id"
+  printf '%s\n' "$state"
+}
+
+wait_for_central_publication() {
+  local deployment_id="$1" curl_config="$2" state started now
+  started="$(date +%s)"
+  while true; do
+    state="$(central_deployment_state "$deployment_id" "$curl_config")"
+    info "Central deployment $deployment_id state: $state"
+    case "$state" in
+      PUBLISHED) return 0 ;;
+      PENDING|VALIDATING|VALIDATED|PUBLISHING) ;;
+      FAILED) die "Central deployment $deployment_id failed validation or publication; inspect Central Portal" ;;
+      *) die "Central deployment $deployment_id returned unexpected state $state" ;;
+    esac
+    now="$(date +%s)"
+    [ $((now - started)) -lt 1800 ] \
+      || die "timed out waiting for Central deployment $deployment_id; inspect Central Portal"
+    sleep 5
+  done
+}
+
+publish_verified_bundle() {
+  local bundle="$1" deployment_name="$2" curl_config="$3" in_flight_marker="$4"
+  local deployment_id bundle_sha
+  [ -f "$in_flight_marker" ] || die "publication in-flight marker not found: $in_flight_marker"
+  ! grep -q '^deployment_id=' "$in_flight_marker" \
+    || die "publication marker already contains a Central deployment id; inspect Central Portal"
+  bundle_sha="$(sha256sum "$bundle" | awk '{print $1}')"
+  if ! deployment_id="$(upload_central_bundle "$bundle" "$deployment_name" "$curl_config")"; then
+    return 1
+  fi
+  {
+    printf 'deployment_id=%s\n' "$deployment_id"
+    printf 'bundle_sha256=%s\n' "$bundle_sha"
+  } >> "$in_flight_marker"
+  pass "uploaded the verified bundle as Central deployment $deployment_id"
+  wait_for_central_publication "$deployment_id" "$curl_config"
+}
+
 property_value() {
   local key="$1"
   awk -F= -v key="$key" '$1 == key { sub(/^[^=]*=/, ""); print; exit }'

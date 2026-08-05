@@ -27,19 +27,9 @@ REPO_ROOT="$(resolve_repo)"
 cd "$REPO_ROOT"
 assert_primary_checkout "$REPO_ROOT"
 assert_clean_checkout "$REPO_ROOT"
-trap 'cleanup_maven_generated_files "$REPO_ROOT"' EXIT
-require_command curl
-
-for variable in CUSTOM_MVN MAVEN_ARGS MAVEN_OPTS JAVA_TOOL_OPTIONS _JAVA_OPTIONS JDK_JAVA_OPTIONS; do
-  value="${!variable:-}"
-  [[ "$value" != *skipPublishing* ]] \
-    || die "$variable contains skipPublishing; refusing to record a false publication success"
-done
-for config in .mvn/maven.config .mvn/jvm.config; do
-  [ ! -f "$config" ] \
-    || ! grep -q 'skipPublishing' "$config" \
-    || die "$config contains skipPublishing; remove it before publication"
-done
+CENTRAL_CURL_CONFIG=''
+trap '[ -z "$CENTRAL_CURL_CONFIG" ] || rm -f "$CENTRAL_CURL_CONFIG"' EXIT
+for command in curl jq base64 sha256sum; do require_command "$command"; done
 
 VERSION="$(pom_connector_version "$REPO_ROOT")"
 [ -n "$VERSION" ] || die "cannot determine connector version"
@@ -61,7 +51,6 @@ MARKER="$STATE_DIR/verified.env"
   || die "verification marker does not match connector version $VERSION"
 verified="$(sed -n 's/^versions=//p' "$MARKER")"
 SDK_VERSION="$(stream_load_sdk_version "$REPO_ROOT")"
-MAVEN_CMD="$(release_maven_command)"
 
 for spark in "${versions[@]}"; do
   case " $verified " in
@@ -129,33 +118,40 @@ else
     || die "non-interactive publication requires CONFIRM_PUBLISH=$VERSION"
 fi
 
+CENTRAL_CURL_CONFIG="$(mktemp /tmp/spark-connector-central-curl.XXXXXX)"
+write_central_curl_config "$CENTRAL_CURL_CONFIG"
+pass "Central Portal API credentials are loaded without logging them"
+
 declare -a results=()
 for spark in "${versions[@]}"; do
-  java="$(spark_java_major "$REPO_ROOT" "$spark")"
-  info "Publishing Spark $spark with JDK $java"
-  activate_java_for_spark "$REPO_ROOT" "$spark"
+  scala="$(spark_scala_binary "$REPO_ROOT" "$spark")"
+  artifact="$(artifact_id "$spark" "$scala")"
+  bundle="$STATE_DIR/bundles/central-bundle-spark-$spark.zip"
+  bundle_sha="$(sha256sum "$bundle" | awk '{print $1}')"
+  in_flight_marker="$STATE_DIR/publishing-$spark.env"
+  info "Publishing the verified Central bundle for Spark $spark"
   {
     printf 'commit=%s\n' "$COMMIT"
     printf 'version=%s\n' "$VERSION"
     printf 'spark=%s\n' "$spark"
+    printf 'bundle=%s\n' "$(basename "$bundle")"
     printf 'started_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  } > "$STATE_DIR/publishing-$spark.env"
-  if CUSTOM_MVN="$MAVEN_CMD" bash deploy.sh "$spark"; then
-    {
-      printf 'commit=%s\n' "$COMMIT"
-      printf 'version=%s\n' "$VERSION"
-      printf 'spark=%s\n' "$spark"
-      printf 'published_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    } > "$STATE_DIR/published-$spark.env"
-    rm -f "$STATE_DIR/publishing-$spark.env"
-    results+=("Spark $spark PUBLISHED")
-    pass "published Spark $spark"
-  else
-    results+=("Spark $spark FAILED")
-    printf '\n'
-    for result in "${results[@]}"; do printf '  %s\n' "$result"; done
-    die "publication failed for Spark $spark; inspect Central Portal before retrying only this version"
-  fi
+  } > "$in_flight_marker"
+  publish_verified_bundle \
+    "$bundle" "com.starrocks:$artifact:$VERSION" "$CENTRAL_CURL_CONFIG" "$in_flight_marker"
+  deployment_id="$(sed -n 's/^deployment_id=//p' "$in_flight_marker")"
+  {
+    printf 'commit=%s\n' "$COMMIT"
+    printf 'version=%s\n' "$VERSION"
+    printf 'spark=%s\n' "$spark"
+    printf 'bundle=%s\n' "$(basename "$bundle")"
+    printf 'bundle_sha256=%s\n' "$bundle_sha"
+    printf 'deployment_id=%s\n' "$deployment_id"
+    printf 'published_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  } > "$STATE_DIR/published-$spark.env"
+  rm -f "$in_flight_marker"
+  results+=("Spark $spark PUBLISHED")
+  pass "published Spark $spark from Central deployment $deployment_id"
 done
 
 echo

@@ -30,9 +30,10 @@ The release uses the JDK matching the selected Spark generation:
 | 3.x | 2.12 | 8 |
 | 4.x | 2.13 | 17 |
 
-Set `JAVA8_HOME` and `JAVA17_HOME` when possible. Automatic discovery is a fallback, and
-the scripts always execute `java -version` against the selected home before building or
-publishing.
+Set `JAVA8_HOME` and `JAVA17_HOME` when possible. Automatic discovery is a fallback.
+Preflight verifies both installations, and build verification executes `java -version`
+against the selected home before each Spark build. Publication uploads those verified
+bundle bytes directly and does not launch Java.
 
 ## Checkout requirement
 
@@ -43,9 +44,10 @@ cannot be tied back to its release tag. The preflight rejects linked worktrees e
 
 ## Central Publisher Portal credentials
 
-The POM uses `org.sonatype.central:central-publishing-maven-plugin` with server id `central`.
-Create a Central Portal user token for an account authorized to publish `com.starrocks`, and
-place it in Maven settings without committing it:
+The POM uses `org.sonatype.central:central-publishing-maven-plugin` with server id `central`
+to build the signed bundle. `publish.sh` sends that verified bundle directly to the Central
+Publisher API. Create a Central Portal user token for an account authorized to publish
+`com.starrocks`, and place it in Maven settings without committing it:
 
 ```xml
 <settings>
@@ -59,7 +61,11 @@ place it in Maven settings without committing it:
 </settings>
 ```
 
-The default file is `~/.m2/settings.xml`. Set `MAVEN_SETTINGS` when using another file.
+The default file is `~/.m2/settings.xml`. Set `MAVEN_SETTINGS` when using another file. The
+API uploader can read plain token values from this entry. If the Maven password is encrypted,
+export its decrypted values as `CENTRAL_USERNAME` and `CENTRAL_PASSWORD` for the release
+process instead. The uploader keeps its authorization header in a mode-600 temporary file
+and never writes the credentials to logs or release state.
 
 ## GPG signing
 
@@ -81,9 +87,10 @@ Do not print credentials or passphrases in command output, logs, or release stat
 The build-verification stage calls the repository's `deploy.sh` with
 `skipPublishing=true`. Central plugin 0.8.0 still stages and builds
 `target/central-publishing/central-bundle.zip`, then stops before its upload call. This
-validates the same release/GPG/profile path used by publication without creating a Portal
-deployment. The scripts require exactly plugin 0.8.0 for this rehearsal; after any plugin
-upgrade, review the plugin behavior and update the guard before releasing.
+validates the release/GPG/profile path and creates the exact bundle later sent to the Portal,
+without creating a deployment during rehearsal. The scripts require exactly plugin 0.8.0
+for this behavior; after any plugin upgrade, review the plugin behavior and update the guard
+before releasing.
 
 ## Release state
 
@@ -93,7 +100,7 @@ Local build evidence is stored beneath the repository's Git directory in
 - copied primary JARs and signed Central bundles from each local rehearsal;
 - their SHA-256 checksums;
 - tag commit and verified-version metadata;
-- publication completion markers;
+- in-flight and completion markers containing the bundle SHA-256 and Central deployment ID;
 - artifacts downloaded and verified from Maven Central.
 
 Because this state is outside the tracked work tree, it cannot dirty the release tag. It is
@@ -106,9 +113,9 @@ Maven Central coordinates are immutable. The safe order is:
 
 1. create a release commit and local tag;
 2. build all signed bundles from that exact commit without uploading;
-3. inspect the real JAR metadata, signatures, checksums, and class bytes;
+3. inspect the real JAR metadata, signatures, checksums, and required shaded classes;
 4. push the verified tag;
-5. publish with explicit confirmation;
+5. upload that exact verified bundle with explicit confirmation;
 6. download and verify what Maven Central serves;
 7. create a draft GitHub release from the verified public JARs.
 
@@ -123,5 +130,5 @@ Maven Central coordinates are immutable. The safe order is:
 | Central authentication fails | Regenerate/check the Portal token and namespace permission. |
 | One Spark artifact publishes and the next fails | Keep the published coordinates; fix and retry only the unpublished Spark version. |
 | The public JAR returns 404 immediately | Wait for mirror synchronization and rerun public verification. |
-| Publication was interrupted | Inspect the Portal deployment before any retry. |
+| Publication was interrupted | Read the deployment ID from `publishing-<spark>.env` and inspect that Portal deployment before any retry. |
 | GitHub release creation fails | Published artifacts remain valid; fix authentication/notes and recreate only the draft. |

@@ -23,6 +23,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib.sh"
 
+CENTRAL_CREDENTIAL_PROBE=''
+trap '[ -z "$CENTRAL_CREDENTIAL_PROBE" ] || rm -f "$CENTRAL_CREDENTIAL_PROBE"' EXIT
+
 REPO_ROOT="$(resolve_repo)"
 cd "$REPO_ROOT"
 
@@ -32,7 +35,7 @@ pass "repository is a primary checkout"
 assert_clean_checkout "$REPO_ROOT"
 pass "working tree is clean"
 
-for command in git mvn gpg curl unzip zip sha256sum gh; do
+for command in git mvn gpg curl jq base64 unzip zip sha256sum gh; do
   require_command "$command"
   pass "$command is available"
 done
@@ -83,11 +86,11 @@ grep -Fq '<arg>loopback</arg>' pom.xml \
   || die "release signing is missing GPG loopback pinentry configuration"
 pass "GPG loopback signing is configured"
 
-settings="${MAVEN_SETTINGS:-${HOME}/.m2/settings.xml}"
-[ -f "$settings" ] || die "Maven settings not found: $settings"
-grep -qE '<id>[[:space:]]*central[[:space:]]*</id>' "$settings" \
-  || die "$settings has no server with id central"
-pass "Maven settings contains the central server entry"
+CENTRAL_CREDENTIAL_PROBE="$(mktemp /tmp/spark-connector-central-auth.XXXXXX)"
+write_central_curl_config "$CENTRAL_CREDENTIAL_PROBE"
+rm -f "$CENTRAL_CREDENTIAL_PROBE"
+CENTRAL_CREDENTIAL_PROBE=''
+pass "Central Portal API credentials are available"
 
 secret_keys="$(gpg --batch --list-secret-keys --with-colons 2>/dev/null || true)"
 grep -q '^sec:' <<< "$secret_keys" \

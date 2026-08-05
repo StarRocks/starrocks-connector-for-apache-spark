@@ -163,10 +163,113 @@ test_central_dry_run_contract() {
 }
 
 test_linked_worktree_rejected() {
-  # This repository is intentionally the development linked worktree.
   # shellcheck disable=SC1091
   source "$SCRIPTS/lib.sh"
-  assert_primary_checkout "$REPO_ROOT"
+  local fixture_root linked_checkout output status
+  fixture_root="$(mktemp -d)"
+  linked_checkout="$fixture_root/linked-checkout"
+  git -C "$REPO_ROOT" worktree add --quiet --detach "$linked_checkout" HEAD || {
+    rmdir "$fixture_root"
+    return 1
+  }
+
+  set +e
+  output="$(assert_primary_checkout "$linked_checkout" 2>&1)"
+  status=$?
+  set -e
+
+  git -C "$REPO_ROOT" worktree remove --force "$linked_checkout" >/dev/null
+  rmdir "$fixture_root"
+  [ "$status" -ne 0 ] && [[ "$output" == *"linked Git worktree"* ]]
+}
+
+test_verified_bundle_upload() {
+  # shellcheck disable=SC1091
+  source "$SCRIPTS/lib.sh"
+  local work bundle curl_config call_log marker bundle_sha
+  work="$(mktemp -d)"
+  bundle="$work/verified-central-bundle.zip"
+  curl_config="$work/curl.conf"
+  call_log="$work/curl.log"
+  marker="$work/publishing.env"
+  printf 'verified bundle bytes' > "$bundle"
+  printf 'header = "Authorization: Bearer test"\n' > "$curl_config"
+  printf 'started=yes\n' > "$marker"
+
+  curl() {
+    local output='' argument previous='' url
+    url="${*: -1}"
+    printf '%s\n' "$*" >> "$call_log"
+    for argument in "$@"; do
+      if [ "$previous" = --output ]; then
+        output="$argument"
+      fi
+      previous="$argument"
+    done
+    [ -n "$output" ] || return 2
+    case "$url" in
+      */api/v1/publisher/upload\?*)
+        printf '01234567-89ab-cdef-0123-456789abcdef' > "$output"
+        printf '201'
+        ;;
+      */api/v1/publisher/status\?id=*)
+        printf '{"deploymentState":"PUBLISHED"}\n' > "$output"
+        printf '200'
+        ;;
+      *) return 3 ;;
+    esac
+  }
+
+  if ! publish_verified_bundle "$bundle" 'spark-3.5 release' "$curl_config" "$marker" >/dev/null; then
+    unset -f curl
+    rm -rf "$work"
+    return 1
+  fi
+  bundle_sha="$(sha256sum "$bundle" | awk '{print $1}')"
+  if ! rg -Fxq 'deployment_id=01234567-89ab-cdef-0123-456789abcdef' "$marker" \
+      || ! rg -Fxq "bundle_sha256=$bundle_sha" "$marker" \
+      || ! rg -Fq -- "--form bundle=@$bundle;type=application/octet-stream" "$call_log" \
+      || ! rg -Fq -- 'publishingType=AUTOMATIC' "$call_log" \
+      || ! rg -Fq -- '--connect-timeout 20' "$call_log" \
+      || ! rg -Fq -- '--max-time 600' "$call_log" \
+      || ! rg -Fq -- '--max-time 60' "$call_log"; then
+    unset -f curl
+    rm -rf "$work"
+    return 1
+  fi
+  unset -f curl
+  rm -rf "$work"
+}
+
+test_central_api_credentials_from_maven_settings() {
+  # shellcheck disable=SC1091
+  source "$SCRIPTS/lib.sh"
+  local work settings curl_config
+  work="$(mktemp -d)"
+  settings="$work/settings.xml"
+  curl_config="$work/curl.conf"
+  printf '%s\n' \
+    '<settings>' \
+    '  <servers>' \
+    '    <server>' \
+    '      <id>central</id>' \
+    '      <username>test-user</username>' \
+    '      <password>test-pass</password>' \
+    '    </server>' \
+    '  </servers>' \
+    '</settings>' > "$settings"
+
+  MAVEN_SETTINGS="$settings" CENTRAL_USERNAME= CENTRAL_PASSWORD= \
+    write_central_curl_config "$curl_config" || {
+      rm -rf "$work"
+      return 1
+    }
+  if [ "$(stat -c '%a' "$curl_config")" != 600 ] \
+      || ! rg -Fxq 'header = "Authorization: Bearer dGVzdC11c2VyOnRlc3QtcGFzcw=="' "$curl_config"; then
+    rm -rf "$work"
+    return 1
+  fi
+  rm -rf "$work"
 }
 
 test_jar_validation() {
@@ -193,11 +296,13 @@ test_jar_validation() {
 }
 
 test_irreversible_stage_guards() {
-  rg -q --fixed-strings -- '-DskipPublishing=true' "$SCRIPTS/build_verify.sh"
-  rg -q --fixed-strings 'CONFIRM_PUBLISH' "$SCRIPTS/publish.sh"
-  rg -q --fixed-strings 'publishing-$spark.env' "$SCRIPTS/publish.sh"
-  rg -q --fixed-strings -- '--draft' "$SCRIPTS/create_github_release.sh"
-  ! rg -q --fixed-strings -- '--draft=false' "$SCRIPTS/create_github_release.sh"
+  rg -q --fixed-strings -- '-DskipPublishing=true' "$SCRIPTS/build_verify.sh" || return 1
+  rg -q --fixed-strings 'CONFIRM_PUBLISH' "$SCRIPTS/publish.sh" || return 1
+  rg -q --fixed-strings 'publishing-$spark.env' "$SCRIPTS/publish.sh" || return 1
+  rg -q --fixed-strings 'publish_verified_bundle' "$SCRIPTS/publish.sh" || return 1
+  ! rg -q --fixed-strings 'bash deploy.sh' "$SCRIPTS/publish.sh" || return 1
+  rg -q --fixed-strings -- '--draft' "$SCRIPTS/create_github_release.sh" || return 1
+  ! rg -q --fixed-strings -- '--draft=false' "$SCRIPTS/create_github_release.sh" || return 1
 }
 
 assert_success "required files exist" test_required_files
@@ -207,7 +312,9 @@ assert_success "Spark profiles map to the required JDK and Scala" test_profile_m
 assert_success "duplicate Spark versions cannot be selected" test_version_selection_guards
 assert_success "custom Maven settings reach deploy.sh" test_custom_maven_settings
 assert_success "Central no-upload rehearsal is pinned to its verified plugin" test_central_dry_run_contract
-assert_failure_with "linked worktree is rejected" "linked Git worktree" test_linked_worktree_rejected
+assert_success "linked-worktree rejection uses an isolated fixture" test_linked_worktree_rejected
+assert_success "Central API credentials come from Maven settings without logging them" test_central_api_credentials_from_maven_settings
+assert_success "verified Central bundle is uploaded directly" test_verified_bundle_upload
 assert_success "JAR verifier validates Spark release metadata" test_jar_validation
 assert_success "publish and GitHub stages retain irreversible-action guards" test_irreversible_stage_guards
 
