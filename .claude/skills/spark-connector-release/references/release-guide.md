@@ -42,6 +42,18 @@ version in this project does not correctly generate `starrocks-spark-connector-g
 from a linked worktree. Maven can still report success in that situation, leaving a JAR that
 cannot be tied back to its release tag. The preflight rejects linked worktrees explicitly.
 
+## Version requirements documentation
+
+Before creating a release branch, `prepare_release.sh` checks the fetched `origin/main`
+versions of `docs/connector-read.md` and `docs/connector-write.md`. The first cell of a row
+inside each document's `Version requirements` section must exactly equal the requested
+connector version. Prefix matches and mentions elsewhere in the document do not count.
+
+If either row is missing, the release can continue only after the user explicitly approves
+the omission, including for RC versions. In a non-interactive run,
+`CONFIRM_DOCS_VERSION=<version>` relays that prior user decision; an agent must never set it
+without asking the user.
+
 ## Central Publisher Portal credentials
 
 The POM uses `org.sonatype.central:central-publishing-maven-plugin` with server id `central`
@@ -111,13 +123,14 @@ publication.
 
 Maven Central coordinates are immutable. The safe order is:
 
-1. create a release commit and local tag;
-2. build all signed bundles from that exact commit without uploading;
-3. inspect the real JAR metadata, signatures, checksums, and required shaded classes;
-4. push the verified tag;
-5. upload that exact verified bundle with explicit confirmation;
-6. download and verify what Maven Central serves;
-7. create a draft GitHub release from the verified public JARs.
+1. verify that both user-doc version tables list the release, or explicitly approve the omission;
+2. create a release commit and local tag;
+3. build all signed bundles from that exact commit without uploading;
+4. inspect the real JAR metadata, signatures, checksums, and required shaded classes;
+5. push the verified tag;
+6. upload that exact verified bundle with explicit confirmation;
+7. download and verify what Maven Central serves;
+8. create a draft GitHub release from the verified public JARs.
 
 ## Failure recovery
 
@@ -125,6 +138,7 @@ Maven Central coordinates are immutable. The safe order is:
 | --- | --- |
 | A JDK cannot be found | Set `JAVA8_HOME` or `JAVA17_HOME` to the required installation. |
 | Preflight reports a linked worktree | Use a primary clone/checkout for the release. |
+| A user-doc version row is missing | Add the exact row on `main`, or ask the user whether to continue without it. |
 | Connector Git properties are missing | Do not publish; confirm the checkout type and rebuild. |
 | GPG signing fails | Check the secret key, passphrase source, loopback support, and `gpg-agent`. |
 | Central authentication fails | Regenerate/check the Portal token and namespace permission. |
