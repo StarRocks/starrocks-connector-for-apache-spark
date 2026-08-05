@@ -43,7 +43,6 @@ POM_PROPERTIES="META-INF/maven/com.starrocks/$ARTIFACT/pom.properties"
 CONNECTOR_PROPERTIES="starrocks-spark-connector-git.properties"
 SDK_POM_PROPERTIES="META-INF/maven/com.starrocks/starrocks-stream-load-sdk/pom.properties"
 SDK_GIT_PROPERTIES="stream-load-sdk-git.properties"
-SDK_CLASS_PREFIX="com/starrocks/data/load/stream/"
 
 ok=0
 bad=0
@@ -122,10 +121,15 @@ else
   no "$SDK_GIT_PROPERTIES is missing"
 fi
 
-case "$LIST" in
-  *"$SDK_CLASS_PREFIX"*) yes "Stream Load SDK classes are shaded" ;;
-  *) no "Stream Load SDK classes are missing" ;;
-esac
+sdk_class_list="$(printf '%s\n' "$LIST" \
+  | awk '/^com\/starrocks\/data\/load\/stream\/.*\.class$/')"
+if [ -z "$sdk_class_list" ]; then
+  no "Stream Load SDK classes are missing"
+else
+  sdk_class_count="$(printf '%s\n' "$sdk_class_list" \
+    | awk 'NF { count++ } END { print count + 0 }')"
+  yes "$sdk_class_count Stream Load SDK class files are shaded"
+fi
 
 class_list="$(printf '%s\n' "$LIST" | awk '/^com\/starrocks\/connector\/spark\/.*\.class$/')"
 if [ -z "$class_list" ]; then

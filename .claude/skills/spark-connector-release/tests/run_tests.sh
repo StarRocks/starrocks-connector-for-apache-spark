@@ -273,14 +273,21 @@ test_central_api_credentials_from_maven_settings() {
 }
 
 test_jar_validation() {
-  local work commit spark3 spark4 snapshot_sdk
+  local work commit spark3 spark4 snapshot_sdk missing_sdk_dir missing_sdk_classes
   work="$(mktemp -d)"
   commit=0123456789abcdef0123456789abcdef01234567
   spark3="$work/starrocks-spark-connector-3.5_2.12-1.2.0.jar"
   spark4="$work/starrocks-spark-connector-4.1_2.13-1.2.0.jar"
   snapshot_sdk="$work/starrocks-spark-connector-3.5_2.12-1.2.0.jar.snapshot-sdk"
+  missing_sdk_dir="$work/missing-sdk-classes"
+  missing_sdk_classes="$missing_sdk_dir/starrocks-spark-connector-3.5_2.12-1.2.0.jar"
   make_fake_jar "$spark3" 1.2.0 3.5 2.12 "$commit" 1.0
   make_fake_jar "$spark4" 1.2.0 4.1 2.13 "$commit" 1.0
+  mkdir -p "$missing_sdk_dir"
+  cp "$spark3" "$missing_sdk_classes"
+  zip -dq "$missing_sdk_classes" 'com/starrocks/data/load/stream/*.class'
+  unzip -Z1 "$missing_sdk_classes" \
+    | rg -Fxq 'com/starrocks/data/load/stream/'
   cp "$spark3" "$snapshot_sdk"
   fixture="$(mktemp -d)"
   (cd "$fixture" && unzip -q "$snapshot_sdk")
@@ -292,6 +299,8 @@ test_jar_validation() {
   "$SCRIPTS/verify_jar.sh" "$spark4" "$commit" 1.2.0 4.1 2.13 1.0 >/dev/null
   assert_failure_with "jar rejects snapshot Stream Load SDK metadata" "SDK Git version" \
     "$SCRIPTS/verify_jar.sh" "$snapshot_sdk" "$commit" 1.2.0 3.5 2.12 1.0
+  assert_failure_with "jar rejects an SDK package without class files" "Stream Load SDK classes are missing" \
+    "$SCRIPTS/verify_jar.sh" "$missing_sdk_classes" "$commit" 1.2.0 3.5 2.12 1.0
   rm -rf "$work"
 }
 
