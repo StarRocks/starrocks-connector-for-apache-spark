@@ -71,6 +71,62 @@ pom_is_snapshot() {
   [[ "$(pom_connector_version "$1")" == *-SNAPSHOT ]]
 }
 
+DOCS_VERSION_FILES=(docs/connector-read.md docs/connector-write.md)
+
+version_row_in_stream() {
+  local version="$1"
+  awk -v v="$version" -F'|' '
+    /^##[[:space:]]+Version requirements/ { in_section = 1; next }
+    in_section && /^##[[:space:]]/ { in_section = 0 }
+    in_section && $1 == "" && NF >= 2 {
+      cell = $2
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", cell)
+      if (cell == v) found = 1
+    }
+    END { exit found ? 0 : 1 }
+  '
+}
+
+docs_version_row_exists() {
+  local root="$1" version="$2" file="$3" ref="${4:-}"
+  if [ -n "$ref" ]; then
+    git -C "$root" show "$ref:$file" 2>/dev/null | version_row_in_stream "$version"
+  else
+    [ -f "$root/$file" ] && version_row_in_stream "$version" < "$root/$file"
+  fi
+}
+
+check_docs_version() {
+  local root="$1" version="$2" ref="${3:-}" file answer source_label
+  local -a missing=()
+  source_label="${ref:-working tree}"
+
+  for file in "${DOCS_VERSION_FILES[@]}"; do
+    if docs_version_row_exists "$root" "$version" "$file" "$ref"; then
+      pass "docs: $source_label:$file lists $version"
+    else
+      missing+=("$file")
+    fi
+  done
+
+  [ "${#missing[@]}" -eq 0 ] && return 0
+
+  warn "$source_label Version requirements table does NOT list $version in: ${missing[*]}"
+  warn "Usually add an exact '$version' row to both documents on main before releasing."
+  if [ -t 0 ]; then
+    printf 'Release %s anyway, without every docs version row? [y/N] ' "$version"
+    read -r answer
+    case "$answer" in
+      y|Y) warn "proceeding without every docs version row for $version (confirmed by user)" ;;
+      *) die "aborted — add the $version rows on main, then rerun" ;;
+    esac
+  else
+    [ "${CONFIRM_DOCS_VERSION:-}" = "$version" ] \
+      || die "non-interactive: docs are missing the exact $version row — ASK THE USER whether to release without it. Only after they explicitly agree, rerun with CONFIRM_DOCS_VERSION=$version; never set it on the agent's own judgment."
+    warn "proceeding without every docs version row for $version (user confirmation relayed by CONFIRM_DOCS_VERSION)"
+  fi
+}
+
 pom_root_property() {
   local root="$1" property="$2"
   awk -v property="$property" '

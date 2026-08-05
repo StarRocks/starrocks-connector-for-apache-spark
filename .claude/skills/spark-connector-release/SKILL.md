@@ -25,6 +25,9 @@ artifacts after publication.
   exists only in `pom.xml` is not releasable unless `common.sh` lists it.
 - Use JDK 8 for Spark 3.x and JDK 17 for Spark 4.x. The scripts verify the active JDK and
   the profile's Java source/target configuration.
+- Before creating the release branch, require an exact release-version row in both user-doc
+  `Version requirements` tables. If either row is missing, stop and get the user's explicit
+  approval; never set `CONFIRM_DOCS_VERSION` based on the agent's own judgment.
 - Stop on any non-zero script result. Never bypass the verification marker or publication
   confirmation.
 - Never attempt to overwrite or redeploy coordinates already published to Maven Central.
@@ -65,9 +68,16 @@ discovered runtime reports the exact required major version.
 
 ### Prepare the release commit and local tag
 
-`prepare_release.sh <version>` fetches `origin/main`, creates `release-<version>`, sets
-the top-level Maven version, commits it, and creates local tag `v<version>`. It refuses to
-reuse a local or remote branch/tag and does not push anything.
+`prepare_release.sh <version>` fetches `origin/main` and first checks that its
+`docs/connector-read.md` and `docs/connector-write.md` `Version requirements` tables both
+contain an exact row for the requested version, including RC versions. A missing row always
+requires the user's explicit confirmation: interactively answer the prompt, or only after
+the user agrees, relay that decision with `CONFIRM_DOCS_VERSION=<version>` in a
+non-interactive run.
+
+The script then creates `release-<version>`, sets the top-level Maven version, commits it,
+and creates local tag `v<version>`. It refuses to reuse a local or remote branch/tag and
+does not push anything.
 
 ### Build and verify without publishing
 

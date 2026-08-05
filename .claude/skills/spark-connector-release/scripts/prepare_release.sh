@@ -64,6 +64,8 @@ current="$(git show origin/main:pom.xml | awk '
 [[ "$current" == *-SNAPSHOT ]] \
   || die "origin/main version $current is not a SNAPSHOT; inspect repository state before releasing"
 
+check_docs_version "$REPO_ROOT" "$VERSION" origin/main
+
 info "Creating $BRANCH from origin/main"
 git switch --create "$BRANCH" origin/main
 

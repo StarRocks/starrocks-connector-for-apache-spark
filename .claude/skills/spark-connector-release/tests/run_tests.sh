@@ -172,6 +172,117 @@ test_central_dry_run_contract() {
   assert_central_dry_run_contract "$REPO_ROOT"
 }
 
+write_version_doc() {
+  local destination="$1" version="$2"
+  mkdir -p "$(dirname "$destination")"
+  printf '%s\n' \
+    '# Connector documentation' \
+    '' \
+    'This prose mentions 9.9.9 but is not a compatibility declaration.' \
+    '' \
+    '## Version requirements' \
+    '' \
+    '| Spark connector | Spark | Java | Scala |' \
+    '|-----------------|-------|------|-------|' \
+    "| $version | 3.5 | 8 | 2.12 |" \
+    '' \
+    '## Usage' \
+    > "$destination"
+}
+
+test_docs_version_gate_accepts_exact_rows() {
+  # shellcheck disable=SC1091
+  source "$SCRIPTS/lib.sh"
+  local work
+  work="$(mktemp -d)"
+  write_version_doc "$work/docs/connector-read.md" 1.1.4-RC0
+  write_version_doc "$work/docs/connector-write.md" 1.1.4-RC0
+  if ! check_docs_version "$work" 1.1.4-RC0 >/dev/null; then
+    rm -rf "$work"
+    return 1
+  fi
+  rm -rf "$work"
+}
+
+test_docs_version_gate_requires_exact_confirmation() {
+  # shellcheck disable=SC1091
+  source "$SCRIPTS/lib.sh"
+  local work output status
+  work="$(mktemp -d)"
+  write_version_doc "$work/docs/connector-read.md" 1.1.4
+  write_version_doc "$work/docs/connector-write.md" 1.1.4
+
+  set +e
+  output="$(CONFIRM_DOCS_VERSION=1.1.4 check_docs_version "$work" 1.1.4-RC0 2>&1)"
+  status=$?
+  set -e
+  rm -rf "$work"
+
+  [ "$status" -ne 0 ] && [[ "$output" == *"ASK THE USER"* ]]
+}
+
+test_docs_version_gate_accepts_user_confirmation() {
+  # shellcheck disable=SC1091
+  source "$SCRIPTS/lib.sh"
+  local work
+  work="$(mktemp -d)"
+  write_version_doc "$work/docs/connector-read.md" 1.1.4
+  write_version_doc "$work/docs/connector-write.md" 1.1.4
+  if ! CONFIRM_DOCS_VERSION=1.1.4-RC0 \
+      check_docs_version "$work" 1.1.4-RC0 >/dev/null 2>&1; then
+    rm -rf "$work"
+    return 1
+  fi
+  rm -rf "$work"
+}
+
+test_prepare_release_checks_origin_main_docs_before_branching() {
+  local work origin repo fake_bin output status
+  work="$(mktemp -d)"
+  origin="$work/origin.git"
+  repo="$work/repo"
+  fake_bin="$work/bin"
+  git init --quiet --bare "$origin"
+  git init --quiet --initial-branch=main "$repo"
+  git -C "$repo" config user.name 'Release Test'
+  git -C "$repo" config user.email 'release-test@example.com'
+  printf '%s\n' \
+    '<project>' \
+    '  <artifactId>starrocks-spark-connector-${env.SPARK_FEATURE_VERSION}_${env.STARROCKS_SCALA_VERSION}</artifactId>' \
+    '  <version>1.2.3-SNAPSHOT</version>' \
+    '</project>' > "$repo/pom.xml"
+  printf '%s\n' 'SUPPORTED_SPARK_VERSIONS=(3.5)' > "$repo/common.sh"
+  write_version_doc "$repo/docs/connector-read.md" 1.2.2
+  write_version_doc "$repo/docs/connector-write.md" 1.2.2
+  git -C "$repo" add pom.xml common.sh docs
+  git -C "$repo" commit --quiet -m fixture
+  git -C "$repo" remote add origin "$origin"
+  git -C "$repo" push --quiet --set-upstream origin main
+  git -C "$repo" switch --quiet --create local-docs
+  write_version_doc "$repo/docs/connector-read.md" 1.2.3
+  write_version_doc "$repo/docs/connector-write.md" 1.2.3
+  git -C "$repo" add docs
+  git -C "$repo" commit --quiet -m 'local docs only'
+  mkdir -p "$fake_bin"
+  printf '%s\n' '#!/usr/bin/env bash' 'echo "mvn must not run before the docs gate" >&2' 'exit 99' \
+    > "$fake_bin/mvn"
+  chmod +x "$fake_bin/mvn"
+
+  set +e
+  output="$(PATH="$fake_bin:$PATH" CONFIRM_DOCS_VERSION= CONNECTOR_REPO="$repo" \
+    "$SCRIPTS/prepare_release.sh" 1.2.3 2>&1)"
+  status=$?
+  set -e
+
+  if [ "$status" -eq 0 ] \
+      || [[ "$output" != *"ASK THE USER"* ]] \
+      || git -C "$repo" show-ref --verify --quiet refs/heads/release-1.2.3; then
+    rm -rf "$work"
+    return 1
+  fi
+  rm -rf "$work"
+}
+
 test_linked_worktree_rejected() {
   # shellcheck disable=SC1091
   source "$SCRIPTS/lib.sh"
@@ -365,6 +476,10 @@ assert_success "Spark profiles map to the required JDK and Scala" test_profile_m
 assert_success "duplicate Spark versions cannot be selected" test_version_selection_guards
 assert_success "custom Maven settings reach deploy.sh" test_custom_maven_settings
 assert_success "Central no-upload rehearsal is pinned to its verified plugin" test_central_dry_run_contract
+assert_success "docs gate accepts exact version rows" test_docs_version_gate_accepts_exact_rows
+assert_success "docs gate requires confirmation for an exact missing version" test_docs_version_gate_requires_exact_confirmation
+assert_success "docs gate accepts the user's version-scoped confirmation" test_docs_version_gate_accepts_user_confirmation
+assert_success "prepare release checks origin/main docs before creating a branch" test_prepare_release_checks_origin_main_docs_before_branching
 assert_success "linked-worktree rejection uses an isolated fixture" test_linked_worktree_rejected
 assert_success "publish rejects a matching tag from a non-official origin" test_publish_rechecks_official_origin
 assert_success "Central API credentials come from Maven settings without logging them" test_central_api_credentials_from_maven_settings
