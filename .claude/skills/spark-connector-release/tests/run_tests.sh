@@ -106,6 +106,16 @@ test_required_files() {
   done
 }
 
+test_codex_project_skill_is_discoverable() {
+  local codex_skills codex_skill
+  codex_skills="$REPO_ROOT/.agents/skills"
+  codex_skill="$REPO_ROOT/.agents/skills/spark-connector-release"
+  [ -L "$codex_skills" ] \
+    && [ "$(readlink "$codex_skills")" = '../.claude/skills' ] \
+    && [ -f "$codex_skill/SKILL.md" ] \
+    && [ "$codex_skill/SKILL.md" -ef "$SKILL_DIR/SKILL.md" ]
+}
+
 test_scripts_are_executable() {
   local script
   for script in "$SCRIPTS"/*.sh; do
@@ -348,6 +358,7 @@ test_irreversible_stage_guards() {
 }
 
 assert_success "required files exist" test_required_files
+assert_success "Codex discovers the project skill from .agents/skills" test_codex_project_skill_is_discoverable
 assert_success "release scripts are executable" test_scripts_are_executable
 assert_success "supported versions come from common.sh" test_supported_versions_come_from_common
 assert_success "Spark profiles map to the required JDK and Scala" test_profile_mappings
