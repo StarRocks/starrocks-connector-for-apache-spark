@@ -21,6 +21,8 @@ You can also map the StarRocks table to a Spark DataFrame or a Spark RDD, and th
 
 | Spark connector | Spark         | StarRocks       | Java | Scala |
 |-----------------| ------------- | --------------- | ---- | ----- |
+| 1.1.4           | 3.3, 3.4, 3.5 | 2.5 and later   | 8    | 2.12  |
+|                 | 4.0, 4.1      | 2.5 and later   | 17   | 2.13  |
 | 1.1.3           | 3.2, 3.3, 3.4, 3.5 | 2.5 and later   | 8    | 2.12  |
 | 1.1.2           | 3.2, 3.3, 3.4, 3.5 | 2.5 and later   | 8    | 2.12  |
 | 1.1.1           | 3.2, 3.3, 3.4 | 2.5 and later   | 8    | 2.12  |
