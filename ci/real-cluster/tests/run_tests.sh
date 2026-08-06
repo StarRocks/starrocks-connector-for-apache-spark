@@ -333,19 +333,36 @@ test_spark_roles_use_one_container_network() {
   array_contains_sequence master_args --network cluster-net \
     && array_contains_sequence master_args --hostname spark-master \
     && array_contains_sequence master_args --publish 127.0.0.1:28080:8080 \
-    && array_contains_sequence master_args --entrypoint /opt/spark/bin/spark-class \
-      official-spark-image org.apache.spark.deploy.master.Master \
     && array_contains_sequence worker_args --network cluster-net \
     && array_contains_sequence worker_args --hostname spark-worker \
-    && array_contains_sequence worker_args --entrypoint /opt/spark/bin/spark-class \
-      official-spark-image org.apache.spark.deploy.worker.Worker \
     && array_contains_sequence driver_args --network cluster-net \
     && array_contains_sequence driver_args --hostname spark-driver \
-    && array_contains_sequence driver_args --entrypoint /opt/spark/bin/spark-submit \
-      official-spark-image \
     && ! array_contains_mount_target master_args /opt/spark \
     && ! array_contains_mount_target worker_args /opt/spark \
     && ! array_contains_mount_target driver_args /opt/spark
+}
+
+test_spark_roles_use_the_official_image_entrypoint() {
+  declare -F spark_master_container_args >/dev/null || return 1
+  declare -F spark_worker_container_args >/dev/null || return 1
+  declare -F spark_driver_container_args >/dev/null || return 1
+
+  local -a master_args=() worker_args=() driver_args=()
+  spark_master_container_args master_args master-id cluster-net official-spark-image 28080
+  spark_worker_container_args \
+    worker_args worker-id cluster-net official-spark-image /shared /worker
+  spark_driver_container_args \
+    driver_args driver-id cluster-net official-spark-image /artifacts /shared /events
+
+  ! array_contains_value master_args --entrypoint \
+    && ! array_contains_value worker_args --entrypoint \
+    && ! array_contains_value driver_args --entrypoint \
+    && array_contains_sequence master_args official-spark-image \
+      /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master \
+    && array_contains_sequence worker_args official-spark-image \
+      /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker \
+    && array_contains_sequence driver_args official-spark-image \
+      /opt/spark/bin/spark-submit
 }
 
 test_executor_evidence_requires_worker_container() {
@@ -493,6 +510,7 @@ assert_success "StarRocks backend readiness parses the Alive column" test_starro
 assert_success "FE HTTP readiness accepts an authenticated endpoint response" test_fe_http_readiness_accepts_authentication_response
 assert_success "cluster runner rejects missing and unsupported versions" test_cluster_runner_rejects_bad_arguments
 assert_success "Spark master, worker, and driver use one container network" test_spark_roles_use_one_container_network
+assert_success "Spark roles use the official image entrypoint" test_spark_roles_use_the_official_image_entrypoint
 assert_success "worker receives shared data without driver artifact mounts" test_worker_has_shared_data_but_not_driver_artifacts
 assert_success "container-created diagnostics are made readable" test_diagnostics_permissions_are_fixed_in_a_container
 assert_success "runner uses the official image without a host Spark distribution" test_runner_uses_official_image_without_host_distribution
