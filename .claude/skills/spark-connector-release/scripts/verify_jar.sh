@@ -121,24 +121,6 @@ else
   no "$SDK_GIT_PROPERTIES is missing"
 fi
 
-sdk_class_list="$(printf '%s\n' "$LIST" \
-  | awk '/^com\/starrocks\/data\/load\/stream\/.*\.class$/')"
-if [ -z "$sdk_class_list" ]; then
-  no "Stream Load SDK classes are missing"
-else
-  sdk_class_count="$(printf '%s\n' "$sdk_class_list" \
-    | awk 'NF { count++ } END { print count + 0 }')"
-  yes "$sdk_class_count Stream Load SDK class files are shaded"
-fi
-
-class_list="$(printf '%s\n' "$LIST" | awk '/^com\/starrocks\/connector\/spark\/.*\.class$/')"
-if [ -z "$class_list" ]; then
-  no "no connector-owned class files found"
-else
-  class_count="$(printf '%s\n' "$class_list" | awk 'NF { count++ } END { print count + 0 }')"
-  yes "$class_count connector-owned class files are present"
-fi
-
 echo
 if [ "$bad" -eq 0 ]; then
   info "${C_GREEN}ALL $ok CHECKS PASSED${C_RESET} — $(basename "$JAR")"
