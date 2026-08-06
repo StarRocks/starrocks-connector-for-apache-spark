@@ -26,9 +26,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-
 public class JsonUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(JsonUtils.class);
@@ -59,16 +56,16 @@ public class JsonUtils {
             return;
         }
         try {
-            Field constraintsField = JsonFactory.class.getDeclaredField("_streamReadConstraints");
-            constraintsField.setAccessible(true);
-            Object constraints = constraintsField.get(jsonFactory);
-
-            Field maxStringLenField = constraints.getClass().getDeclaredField("_maxStringLen");
-            maxStringLenField.setAccessible(true);
-            Field modifiersField = Field.class.getDeclaredField("modifiers");
-            modifiersField.setAccessible(true);
-            modifiersField.setInt(maxStringLenField, maxStringLenField.getModifiers() & ~Modifier.FINAL);
-            maxStringLenField.setInt(constraints, maxStringLen);
+            Class<?> constraintsClass =
+                    Class.forName("com.fasterxml.jackson.core.StreamReadConstraints");
+            Object constraints =
+                    JsonFactory.class.getMethod("streamReadConstraints").invoke(jsonFactory);
+            Object builder = constraintsClass.getMethod("rebuild").invoke(constraints);
+            builder.getClass().getMethod("maxStringLength", int.class).invoke(builder, maxStringLen);
+            Object updatedConstraints = builder.getClass().getMethod("build").invoke(builder);
+            JsonFactory.class
+                    .getMethod("setStreamReadConstraints", constraintsClass)
+                    .invoke(jsonFactory, updatedConstraints);
         } catch (Exception e) {
             LOG.warn("Failed to set max string length {}", maxStringLen, e);
         }

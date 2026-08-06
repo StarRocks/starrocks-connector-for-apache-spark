@@ -95,8 +95,7 @@ validation checks:
 - no connector `SNAPSHOT` version;
 - embedded connector commit equals the release-tag commit;
 - Spark/Scala artifact suffixes match the selected profile;
-- connector-owned classes are present in the shaded JAR;
-- the released Stream Load SDK version and its shaded classes/metadata are present;
+- the released Stream Load SDK version and metadata are present;
 - the bundle contains the primary JAR, sources, Javadocs, POM, GPG signatures, and all
   configured checksums, and each signature/checksum verifies locally.
 

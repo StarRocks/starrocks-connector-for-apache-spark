@@ -20,45 +20,61 @@ name: CI Pipeline
 
 on:
   pull_request:
-      types:
-        - opened
-        - synchronize
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+    branches:
+      - main
+  workflow_dispatch:
 
-      branches:
-        - main
+permissions:
+  contents: read
 
 concurrency:
-  group: ${{ github.event.number }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
     name: Spark ${{ matrix.spark }}
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
-      fail-fast: true
+      fail-fast: false
       max-parallel: 5
       matrix:
         include:
           - spark: '3.3'
+            full-version: '3.3.2'
+            scala: '2.12'
             java: '8'
           - spark: '3.4'
+            full-version: '3.4.0'
+            scala: '2.12'
             java: '8'
           - spark: '3.5'
+            full-version: '3.5.0'
+            scala: '2.12'
             java: '8'
           - spark: '4.0'
+            full-version: '4.0.0'
+            scala: '2.13'
             java: '17'
           - spark: '4.1'
+            full-version: '4.1.0'
+            scala: '2.13'
             java: '17'
     env:
       CUSTOM_MVN: mvn -B -ntp
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Set up JDK ${{ matrix.java }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: ${{ matrix.java }}
@@ -75,8 +91,21 @@ jobs:
       - name: Docker Info
         shell: bash
         run: |
-          docker info || true
+          docker info
       - name: Build Spark ${{ matrix.spark }} Connector
         run: |
           chmod +x build.sh
           ./build.sh ${{ matrix.spark }} --run-tests
+      - name: Test packaged connector on Spark ${{ matrix.full-version }} standalone
+        env:
+          SMOKE_LOG_DIR: ${{ runner.temp }}/spark-connector-smoke-${{ matrix.spark }}
+        run: |
+          ./ci/real-cluster/run.sh "${{ matrix.spark }}"
+      - name: Upload Spark ${{ matrix.spark }} cluster diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: spark-${{ matrix.spark }}-real-cluster-logs
+          path: ${{ runner.temp }}/spark-connector-smoke-${{ matrix.spark }}
+          if-no-files-found: warn
+          retention-days: 7
