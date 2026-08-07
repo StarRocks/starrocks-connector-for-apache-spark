@@ -27,6 +27,8 @@ spark_container_common_args() {
     --init
     --platform linux/amd64
     --network "$network"
+    # Avoid JDK-8287073 on cgroup v2 hosts without a memory controller.
+    --env JAVA_TOOL_OPTIONS=-XX:-UseContainerSupport
     --name "$container_name"
     --hostname "$hostname"
     --network-alias "$hostname"
@@ -43,8 +45,8 @@ spark_master_container_args() {
   output+=(
     --publish "127.0.0.1:${web_ui_host_port}:8080"
     --detach
-    --entrypoint /opt/spark/bin/spark-class
     "$image"
+    /opt/spark/bin/spark-class
     org.apache.spark.deploy.master.Master
     --host spark-master
     --port 7077
@@ -64,8 +66,8 @@ spark_worker_container_args() {
     --volume "$worker_work:/opt/spark-work"
     --env SPARK_WORKER_DIR=/opt/spark-work
     --detach
-    --entrypoint /opt/spark/bin/spark-class
     "$image"
+    /opt/spark/bin/spark-class
     org.apache.spark.deploy.worker.Worker
     --host spark-worker
     --port 7078
@@ -87,8 +89,8 @@ spark_driver_container_args() {
     --volume "$artifacts:/opt/spark-driver:ro"
     --volume "$shared_work:/opt/spark-shared"
     --volume "$events:/opt/spark-events"
-    --entrypoint /opt/spark/bin/spark-submit
     "$image"
+    /opt/spark/bin/spark-submit
   )
 }
 
