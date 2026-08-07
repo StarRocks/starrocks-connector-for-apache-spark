@@ -32,14 +32,21 @@ public class StarRocksField implements Serializable {
 
     private Integer precision;
     private Integer scale;
+    private String comment;
 
     public StarRocksField(String name, String type, int ordinalPosition, Integer size, Integer precision, Integer scale) {
+        this(name, type, ordinalPosition, size, precision, scale, null);
+    }
+
+    public StarRocksField(String name, String type, int ordinalPosition, Integer size, Integer precision, Integer scale,
+                          String comment) {
         this.name = name;
         this.type = type;
         this.ordinalPosition = ordinalPosition;
         this.size = size;
         this.precision = precision;
         this.scale = scale;
+        this.comment = comment;
     }
 
     public String getName() {
@@ -64,6 +71,10 @@ public class StarRocksField implements Serializable {
 
     public Integer getScale() {
         return scale;
+    }
+
+    public String getComment() {
+        return comment;
     }
 
     public boolean isJson() {
