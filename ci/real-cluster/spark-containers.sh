@@ -27,6 +27,8 @@ spark_container_common_args() {
     --init
     --platform linux/amd64
     --network "$network"
+    # Avoid JDK-8287073 on cgroup v2 hosts without a memory controller.
+    --env JAVA_TOOL_OPTIONS=-XX:-UseContainerSupport
     --name "$container_name"
     --hostname "$hostname"
     --network-alias "$hostname"

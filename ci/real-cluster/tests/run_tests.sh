@@ -365,6 +365,26 @@ test_spark_roles_use_the_official_image_entrypoint() {
       /opt/spark/bin/spark-submit
 }
 
+test_spark_roles_disable_jvm_container_metrics() {
+  declare -F spark_master_container_args >/dev/null || return 1
+  declare -F spark_worker_container_args >/dev/null || return 1
+  declare -F spark_driver_container_args >/dev/null || return 1
+
+  local -a master_args=() worker_args=() driver_args=()
+  spark_master_container_args master_args master-id cluster-net official-spark-image 28080
+  spark_worker_container_args \
+    worker_args worker-id cluster-net official-spark-image /shared /worker
+  spark_driver_container_args \
+    driver_args driver-id cluster-net official-spark-image /artifacts /shared /events
+
+  array_contains_sequence master_args \
+    --env JAVA_TOOL_OPTIONS=-XX:-UseContainerSupport \
+    && array_contains_sequence worker_args \
+      --env JAVA_TOOL_OPTIONS=-XX:-UseContainerSupport \
+    && array_contains_sequence driver_args \
+      --env JAVA_TOOL_OPTIONS=-XX:-UseContainerSupport
+}
+
 test_executor_evidence_requires_worker_container() {
   local work good bad
   work="$(mktemp -d)"
@@ -511,6 +531,7 @@ assert_success "FE HTTP readiness accepts an authenticated endpoint response" te
 assert_success "cluster runner rejects missing and unsupported versions" test_cluster_runner_rejects_bad_arguments
 assert_success "Spark master, worker, and driver use one container network" test_spark_roles_use_one_container_network
 assert_success "Spark roles use the official image entrypoint" test_spark_roles_use_the_official_image_entrypoint
+assert_success "Spark roles disable JVM container metrics" test_spark_roles_disable_jvm_container_metrics
 assert_success "worker receives shared data without driver artifact mounts" test_worker_has_shared_data_but_not_driver_artifacts
 assert_success "container-created diagnostics are made readable" test_diagnostics_permissions_are_fixed_in_a_container
 assert_success "runner uses the official image without a host Spark distribution" test_runner_uses_official_image_without_host_distribution
