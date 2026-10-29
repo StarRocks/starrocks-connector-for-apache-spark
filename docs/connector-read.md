@@ -167,6 +167,7 @@ The following parameters apply to all three reading methods: Spark SQL, Spark Da
 | starrocks.request.read.timeout.ms    | 30000             | The maximum amount of time after which the reading for a request sent to StarRocks times out. |
 | starrocks.request.query.timeout.s    | 3600              | The maximum amount of time after which a query of data from StarRocks times out. The default timeout period is 1 hour. `-1` means that no timeout period is specified. |
 | starrocks.request.tablet.size        | Integer.MAX_VALUE | The number of StarRocks tablets grouped into each Spark RDD partition. A smaller value of this parameter indicates that a larger number of Spark RDD partitions will be generated. A larger number of Spark RDD partitions means higher parallelism on Spark but greater pressure on StarRocks. |
+| starrocks.request.warehouse          | None              | Supported since 1.1.5. The warehouse that serves the read on a shared-data cluster. The FE plans the read on this warehouse, and Spark reads the data from its compute nodes. If it is not set, the FE uses `default_warehouse`. If the warehouse does not exist, the read fails with `The warehouse parameter [<name>] is invalid`. It takes effect on StarRocks v3.4.5+, v3.5.1+ and v4.0+; earlier versions ignore it and read from `default_warehouse`. See [Read data from a specific warehouse](#read-data-from-a-specific-warehouse). |
 | starrocks.batch.size                 | 4096              | The maximum number of rows that can be read from BEs at a time. Increasing the value of this parameter can reduce the number of connections established between Spark and StarRocks, thereby mitigating extra time overheads caused by network latency. |
 | starrocks.exec.mem.limit             | 2147483648        | The maximum amount of memory allowed per query. Unit: bytes. The default memory limit is 2 GB. |
 | starrocks.deserialize.arrow.async    | false             | Specifies whether to support asynchronously converting the Arrow memory format to RowBatches required for the iteration of the Spark connector. |
@@ -508,6 +509,26 @@ Do as follows to prepare a sample table:
    ```Scala
    res1: Array[AnyRef] = Array([1, Bob, 21], [2, Stan, 21], [3, Sam, 22], [4, Tony, 22], [5, Alice, 22], [6, Lucy, 23], [7, Polly, 23], [8, Tom, 23], [9, Rose, 24], [10, Jerry, 24], [11, Jason, 24], [12, Lily, 25], [13, Stephen, 25], [14, David, 25], [15, Eddie, 26], [16, Kate, 27], [17, Cathy, 27], [18, Judy, 27], [19, Julia, 28], [20, Robert, 28], [21, Jack, 29])
    ```
+
+### Read data from a specific warehouse
+
+On a shared-data cluster with more than one warehouse, a Spark read runs on `default_warehouse` unless you set `starrocks.request.warehouse` (supported since 1.1.5). Set it to keep large reads away from the warehouse that serves your loads or queries. The FE then plans the read on the warehouse you name, and the Spark executors read the data from the compute nodes of that warehouse, so they must be able to reach those nodes on the BE Thrift port (`9060` by default).
+
+- Spark SQL: add `"starrocks.request.warehouse" = "<warehouse_name>"` to `OPTIONS`.
+- Spark DataFrame:
+
+  ```Scala
+  scala> val starrocksSparkDF = spark.read.format("starrocks")
+             .option("starrocks.table.identifier", s"test.score_board")
+             .option("starrocks.fe.http.url", s"<fe_host>:<fe_http_port>")
+             .option("starrocks.fe.jdbc.url", s"jdbc:mysql://<fe_host>:<fe_query_port>")
+             .option("starrocks.user", s"root")
+             .option("starrocks.password", s"")
+             .option("starrocks.request.warehouse", s"<warehouse_name>")
+             .load()
+  ```
+
+- Spark RDD: add `"starrocks.request.warehouse" -> "<warehouse_name>"` to `cfg`.
 
 ## Best practices
 

@@ -21,6 +21,7 @@ package com.starrocks.connector.spark.rest;
 
 import com.starrocks.connector.spark.cfg.PropertiesSettings;
 import com.starrocks.connector.spark.cfg.Settings;
+import com.starrocks.connector.spark.exception.ConnectedFailedException;
 import com.starrocks.connector.spark.exception.IllegalArgumentException;
 import com.starrocks.connector.spark.exception.StarRocksException;
 import com.starrocks.connector.spark.rest.models.Field;
@@ -33,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -40,8 +42,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_FENODES;
+import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER;
+import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_REQUEST_RETRIES;
+import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_REQUEST_WAREHOUSE;
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLET_SIZE;
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLET_SIZE_DEFAULT;
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLET_SIZE_MIN;
@@ -290,5 +297,69 @@ public class RestServiceTest {
         Schema schema = RestService.parseSchema(resp, logger);
         Assertions.assertEquals(schema.getTableId().longValue(), 16025L);
 
+    }
+
+    // The fake FE routes every tablet to a compute node of the warehouse named by the request's
+    // "warehouse" header (default_warehouse without it), like FE's TableQueryPlanAction.
+    private static Settings queryPlanSettings(FakeFeServer fe) {
+        Settings settings = new PropertiesSettings();
+        settings.setProperty(STARROCKS_FENODES, fe.address());
+        settings.setProperty(STARROCKS_TABLE_IDENTIFIER, "db.tbl");
+        settings.setProperty(STARROCKS_REQUEST_AUTH_USER, "root");
+        settings.setProperty(STARROCKS_REQUEST_RETRIES, "1");
+        return settings;
+    }
+
+    private static Set<String> readNodes(List<RpcPartition> partitions) {
+        return partitions.stream().map(RpcPartition::getBeAddress).collect(Collectors.toCollection(TreeSet::new));
+    }
+
+    @Test public void testQueryPlanRequestCarriesWarehouse() throws Exception {
+        try (FakeFeServer fe = FakeFeServer.startWithTwoWarehouses()) {
+            Settings settings = queryPlanSettings(fe);
+            settings.setProperty(STARROCKS_REQUEST_WAREHOUSE, " parity ");
+
+            List<RpcPartition> partitions = RestService.findPartitions(settings, logger);
+
+            FakeFeServer.Request request = fe.lastRequest();
+            Assertions.assertEquals("POST", request.method);
+            Assertions.assertEquals("/api/db/tbl/_query_plan", request.path);
+            Assertions.assertEquals("parity", request.header("warehouse"));
+            Assertions.assertNotNull(request.header("Authorization"));
+            // Every Spark partition reads from a compute node of the parity warehouse.
+            Assertions.assertEquals(new TreeSet<>(FakeFeServer.PARITY_WAREHOUSE_NODES), readNodes(partitions));
+        }
+    }
+
+    @Test public void testQueryPlanRequestWithoutWarehouse() throws Exception {
+        try (FakeFeServer fe = FakeFeServer.startWithTwoWarehouses()) {
+            // Unset, empty or blank: no header is sent, so FE keeps planning on default_warehouse.
+            Settings unset = queryPlanSettings(fe);
+            Settings empty = queryPlanSettings(fe);
+            empty.setProperty(STARROCKS_REQUEST_WAREHOUSE, "");
+            Settings blank = queryPlanSettings(fe);
+            blank.setProperty(STARROCKS_REQUEST_WAREHOUSE, "  ");
+
+            for (Settings settings : Arrays.asList(unset, empty, blank)) {
+                List<RpcPartition> partitions = RestService.findPartitions(settings, logger);
+                Assertions.assertNull(fe.lastRequest().header("warehouse"));
+                Assertions.assertEquals(new TreeSet<>(FakeFeServer.DEFAULT_WAREHOUSE_NODES), readNodes(partitions));
+            }
+            Assertions.assertEquals(3, fe.requests().size());
+        }
+    }
+
+    @Test public void testQueryPlanRequestWithUnknownWarehouse() throws Exception {
+        try (FakeFeServer fe = FakeFeServer.startWithTwoWarehouses()) {
+            Settings settings = queryPlanSettings(fe);
+            settings.setProperty(STARROCKS_REQUEST_WAREHOUSE, "no_such_warehouse");
+
+            ConnectedFailedException exception = Assertions.assertThrows(ConnectedFailedException.class,
+                    () -> RestService.findPartitions(settings, logger));
+            // FE's own error reaches the user.
+            Assertions.assertTrue(
+                    exception.getMessage().contains("The warehouse parameter [no_such_warehouse] is invalid"),
+                    exception.getMessage());
+        }
     }
 }

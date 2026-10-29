@@ -70,6 +70,7 @@ import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_F
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_READ_FIELD;
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_REQUEST_AUTH_PASSWORD;
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_REQUEST_AUTH_USER;
+import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_REQUEST_WAREHOUSE;
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLET_SIZE;
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLET_SIZE_DEFAULT;
 import static com.starrocks.connector.spark.cfg.ConfigurationOptions.STARROCKS_TABLET_SIZE_MIN;
@@ -89,6 +90,8 @@ public class RestService implements Serializable {
     private static final String API_PREFIX = "/api";
     private static final String SCHEMA = "_schema";
     private static final String QUERY_PLAN = "_query_plan";
+    // Request header that FE's _query_plan action reads to choose the warehouse.
+    private static final String WAREHOUSE_HEADER = "warehouse";
 
     private static final ObjectMapper JSON_OBJECT_MAPPER = JsonUtils.createObjectMapper();
 
@@ -315,6 +318,12 @@ public class RestService implements Serializable {
         logger.info("Query SQL Sending to StarRocks FE is: '{}'.", sql);
 
         HttpPost httpPost = new HttpPost(getSchemaUriStr(cfg) + QUERY_PLAN);
+        String warehouse = StringUtils.trimToNull(cfg.getProperty(STARROCKS_REQUEST_WAREHOUSE));
+        if (warehouse != null) {
+            // FE routes the tablets to this warehouse's compute nodes, so the executors read from them.
+            httpPost.setHeader(WAREHOUSE_HEADER, warehouse);
+            logger.info("Plan the read on StarRocks warehouse '{}'.", warehouse);
+        }
         String entity = "{\"sql\": \"" + sql + "\"}";
         logger.debug("Post body Sending to StarRocks FE is: '{}'.", entity);
         StringEntity stringEntity = new StringEntity(entity, StandardCharsets.UTF_8);
