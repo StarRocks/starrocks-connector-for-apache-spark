@@ -26,6 +26,7 @@ import com.starrocks.connector.spark.sql.connect.StarRocksConnector;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Metadata;
+import org.apache.spark.sql.types.MetadataBuilder;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
@@ -80,7 +81,7 @@ public final class InferSchema {
                 String lowerCaseName = fieldName.toLowerCase(Locale.ROOT);
                 StructField custom = customTypes.get(lowerCaseName);
                 if (custom != null) {
-                    fields.add(custom);
+                    fields.add(applyComment(custom, field.getComment()));
                     unmatchedOverrides.remove(lowerCaseName);
                     continue;
                 }
@@ -111,8 +112,18 @@ public final class InferSchema {
 
     static StructField inferStructField(StarRocksField field) {
         DataType dataType = inferDataType(field);
+        return applyComment(new StructField(field.getName(), dataType, true, Metadata.empty()), field.getComment());
+    }
 
-        return new StructField(field.getName(), dataType, true, Metadata.empty());
+    static StructField applyComment(StructField field, String comment) {
+        if (comment == null || comment.isEmpty()) {
+            return field;
+        }
+        Metadata metadata = new MetadataBuilder()
+                .withMetadata(field.metadata())
+                .putString("comment", comment)
+                .build();
+        return new StructField(field.name(), field.dataType(), field.nullable(), metadata);
     }
 
     static DataType inferDataType(StarRocksField field) {
