@@ -62,6 +62,10 @@ public interface ConfigurationOptions {
     int STARROCKS_REQUEST_READ_TIMEOUT_MS_DEFAULT = 30 * 1000;
     int STARROCKS_REQUEST_QUERY_TIMEOUT_S_DEFAULT = 3600;
 
+    // The warehouse whose compute nodes serve the read on a shared-data cluster. It is sent as
+    // the "warehouse" header of the FE _query_plan request. FE uses default_warehouse if unset.
+    String STARROCKS_REQUEST_WAREHOUSE = "starrocks.request.warehouse";
+
     String STARROCKS_TABLET_SIZE = "starrocks.request.tablet.size";
     int STARROCKS_TABLET_SIZE_DEFAULT = Integer.MAX_VALUE;
     int STARROCKS_TABLET_SIZE_MIN = 1;
