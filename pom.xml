@@ -78,6 +78,8 @@
         <mockito-scala.version>1.6.2</mockito-scala.version>
         <commons-lang3.version>3.12.0</commons-lang3.version>
         <maven-shade-plugin.version>3.2.1</maven-shade-plugin.version>
+        <!-- 1.21.4 is the first 1.x release that works with Docker Engine 29, which rejects the API 1.32 of earlier releases -->
+        <testcontainers.version>1.21.4</testcontainers.version>
         <surefire.argLine></surefire.argLine>
     </properties>
 
@@ -496,14 +498,14 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.18.3</version>
+            <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>1.18.3</version>
+            <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
 
