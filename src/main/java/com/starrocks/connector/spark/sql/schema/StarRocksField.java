@@ -77,4 +77,8 @@ public class StarRocksField implements Serializable {
     public boolean isHll() {
         return "hll".equalsIgnoreCase(type);
     }
+
+    public boolean isPercentile() {
+        return "percentile".equalsIgnoreCase(type);
+    }
 }
