@@ -121,6 +121,20 @@ public final class InferSchema {
             throw new UnsupportedOperationException(
                     String.format("Unknown starrocks type for column name: %s", field.getName()));
         }
+        String normalizedRawType = rawType.trim().toLowerCase(Locale.ROOT);
+        if (normalizedRawType.startsWith("array<")
+                || normalizedRawType.startsWith("map<")
+                || normalizedRawType.startsWith("struct<")) {
+            try {
+                return StarRocksTypeParser.parse(rawType);
+            } catch (UnsupportedOperationException e) {
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "Unsupported starrocks type, column name: %s, "
+                                        + "data type: %s",
+                                field.getName(), field.getType()), e);
+            }
+        }
         // Remove only the (n) or (n,m) from types like 'decimal(20,1)' or 'bigint(20) unsigned' to get 'decimal' or 'bigint unsigned'
         String type = rawType.replaceAll("\\(.*?\\)", "").toLowerCase(Locale.ROOT);
 
