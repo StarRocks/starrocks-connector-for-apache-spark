@@ -89,7 +89,7 @@ private[sql] class StarRocksRelation(
     if (filters != null && filters.length > 0) {
       val userFilters = paramWithScan.get(ConfigurationOptions.STARROCKS_FILTER_QUERY)
         .filter(filters => filters.nonEmpty)
-        .map(filters => " and (" + filters + ")")
+        .map(filters => if (filterWhereClause.nonEmpty) s" and ($filters)" else s"($filters)")
         .getOrElse("")
       paramWithScan += (ConfigurationOptions.STARROCKS_FILTER_QUERY -> (filterWhereClause + userFilters))
     }
