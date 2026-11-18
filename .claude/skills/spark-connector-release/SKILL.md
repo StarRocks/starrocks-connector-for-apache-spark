@@ -145,6 +145,12 @@ user every included/excluded PR and its proposed group, then wait for explicit c
 public Central verification. It uploads those downloaded JARs to a draft release on
 `StarRocks/starrocks-connector-for-apache-spark`; it never publishes the draft.
 
+### After the release
+
+After a maintainer publishes the GitHub release, open a PR to
+StarRocks/starrocks that syncs the docs changed in this release and the
+release notes into the StarRocks docs.
+
 ## Re-running after a failure
 
 The build, publish, and Central-verification scripts accept Spark minor versions. For
