@@ -46,7 +46,8 @@ public class StarRocksConnector {
     private static Logger logger = LoggerFactory.getLogger(StarRocksConnector.class);
 
     private static final String TABLE_SCHEMA_QUERY =
-            "SELECT `COLUMN_NAME`, `ORDINAL_POSITION`, `COLUMN_KEY`, `COLUMN_TYPE`, `COLUMN_SIZE`, `DECIMAL_DIGITS` "
+            "SELECT `COLUMN_NAME`, `ORDINAL_POSITION`, `COLUMN_KEY`, `COLUMN_TYPE`, `COLUMN_SIZE`, `DECIMAL_DIGITS`, "
+                    + "`COLUMN_COMMENT` "
                     + "FROM `information_schema`.`COLUMNS` WHERE `TABLE_SCHEMA`=? AND `TABLE_NAME`=?;";
     private static final String ALL_DBS_QUERY = "show databases;";
     private static final String LOAD_DB_QUERY =
@@ -74,7 +75,8 @@ public class StarRocksConnector {
                     Integer.parseInt(columnValue.get("ORDINAL_POSITION")),
                     Optional.ofNullable(columnValue.get("COLUMN_SIZE")).map(Integer::parseInt).orElse(null),
                     Optional.ofNullable(columnValue.get("COLUMN_SIZE")).map(Integer::parseInt).orElse(null),
-                    Optional.ofNullable(columnValue.get("DECIMAL_DIGITS")).map(Integer::parseInt).orElse(null));
+                    Optional.ofNullable(columnValue.get("DECIMAL_DIGITS")).map(Integer::parseInt).orElse(null),
+                    columnValue.get("COLUMN_COMMENT"));
             columns.add(field);
             if ("PRI".equals(columnValue.get("COLUMN_KEY"))) {
                 pks.add(field);
