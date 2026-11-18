@@ -71,8 +71,15 @@ check_docs_version "$REPO_ROOT" "$VERSION" origin/main
 info "Creating $BRANCH from origin/main"
 git switch --create "$BRANCH" origin/main
 
+# pom.xml resolves its artifactId and Spark dependencies only through a Spark
+# profile. Any supported profile works because versions:set changes only the
+# top-level version.
+mapfile -t spark_versions < <(supported_spark_versions "$REPO_ROOT")
+[ "${#spark_versions[@]}" -gt 0 ] || die "common.sh contains no supported Spark versions"
+
 info "Setting connector version $current -> $VERSION"
 mvn --batch-mode versions:set \
+  -P"spark-${spark_versions[0]}" \
   -DnewVersion="$VERSION" \
   -DgenerateBackupPoms=false
 

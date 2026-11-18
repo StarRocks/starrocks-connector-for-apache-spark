@@ -279,7 +279,7 @@ test_prepare_release_checks_origin_main_docs_before_branching() {
   rm -rf "$work"
 }
 
-test_prepare_release_tags_large_origin_main_pom() {
+test_prepare_release_tags_realistic_origin_main_pom() {
   local work origin repo fake_bin output status tag_commit
   work="$(mktemp -d)"
   origin="$work/origin.git"
@@ -305,7 +305,7 @@ test_prepare_release_tags_large_origin_main_pom() {
     printf '  <!-- padding line %s keeps this pom larger than a pipe buffer -->\n' $(seq 1 4000)
     printf '%s\n' '</project>'
   } > "$repo/pom.xml"
-  printf '%s\n' 'SUPPORTED_SPARK_VERSIONS=(3.5)' > "$repo/common.sh"
+  printf '%s\n' 'SUPPORTED_SPARK_VERSIONS=(4.1)' > "$repo/common.sh"
   write_version_doc "$repo/docs/connector-read.md" 1.2.3
   write_version_doc "$repo/docs/connector-write.md" 1.2.3
   git -C "$repo" add pom.xml common.sh docs
@@ -314,24 +314,36 @@ test_prepare_release_tags_large_origin_main_pom() {
   git -C "$repo" push --quiet --set-upstream origin main
   mkdir -p "$fake_bin"
   # Stands in for versions:set by changing only the connector version in pom.xml.
+  # Like Maven, it cannot read the pom.xml unless a Spark profile from common.sh
+  # (or the matching environment) resolves the ${env.*} expressions.
   printf '%s\n' \
     '#!/usr/bin/env bash' \
     'set -euo pipefail' \
     'new=""' \
     'goal=""' \
+    'profile=""' \
+    'previous=""' \
     'for arg in "$@"; do' \
     '  case "$arg" in' \
     '    versions:set) goal=yes ;;' \
     '    -DnewVersion=*) new="${arg#-DnewVersion=}" ;;' \
+    '    -Pspark-4.1) profile=yes ;;' \
+    '    spark-4.1) [ "$previous" != -P ] || profile=yes ;;' \
     '  esac' \
+    '  previous="$arg"' \
     'done' \
     '[ "$goal" = yes ] && [ -n "$new" ] || { echo "unexpected mvn call: $*" >&2; exit 98; }' \
+    'if [ "$profile" != yes ] && { [ -z "${SPARK_FEATURE_VERSION:-}" ] || [ -z "${STARROCKS_SCALA_VERSION:-}" ] || [ -z "${STARROCKS_SPARK_VERSION:-}" ]; }; then' \
+    '  echo "[ERROR] artifactId does not match a valid id pattern: no Spark profile in: $*" >&2' \
+    '  exit 1' \
+    'fi' \
     'sed -i "s|<version>1.2.3-SNAPSHOT</version>|<version>$new</version>|" pom.xml' \
     > "$fake_bin/mvn"
   chmod +x "$fake_bin/mvn"
 
   set +e
-  output="$(PATH="$fake_bin:$PATH" CONFIRM_DOCS_VERSION= CONNECTOR_REPO="$repo" \
+  output="$(env -u SPARK_FEATURE_VERSION -u STARROCKS_SCALA_VERSION -u STARROCKS_SPARK_VERSION \
+    PATH="$fake_bin:$PATH" CONFIRM_DOCS_VERSION= CONNECTOR_REPO="$repo" \
     "$SCRIPTS/prepare_release.sh" 1.2.3 2>&1 </dev/null)"
   status=$?
   set -e
@@ -539,7 +551,7 @@ assert_success "docs gate accepts exact version rows" test_docs_version_gate_acc
 assert_success "docs gate requires confirmation for an exact missing version" test_docs_version_gate_requires_exact_confirmation
 assert_success "docs gate accepts the user's version-scoped confirmation" test_docs_version_gate_accepts_user_confirmation
 assert_success "prepare release checks origin/main docs before creating a branch" test_prepare_release_checks_origin_main_docs_before_branching
-assert_success "prepare release creates the branch and tag when origin/main has a large pom.xml" test_prepare_release_tags_large_origin_main_pom
+assert_success "prepare release creates the branch and tag from a large, profile-dependent pom.xml" test_prepare_release_tags_realistic_origin_main_pom
 assert_success "linked-worktree rejection uses an isolated fixture" test_linked_worktree_rejected
 assert_success "publish rejects a matching tag from a non-official origin" test_publish_rechecks_official_origin
 assert_success "Central API credentials come from Maven settings without logging them" test_central_api_credentials_from_maven_settings
