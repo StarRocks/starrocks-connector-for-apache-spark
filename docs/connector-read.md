@@ -26,19 +26,11 @@ You can also map the StarRocks table to a Spark DataFrame or a Spark RDD, and th
 | 1.1.4           | 3.3, 3.4, 3.5 | 2.5 and later   | 8    | 2.12  |
 |                 | 4.0, 4.1      | 2.5 and later   | 17   | 2.13  |
 | 1.1.3           | 3.2, 3.3, 3.4, 3.5 | 2.5 and later   | 8    | 2.12  |
-| 1.1.2           | 3.2, 3.3, 3.4, 3.5 | 2.5 and later   | 8    | 2.12  |
-| 1.1.1           | 3.2, 3.3, 3.4 | 2.5 and later   | 8    | 2.12  |
-| 1.1.0           | 3.2, 3.3, 3.4 | 2.5 and later   | 8    | 2.12  |
-| 1.0.0           | 3.x           | 1.18 and later  | 8    | 2.12  |
-| 1.0.0           | 2.x           | 1.18 and later  | 8    | 2.11  |
 
 > **NOTICE**
 >
 > - Please see [Upgrade Spark connector](#upgrade-spark-connector) for behaviour changes among different connector versions.
 > - The connector does not provide MySQL JDBC driver since version 1.1.1, and you need import the driver to the spark classpath manually. You can find the driver on [Maven Central](https://repo1.maven.org/maven2/mysql/mysql-connector-java/).
-> - In version 1.0.0, the Spark connector only supports reading data from StarRocks. From version 1.1.0 onwards, the Spark connector supports both reading data from and writing data to StarRocks.
-> - Version 1.0.0 differs from version 1.1.0 in terms of parameters and data type mappings. See [Upgrade Spark connector](#upgrade-spark-connector).
-> - In general cases, no new features will be added to version 1.0.0. We recommend that you upgrade your Spark connector at your earliest opportunity.
 
 ## Obtain Spark connector
 
