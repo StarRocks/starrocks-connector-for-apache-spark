@@ -50,14 +50,16 @@ git show-ref --verify --quiet "refs/tags/$TAG" \
 [ -z "$(git ls-remote --tags origin "refs/tags/$TAG")" ] \
   || die "origin tag $TAG already exists; a published release version cannot be reused"
 
+# Read all input instead of exiting at the match: an early exit kills git show
+# with SIGPIPE, and pipefail would make this assignment abort the script.
 current="$(git show origin/main:pom.xml | awk '
   index($0, "<artifactId>starrocks-spark-connector-${env.SPARK_FEATURE_VERSION}_${env.STARROCKS_SCALA_VERSION}</artifactId>") { found = 1; next }
-  found && /<version>[^<]+<\/version>/ {
+  found && !done && /<version>[^<]+<\/version>/ {
     line = $0
     sub(/^.*<version>/, "", line)
     sub(/<\/version>.*$/, "", line)
     print line
-    exit
+    done = 1
   }
 ')"
 [ -n "$current" ] || die "cannot determine connector version from origin/main"

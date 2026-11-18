@@ -279,6 +279,78 @@ test_prepare_release_checks_origin_main_docs_before_branching() {
   rm -rf "$work"
 }
 
+test_prepare_release_tags_large_origin_main_pom() {
+  local work origin repo fake_bin output status tag_commit
+  work="$(mktemp -d)"
+  origin="$work/origin.git"
+  repo="$work/repo"
+  fake_bin="$work/bin"
+  git init --quiet --bare "$origin"
+  git init --quiet --initial-branch=main "$repo"
+  git -C "$repo" config user.name 'Release Test'
+  git -C "$repo" config user.email 'release-test@example.com'
+  # Content after <version> keeps git show writing after the version is found;
+  # the real pom.xml is large enough for this.
+  {
+    printf '%s\n' \
+      '<project>' \
+      '  <artifactId>starrocks-spark-connector-${env.SPARK_FEATURE_VERSION}_${env.STARROCKS_SCALA_VERSION}</artifactId>' \
+      '  <version>1.2.3-SNAPSHOT</version>' \
+      '  <dependencies>' \
+      '    <dependency>' \
+      '      <artifactId>later-dependency</artifactId>' \
+      '      <version>9.9.9</version>' \
+      '    </dependency>' \
+      '  </dependencies>'
+    printf '  <!-- padding line %s keeps this pom larger than a pipe buffer -->\n' $(seq 1 4000)
+    printf '%s\n' '</project>'
+  } > "$repo/pom.xml"
+  printf '%s\n' 'SUPPORTED_SPARK_VERSIONS=(3.5)' > "$repo/common.sh"
+  write_version_doc "$repo/docs/connector-read.md" 1.2.3
+  write_version_doc "$repo/docs/connector-write.md" 1.2.3
+  git -C "$repo" add pom.xml common.sh docs
+  git -C "$repo" commit --quiet -m fixture
+  git -C "$repo" remote add origin "$origin"
+  git -C "$repo" push --quiet --set-upstream origin main
+  mkdir -p "$fake_bin"
+  # Stands in for versions:set by changing only the connector version in pom.xml.
+  printf '%s\n' \
+    '#!/usr/bin/env bash' \
+    'set -euo pipefail' \
+    'new=""' \
+    'goal=""' \
+    'for arg in "$@"; do' \
+    '  case "$arg" in' \
+    '    versions:set) goal=yes ;;' \
+    '    -DnewVersion=*) new="${arg#-DnewVersion=}" ;;' \
+    '  esac' \
+    'done' \
+    '[ "$goal" = yes ] && [ -n "$new" ] || { echo "unexpected mvn call: $*" >&2; exit 98; }' \
+    'sed -i "s|<version>1.2.3-SNAPSHOT</version>|<version>$new</version>|" pom.xml' \
+    > "$fake_bin/mvn"
+  chmod +x "$fake_bin/mvn"
+
+  set +e
+  output="$(PATH="$fake_bin:$PATH" CONFIRM_DOCS_VERSION= CONNECTOR_REPO="$repo" \
+    "$SCRIPTS/prepare_release.sh" 1.2.3 2>&1 </dev/null)"
+  status=$?
+  set -e
+
+  tag_commit="$(git -C "$repo" rev-parse -q --verify 'refs/tags/v1.2.3^{commit}' || true)"
+  # Write the tagged pom to a file first; piping it into grep -q would hit the same SIGPIPE.
+  git -C "$repo" show v1.2.3:pom.xml > "$work/tagged-pom.xml" 2>/dev/null || true
+  if [ "$status" -ne 0 ] \
+      || [ "$(git -C "$repo" branch --show-current)" != release-1.2.3 ] \
+      || [ -z "$tag_commit" ] \
+      || [ "$tag_commit" != "$(git -C "$repo" rev-parse HEAD)" ] \
+      || ! grep -Fq '<version>1.2.3</version>' "$work/tagged-pom.xml"; then
+    printf 'prepare_release.sh status=%s output:\n%s\n' "$status" "$output" >&2
+    rm -rf "$work"
+    return 1
+  fi
+  rm -rf "$work"
+}
+
 test_linked_worktree_rejected() {
   # shellcheck disable=SC1091
   source "$SCRIPTS/lib.sh"
@@ -467,6 +539,7 @@ assert_success "docs gate accepts exact version rows" test_docs_version_gate_acc
 assert_success "docs gate requires confirmation for an exact missing version" test_docs_version_gate_requires_exact_confirmation
 assert_success "docs gate accepts the user's version-scoped confirmation" test_docs_version_gate_accepts_user_confirmation
 assert_success "prepare release checks origin/main docs before creating a branch" test_prepare_release_checks_origin_main_docs_before_branching
+assert_success "prepare release creates the branch and tag when origin/main has a large pom.xml" test_prepare_release_tags_large_origin_main_pom
 assert_success "linked-worktree rejection uses an isolated fixture" test_linked_worktree_rejected
 assert_success "publish rejects a matching tag from a non-official origin" test_publish_rechecks_official_origin
 assert_success "Central API credentials come from Maven settings without logging them" test_central_api_credentials_from_maven_settings
