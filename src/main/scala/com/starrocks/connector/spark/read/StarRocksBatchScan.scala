@@ -19,11 +19,12 @@
 
 package com.starrocks.connector.spark.read
 
-import com.starrocks.connector.spark.cfg.ConfigurationOptions.{STARROCKS_FILTER_QUERY, STARROCKS_READ_FIELD}
+import com.starrocks.connector.spark.cfg.ConfigurationOptions._
 import com.starrocks.connector.spark.cfg.Settings
 import com.starrocks.connector.spark.rest.RestService
 import com.starrocks.connector.spark.sql.schema.StarRocksSchema
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.connector.expressions.NamedReference
 import org.apache.spark.sql.connector.expressions.filter._
 import org.apache.spark.sql.connector.read._
 import org.apache.spark.sql.connector.read.partitioning.{Partitioning, UnknownPartitioning}
@@ -31,7 +32,10 @@ import org.apache.spark.sql.jdbc.JdbcDialects
 import org.apache.spark.sql.types.StructType
 import org.slf4j.LoggerFactory
 
+import java.util.OptionalLong
+
 import scala.collection.JavaConverters._
+import scala.util.Try
 
 class StarRocksScanBuilder(tableName: String,
                            schema: StructType,
@@ -78,7 +82,21 @@ class StarRocksScanBuilder(tableName: String,
 
   override def build(): Scan = new StarRocksScan(tableName, readSchema, starRocksSchema, pushedPredicates(), config)
 
-  private def compilePredicate(predicate: Predicate): Option[String] = {
+  private def compilePredicate(predicate: Predicate): Option[String] = StarRocksScanBuilder.compilePredicate(predicate)
+}
+
+object StarRocksScanBuilder {
+  var predicateWhereClauseForTest: String = ""
+
+  private lazy val dialect = JdbcDialects.get("jdbc:mysql")
+
+  /**
+   * Compiles a data source V2 [[Predicate]] to a MySQL where-clause clause. Shared by static
+   * pushdown ([[StarRocksScanBuilder.pushPredicates]]) and runtime filtering
+   * ([[StarRocksScan.filter]]) so the runtime IN list travels in the same starrocks.filter.query
+   * that the FE turns into the opaque tablet scan plan. Returns None when it cannot be pushed.
+   */
+  def compilePredicate(predicate: Predicate): Option[String] = {
     Option(predicate match {
       case and: And =>
         val elems = Seq(and.left(), and.right()).flatMap(compilePredicate)
@@ -104,10 +122,17 @@ class StarRocksScanBuilder(tableName: String,
   }
 }
 
-object StarRocksScanBuilder {
-  var predicateWhereClauseForTest: String = ""
-}
-
+/**
+ * StarRocksScan can be filtered at runtime by Spark's dynamic pruning (SupportsRuntimeV2Filtering,
+ * honored by Spark 4).
+ *
+ * Spark calls [[filter]] once the build side of an equi-join completes and re-runs
+ * [[planInputPartitions]]. The compiled runtime predicate is written back into the same
+ * starrocks.filter.query that static pushdown populated, so [[RestService.findPartitions]] posts a
+ * _query_plan whose SQL carries the runtime IN list. The opaque plan inside every RpcPartition then
+ * applies that predicate on the BE while reading each tablet, so the driver transfers only matching
+ * rows even when the table is hash-distributed on a different column.
+ */
 class StarRocksScan(tableName: String,
                     schema: StructType,
                     starRocksSchema: StarRocksSchema,
@@ -115,28 +140,70 @@ class StarRocksScan(tableName: String,
                     config: Settings) extends Scan
   with Batch
   with SupportsReportPartitioning
+  with SupportsRuntimeV2Filtering
+  with SupportsReportStatistics
   with PartitionReaderFactory {
 
   @transient private lazy val log = LoggerFactory.getLogger(classOf[StarRocksScan])
 
-  private lazy val inputPartitions: Array[InputPartition] = {
-      RestService.findPartitions(config, log).asScala.toArray
-  }
+  // Runtime predicates received via filter(), kept for EXPLAIN output.
+  @volatile private var runtimePredicates: Array[Predicate] = Array.empty
+
+  // Tablet plan cache. It is populated during planning (outputPartitioning forces it) before any
+  // runtime predicate exists, so filter() drops it to make the next planInputPartitions() post a
+  // fresh _query_plan to the FE.
+  @volatile private var partitionsCache: Array[InputPartition] = _
 
   override def readSchema(): StructType = schema
 
   override def toBatch: Batch = this
 
   override def description(): String = {
+    val runtime = if (runtimePredicates.nonEmpty) {
+      s", runtime predicates: ${runtimePredicates.map(p => s"(${p.toString})").mkString(" and ")}"
+    } else {
+      ""
+    }
     super.description() +
       s", table: ${tableName}" +
       s", prune columns: ${schema.fields.map(f => f.name).mkString(", ")}" +
-      s", pushed predicates: ${pushedPredicates.map(p => s"(${p.toString})").mkString(" and ")}"
+      s", pushed predicates: ${pushedPredicates.map(p => s"(${p.toString})").mkString(" and ")}" +
+      runtime
   }
 
-  override def outputPartitioning(): Partitioning = new UnknownPartitioning(inputPartitions.length)
+  override def filterAttributes(): Array[NamedReference] =
+    schema.fields.map(f => StarRocksFieldReference(f.name): NamedReference)
 
-  override def planInputPartitions(): Array[InputPartition] = inputPartitions
+  override def filter(predicates: Array[Predicate]): Unit = {
+    // The supplied predicates are ANDed together; compile each with the dialect pushdown already
+    // uses, then concatenate with the static filter so both reach the FE in one _query_plan SQL.
+    val runtime = predicates.flatMap(StarRocksScanBuilder.compilePredicate).map(p => s"($p)")
+    if (runtime.nonEmpty) {
+      val static = Option(config.getProperty(STARROCKS_FILTER_QUERY)).map(_.trim).filter(_.nonEmpty)
+      config.setProperty(STARROCKS_FILTER_QUERY, (static.toSeq ++ runtime).mkString(" and "))
+      // The cached partitions were planned with the static predicates only. Drop them so the next
+      // planInputPartitions() asks the FE for a plan that contains the runtime predicate.
+      partitionsCache = null
+    }
+    runtimePredicates = predicates
+  }
+
+  override def estimateStatistics(): Statistics = new Statistics {
+    override def sizeInBytes(): OptionalLong = longStat(STARROCKS_READ_STATS_SIZE_IN_BYTES)
+    override def numRows(): OptionalLong = longStat(STARROCKS_READ_STATS_ROW_COUNT)
+  }
+
+  private def longStat(key: String): OptionalLong =
+    Option(config.getProperty(key)).flatMap(v => Try(v.trim.toLong).toOption).map(OptionalLong.of).getOrElse(OptionalLong.empty())
+
+  override def outputPartitioning(): Partitioning = new UnknownPartitioning(planInputPartitions().length)
+
+  override def planInputPartitions(): Array[InputPartition] = {
+    if (partitionsCache == null) {
+      partitionsCache = RestService.findPartitions(config, log).asScala.toArray
+    }
+    partitionsCache
+  }
 
   override def createReaderFactory(): PartitionReaderFactory = this
 
@@ -144,4 +211,11 @@ class StarRocksScan(tableName: String,
     val reader = new StarRocksCatalogDecoder(partition, config, starRocksSchema)
     reader.asInstanceOf[PartitionReader[InternalRow]]
   }
+}
+
+/** NamedReference whose equality collapses to the column name, so Spark can match runtime
+ * predicates derived for `inv_date_sk` back to [[StarRocksScan.filterAttributes]]. */
+final case class StarRocksFieldReference(name: String) extends NamedReference {
+  override def fieldNames(): Array[String] = Array(name)
+  override def toString: String = name
 }
