@@ -19,7 +19,8 @@
 package com.starrocks.connector.spark.read
 
 import com.starrocks.connector.spark.cfg.{ConfigurationOptions, PropertiesSettings}
-import org.apache.spark.sql.connector.expressions.filter.{AlwaysTrue, And}
+import org.apache.spark.sql.connector.expressions.Expressions
+import org.apache.spark.sql.connector.expressions.filter.{AlwaysTrue, And, Predicate}
 import org.apache.spark.sql.types.{DataTypes, StructType}
 import org.junit.jupiter.api.Assertions.{assertTrue, assertFalse, assertEquals}
 import org.junit.jupiter.api.Test
@@ -77,6 +78,34 @@ class StarRocksRuntimeFilterSuite {
     val stats = newScan(config).estimateStatistics()
     assertTrue(stats.numRows().isPresent && stats.numRows().getAsLong == 73049L)
     assertTrue(stats.sizeInBytes().isPresent && stats.sizeInBytes().getAsLong == 123456789L)
+  }
+
+  @Test
+  def testOversizedInListIsLeftInSpark(): Unit = {
+    val config = new PropertiesSettings()
+    config.setProperty(ConfigurationOptions.STARROCKS_FILTER_QUERY_IN_MAX_COUNT, "3")
+    val scan = newScan(config)
+    scan.filter(Array(inPredicate("inv_date_sk", 1, 2, 3)))
+    // Three values meet the cap, so the IN list is not sent to the FE. The join still filters.
+    assertEquals(null, config.getProperty(ConfigurationOptions.STARROCKS_FILTER_QUERY))
+    assertFalse(scan.description().contains("runtime predicates"))
+  }
+
+  @Test
+  def testInListUnderTheCapIsPushed(): Unit = {
+    val config = new PropertiesSettings()
+    config.setProperty(ConfigurationOptions.STARROCKS_FILTER_QUERY_IN_MAX_COUNT, "3")
+    val scan = newScan(config)
+    scan.filter(Array(inPredicate("inv_date_sk", 1, 2)))
+    val query = config.getProperty(ConfigurationOptions.STARROCKS_FILTER_QUERY)
+    assertTrue(query.contains("inv_date_sk"), query)
+    assertTrue(query.contains("1"), query)
+    assertTrue(query.contains("2"), query)
+  }
+
+  private def inPredicate(column: String, values: Int*): Predicate = {
+    val children = Expressions.column(column) +: values.map(v => Expressions.literal(Int.box(v)))
+    new Predicate("IN", children.toArray)
   }
 
   @Test

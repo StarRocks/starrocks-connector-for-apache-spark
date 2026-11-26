@@ -175,9 +175,14 @@ class StarRocksScan(tableName: String,
     schema.fields.map(f => StarRocksFieldReference(f.name): NamedReference)
 
   override def filter(predicates: Array[Predicate]): Unit = {
-    // The supplied predicates are ANDed together; compile each with the dialect pushdown already
-    // uses, then concatenate with the static filter so both reach the FE in one _query_plan SQL.
-    val runtime = predicates.flatMap(StarRocksScanBuilder.compilePredicate).map(p => s"($p)")
+    // The supplied predicates are ANDed together. An IN list at or above
+    // starrocks.filter.query.in.max.count stays in Spark: the same cap the v1 read path uses
+    // so a high-cardinality build side cannot turn into a multi-megabyte _query_plan request.
+    // The join still applies that predicate. Compile the rest with the dialect static pushdown
+    // already uses, then concatenate with the static filter so both reach the FE in one SQL.
+    val limit = inValueLengthLimit
+    val pushable = predicates.filter(withinInLimit(_, limit))
+    val runtime = pushable.flatMap(StarRocksScanBuilder.compilePredicate).map(p => s"($p)")
     if (runtime.nonEmpty) {
       val static = Option(config.getProperty(STARROCKS_FILTER_QUERY)).map(_.trim).filter(_.nonEmpty)
       config.setProperty(STARROCKS_FILTER_QUERY, (static.toSeq ++ runtime).mkString(" and "))
@@ -185,7 +190,25 @@ class StarRocksScan(tableName: String,
       // planInputPartitions() asks the FE for a plan that contains the runtime predicate.
       partitionsCache = null
     }
-    runtimePredicates = predicates
+    runtimePredicates = pushable
+  }
+
+  private def inValueLengthLimit: Int = {
+    val configured = Try(config.getProperty(STARROCKS_FILTER_QUERY_IN_MAX_COUNT, "100").trim.toInt)
+      .getOrElse(100)
+    math.min(math.max(configured, 0), STARROCKS_FILTER_QUERY_IN_VALUE_UPPER_LIMIT)
+  }
+
+  /** An IN predicate at or above the cap, including one nested under AND/OR/NOT, is not pushed. */
+  private def withinInLimit(predicate: Predicate, limit: Int): Boolean = {
+    val selfOk = predicate.name() != "IN" || {
+      val values = math.max(predicate.children().length - 1, 0)
+      values > 0 && values < limit
+    }
+    selfOk && predicate.children().forall {
+      case child: Predicate => withinInLimit(child, limit)
+      case _ => true
+    }
   }
 
   override def estimateStatistics(): Statistics = new Statistics {

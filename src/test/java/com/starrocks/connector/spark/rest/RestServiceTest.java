@@ -349,6 +349,14 @@ public class RestServiceTest {
         }
     }
 
+    @Test public void testQueryPlanRequestBodyEscapesFilterLiterals() {
+        String body = RestService.queryPlanRequestBody(
+                "select * from `tpcds`.`t` where `name` = 'a\"b\nc'");
+        Assertions.assertTrue(body.contains("\\\""));
+        Assertions.assertTrue(body.contains("\\n"));
+        Assertions.assertFalse(body.contains("\"a\"b"));
+    }
+
     @Test public void testQueryPlanRequestWithUnknownWarehouse() throws Exception {
         try (FakeFeServer fe = FakeFeServer.startWithTwoWarehouses()) {
             Settings settings = queryPlanSettings(fe);
