@@ -20,6 +20,7 @@
 package com.starrocks.connector.spark.rest;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -308,6 +309,21 @@ public class RestService implements Serializable {
                 logger);
     }
 
+    /**
+     * JSON body for {@code POST /_query_plan}. The SQL is a JSON string value, so quotes and
+     * control characters in a filter literal are escaped.
+     */
+    @VisibleForTesting
+    static String queryPlanRequestBody(String sql) {
+        Map<String, String> body = new HashMap<>();
+        body.put("sql", sql);
+        try {
+            return JSON_OBJECT_MAPPER.writeValueAsString(body);
+        } catch (JsonProcessingException e) {
+            throw new StarRocksException("Failed to encode the query plan request", e);
+        }
+    }
+
     private static QueryPlan getQueryPlan(Settings cfg, Logger logger) {
         String[] tableIdentifiers = parseIdentifier(cfg.getProperty(STARROCKS_TABLE_IDENTIFIER), logger);
         String sql = "select " + cfg.getProperty(STARROCKS_READ_FIELD, "*") +
@@ -324,7 +340,9 @@ public class RestService implements Serializable {
             httpPost.setHeader(WAREHOUSE_HEADER, warehouse);
             logger.info("Plan the read on StarRocks warehouse '{}'.", warehouse);
         }
-        String entity = "{\"sql\": \"" + sql + "\"}";
+        // A runtime IN literal can contain quotes or control characters. Build the body with the
+        // JSON serializer so those characters cannot break the request.
+        String entity = queryPlanRequestBody(sql);
         logger.debug("Post body Sending to StarRocks FE is: '{}'.", entity);
         StringEntity stringEntity = new StringEntity(entity, StandardCharsets.UTF_8);
         stringEntity.setContentType(ContentType.APPLICATION_JSON.toString());

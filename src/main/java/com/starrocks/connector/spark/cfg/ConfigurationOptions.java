@@ -46,6 +46,12 @@ public interface ConfigurationOptions {
     String STARROCKS_FILTER_QUERY_IN_MAX_COUNT = "starrocks.filter.query.in.max.count";
     int STARROCKS_FILTER_QUERY_IN_VALUE_UPPER_LIMIT = 10000;
 
+    // Optional table estimates reported through SupportsReportStatistics.estimateStatistics() so
+    // Spark's cost model can keep a dynamic-pruning subquery (and broadcast the small build side)
+    // under spark.sql.optimizer.dynamicPartitionPruning.reuseBroadcastOnly = true.
+    String STARROCKS_READ_STATS_ROW_COUNT = "starrocks.read.stats.rowCount";
+    String STARROCKS_READ_STATS_SIZE_IN_BYTES = "starrocks.read.stats.sizeInBytes";
+
     String STARROCKS_USER = "starrocks.user";
     String STARROCKS_REQUEST_AUTH_USER = "starrocks.request.auth.user";
     // use password to save starrocks.request.auth.password
